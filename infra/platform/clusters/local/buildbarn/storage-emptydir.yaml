@@ -1,0 +1,19 @@
+# `$patch: replace` applies to the whole volumes list. Replacing a single
+# element in place leaves both persistentVolumeClaim and emptyDir set on it,
+# which is invalid -- so the list is restated in full. It is two entries; the
+# day it is twenty, this is the wrong mechanism.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage
+  namespace: buildbarn
+spec:
+  template:
+    spec:
+      volumes:
+        - $patch: replace
+        - name: storage
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: buildbarn-config

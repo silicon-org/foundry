@@ -1,0 +1,80 @@
+# Holds the blobs. Only the frontends talk to it; it has no opinion about who
+# is allowed to do what, because that decision belongs at the edge where the
+# caller's trust level is known.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: storage
+  namespace: buildbarn
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 16Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storage
+  namespace: buildbarn
+spec:
+  selector:
+    app: storage
+  ports:
+    - name: grpc
+      port: 8981
+      targetPort: 8981
+    - name: metrics
+      port: 9980
+      targetPort: 9980
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage
+  namespace: buildbarn
+spec:
+  replicas: 1
+  # The volume is ReadWriteOnce, so the old pod has to be gone before the new
+  # one starts. Rolling would deadlock on the volume attachment.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: storage
+  template:
+    metadata:
+      labels:
+        app: storage
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      containers:
+        - name: storage
+          image: ghcr.io/buildbarn/bb-storage@sha256:ebd7d282c79879687792f615e8a0b2e3a6e2d13e6cb2686c8b99a14cf37f08a9
+          args: [/config/storage.jsonnet]
+          ports:
+            - containerPort: 8981
+            - containerPort: 9980
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: config, mountPath: /config}
+            - {name: storage, mountPath: /storage-cas, subPath: cas}
+            - {name: storage, mountPath: /storage-ac, subPath: ac}
+      volumes:
+        - name: config
+          configMap:
+            name: buildbarn-config
+        - name: storage
+          persistentVolumeClaim:
+            claimName: storage

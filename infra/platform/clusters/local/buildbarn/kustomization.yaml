@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# This cluster has no StorageClass, and deliberately so: `bazel run
+# //infra/talos:down` destroys it. Persisting a build cache onto a node that is
+# about to be deleted buys nothing, so the volume becomes an emptyDir and the
+# claim is dropped. Cloud clusters use the base unchanged.
+resources:
+  - ../../../buildbarn
+patches:
+  - path: storage-emptydir.yaml
+  - target:
+      kind: PersistentVolumeClaim
+      name: storage
+    patch: |
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: storage

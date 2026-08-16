@@ -5,3 +5,4 @@ kind: Kustomization
 resources:
   - flux-system
   - cilium.yaml
+  - buildbarn.yaml

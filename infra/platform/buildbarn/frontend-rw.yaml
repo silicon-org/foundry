@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-rw
+  namespace: buildbarn
+spec:
+  selector:
+    app: frontend-rw
+  ports:
+    - name: grpc
+      port: 8980
+      targetPort: 8980
+    - name: metrics
+      port: 9980
+      targetPort: 9980
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-rw
+  namespace: buildbarn
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend-rw
+  template:
+    metadata:
+      labels:
+        app: frontend-rw
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+      containers:
+        - name: frontend
+          image: ghcr.io/buildbarn/bb-storage@sha256:ebd7d282c79879687792f615e8a0b2e3a6e2d13e6cb2686c8b99a14cf37f08a9
+          args: [/config/frontend-rw.jsonnet]
+          ports:
+            - containerPort: 8980
+            - containerPort: 9980
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          volumeMounts:
+            - {name: config, mountPath: /config}
+      volumes:
+        - name: config
+          configMap:
+            name: buildbarn-config

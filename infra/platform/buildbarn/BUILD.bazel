@@ -1,0 +1,19 @@
+# A handful of actions whose only purpose is to exercise the remote cache end
+# to end. Not a build -- a probe. Deliberately owned by the cache component
+# rather than parked in a scratch package, because when it fails the thing that
+# is broken is here.
+#
+#   bazel build --remote_cache=grpc://localhost:8980 //infra/platform/buildbarn:cache_probe
+[
+    genrule(
+        name = "probe_%d" % i,
+        outs = ["probe_%d.txt" % i],
+        cmd = "i=0; while [ $$i -lt %d ]; do echo \"probe %d line $$i\"; i=$$((i+1)); done > $@" % (2000, i),
+    )
+    for i in range(8)
+]
+
+filegroup(
+    name = "cache_probe",
+    srcs = [":probe_%d" % i for i in range(8)],
+)

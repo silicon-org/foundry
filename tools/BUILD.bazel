@@ -2,7 +2,10 @@ load("@bazel_env.bzl", "bazel_env")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load(":tools.bzl", "TOOLS", "tool_label")
 
-exports_files(["multitool.lock.json"])
+exports_files([
+    "multitool.lock.json",
+    "workspace_command.sh",
+])
 
 # `bazel run //tools:bazel_env` + `direnv allow` puts every pinned tool on PATH,
 # so interactive kubectl/talosctl/tofu match exactly what the build uses.

@@ -1,15 +1,15 @@
-load(":tofu.bzl", "tofu_command")
-
-exports_files(["tofu_wrapper.sh"])
+load("//tools:workspace_command.bzl", "workspace_command")
 
 # bazel run //infra/tofu:fmt -- -check
 # bazel run //infra/tofu:init
 # bazel run //infra/tofu:plan
 # bazel run //infra/tofu:apply
 [
-    tofu_command(
+    workspace_command(
         name = subcommand,
-        module = "infra/tofu",
+        args = [subcommand],
+        tool = "@multitool//tools/tofu",
+        workdir = "infra/tofu",
     )
     for subcommand in [
         "apply",

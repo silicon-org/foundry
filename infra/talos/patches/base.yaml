@@ -1,0 +1,18 @@
+# Machine configuration shared by every environment.
+#
+# Applied locally via `talosctl cluster create --config-patch`, and by talhelper
+# for cloud and dedicated machines. Sharing the patch rather than a generator is
+# what makes environments overlays instead of forks: the settings below are
+# identical everywhere by construction rather than by discipline.
+#
+# Not set here, because Talos already does it: etcd encryption at rest.
+# `talosctl gen config` emits a `cluster.secretboxEncryptionSecret` by default,
+# so secrets are encrypted without us asking. It is verified rather than
+# assumed -- see README.md.
+cluster:
+  network:
+    # Talos installs no CNI. Cilium is the only CNI this cluster ever has, so
+    # nothing is being replaced and there is no window in which some other
+    # dataplane is carrying traffic.
+    cni:
+      name: none

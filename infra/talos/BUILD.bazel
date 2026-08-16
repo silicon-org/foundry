@@ -1,0 +1,59 @@
+load("//tools:workspace_command.bzl", "workspace_command")
+
+# The local cluster runs Talos in Docker. Talos' Docker provisioner generates
+# machine configs itself, so talhelper -- which generates but does not
+# provision -- has nothing to do here. The patches are the shared part, and
+# talhelper consumes the same files for cloud machines.
+CLUSTER = "foundry"
+
+# Matches what this Talos release is tested against. The pinned kubectl (1.36.3)
+# is one patch ahead, which is well inside the supported skew.
+KUBERNETES_VERSION = "1.36.2"
+
+# bazel run //infra/talos:up
+workspace_command(
+    name = "up",
+    args = [
+        "cluster",
+        "create",
+        "docker",
+        "--name",
+        CLUSTER,
+        "--kubernetes-version",
+        KUBERNETES_VERSION,
+        "--workers",
+        "1",
+        "--config-patch",
+        "@patches/base.yaml",
+        "--config-patch",
+        "@patches/local.yaml",
+    ],
+    tool = "@multitool//tools/talosctl",
+    workdir = "infra/talos",
+)
+
+# bazel run //infra/talos:down
+workspace_command(
+    name = "down",
+    args = [
+        "cluster",
+        "destroy",
+        "--name",
+        CLUSTER,
+    ],
+    tool = "@multitool//tools/talosctl",
+    workdir = "infra/talos",
+)
+
+# bazel run //infra/talos:kubeconfig -- --force
+# Merges the cluster's credentials into ~/.kube/config.
+workspace_command(
+    name = "kubeconfig",
+    args = [
+        "kubeconfig",
+        "--nodes",
+        "10.5.0.2",
+    ],
+    tool = "@multitool//tools/talosctl",
+    workdir = "infra/talos",
+)

@@ -1,0 +1,13 @@
+# Overrides for the local Docker environment, layered over base.yaml.
+#
+# Docker Desktop's bridge network is not routable from the host, so anything
+# that depends on real node networking is meaningless here and stays as Talos
+# ships it. That is the whole difference between this environment and a cloud
+# one -- which is the point of keeping it to a handful of lines.
+cluster:
+  proxy:
+    # kube-proxy stays. Cilium's kube-proxy replacement needs node networking
+    # that behaves, which this environment cannot provide; leaving it on here
+    # keeps local failures attributable to our configuration rather than to
+    # Docker Desktop. Cloud environments disable it and let Cilium take over.
+    disabled: false

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Runs the Bazel-pinned tofu against a module in the source tree.
+# Runs a Bazel-pinned CLI against a directory in the source tree.
 #
-# Usage (from //infra/tofu:tofu.bzl): tofu_wrapper.sh <rlocationpath> <module> <args...>
-# Extra arguments passed after `--` on the bazel run command line are appended.
+# Usage (from //tools:workspace_command.bzl):
+#   workspace_command.sh <rlocationpath> <workdir> <args...>
+#
+# Arguments passed after `--` on the `bazel run` command line are appended.
 
 # --- begin runfiles.bash initialization v3 ---
 set -uo pipefail
@@ -22,14 +24,14 @@ set -e
 
 set -euo pipefail
 
-tofu="$(rlocation "$1")"
-module="$2"
+tool="$(rlocation "$1")"
+workdir="$2"
 shift 2
 
 if [[ -z "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
-  echo >&2 "ERROR: use 'bazel run', not 'bazel test' -- tofu needs the source tree."
+  echo >&2 "ERROR: use 'bazel run', not 'bazel build' -- this needs the source tree."
   exit 1
 fi
 
-cd "${BUILD_WORKSPACE_DIRECTORY}/${module}"
-exec "$tofu" "$@"
+cd "${BUILD_WORKSPACE_DIRECTORY}/${workdir}"
+exec "$tool" "$@"

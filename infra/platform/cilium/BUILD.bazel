@@ -1,0 +1,32 @@
+load("//tools:workspace_command.bzl", "workspace_command")
+
+# A cluster with no CNI cannot schedule Flux, so Cilium cannot arrive through
+# GitOps like everything else does -- something has to break the cycle. This
+# target is that something: a one-time `helm install` against a brand-new
+# cluster, using the same values.yaml the Flux HelmRelease uses.
+#
+# Run once per cluster. Flux owns the release from then on: same release name,
+# same namespace, same values, so its first reconcile is an ordinary upgrade
+# rather than a fight over ownership.
+#
+#   bazel run //infra/platform/cilium:bootstrap
+workspace_command(
+    name = "bootstrap",
+    args = [
+        "upgrade",
+        "--install",
+        "cilium",
+        "cilium",
+        "--repo",
+        "https://helm.cilium.io",
+        "--version",
+        "1.20.0",
+        "--namespace",
+        "kube-system",
+        "--values",
+        "values.yaml",
+        "--wait",
+    ],
+    tool = "@multitool//tools/helm",
+    workdir = "infra/platform/cilium",
+)

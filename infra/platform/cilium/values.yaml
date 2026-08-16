@@ -1,0 +1,51 @@
+# Cilium Helm values, shared by every cluster.
+#
+# Consumed twice, deliberately from this one file: by `//infra/platform/cilium:bootstrap`
+# for the one-time install that gives a new cluster a dataplane, and by the Flux
+# HelmRelease that owns it from then on. Two copies of these values would drift,
+# and the drift would show up as a cluster that behaves differently depending on
+# how it was built.
+
+ipam:
+  mode: kubernetes
+
+# Talos mounts and manages cgroups itself; Cilium must not try to do it too.
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+
+# Talos runs a locked-down kubelet, so Cilium's capabilities have to be stated
+# explicitly rather than inherited. This set is what Talos documents for Cilium.
+securityContext:
+  capabilities:
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - PERFMON
+      - BPF
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cleanCiliumState:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE
+
+# kube-proxy is left in place here and replaced only where node networking is
+# real enough for the replacement to mean anything. Cluster overlays turn this
+# on; see infra/platform/clusters/.
+kubeProxyReplacement: false
+
+# Flow visibility. The relay is what `cilium hubble` and the metrics stack talk
+# to; without it, a default-deny policy is enforced blind.
+hubble:
+  enabled: true
+  relay:
+    enabled: true

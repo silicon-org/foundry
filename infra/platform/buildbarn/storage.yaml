@@ -52,6 +52,23 @@ spec:
         runAsUser: 65532
         runAsGroup: 65532
         fsGroup: 65532
+      # bb-storage creates its own block-device files but not the directory it
+      # keeps persistent state in, and a fresh volume has neither. Without this
+      # the pod crash-loops on first start -- on a new PVC as much as on an
+      # emptyDir.
+      initContainers:
+        - name: mkdirs
+          image: busybox@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+          command:
+            - sh
+            - -c
+            - mkdir -p /work/cas/persistent_state /work/ac/persistent_state
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - {name: storage, mountPath: /work}
       containers:
         - name: storage
           image: ghcr.io/buildbarn/bb-storage@sha256:ebd7d282c79879687792f615e8a0b2e3a6e2d13e6cb2686c8b99a14cf37f08a9

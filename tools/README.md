@@ -34,6 +34,13 @@ To see everything that is pinned:
 bazel run //tools:versions
 ```
 
+To scan for committed secrets — this repository is public, so a secret committed
+here is a secret published:
+
+```
+bazel run //tools:secret-scan -- git --redact
+```
+
 ## How it fits together
 
 | File | Role |

@@ -37,6 +37,14 @@ Nothing else is installed. `kubectl`, `talosctl`, `tofu`, `helm` and `flux` all
 come from Bazel at a fixed version — what runs on your laptop is what runs in
 CI.
 
+## Contributing
+
+Pull requests from forks run on GitHub-hosted runners. They never run on this
+project's self-hosted runners, and they can read the build cache but never write
+it. That isn't distrust of you specifically — it's the only configuration in
+which self-hosted CI on a public repository is safe. See
+[`infra/platform/arc/`](infra/platform/arc/README.md) for the reasoning.
+
 ## Status
 
 Early. The toolchain is pinned and the repository is scaffolded; the cluster

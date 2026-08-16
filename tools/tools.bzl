@@ -15,6 +15,7 @@ TOOLS = {
     "age-keygen": ["--version"],
     "cilium": ["version", "--client"],
     "flux": ["--version"],
+    "gitleaks": ["version"],
     "helm": ["version", "--short"],
     "kubectl": ["version", "--client"],
     "multitool": [],

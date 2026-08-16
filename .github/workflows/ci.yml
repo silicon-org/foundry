@@ -1,0 +1,53 @@
+name: CI
+
+# This repository is public, so pull requests can come from forks -- that is,
+# from people we have no reason to trust. Two rules follow, and neither is
+# negotiable:
+#
+#   1. This workflow runs on GitHub-hosted runners only. Once the self-hosted
+#      cluster exists it takes over the `push` job on trusted branches; fork PRs
+#      stay here, on hardware GitHub owns and isolates.
+#   2. Nothing here gets a secret. There is nothing worth stealing in this
+#      workflow, which is the property that makes it safe to run on a fork's
+#      code.
+#
+# See infra/platform/arc/README.md for the full threat model.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Third-party actions are pinned to a commit SHA, not a tag. Tags are
+      # mutable; a compromised action is a compromised build.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # gitleaks scans history, not just the tip
+
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
+        with:
+          bazelisk-cache: true
+          repository-cache: true
+
+      # --config=ci makes a stale MODULE.bazel.lock an error rather than
+      # something the build quietly rewrites.
+      - name: Pinned toolchain
+        run: bazel run --config=ci //tools:versions
+
+      - name: Build
+        run: bazel build --config=ci //...
+
+      # --redact: findings must never be echoed into a public build log.
+      - name: Secret scan
+        run: bazel run --config=ci //tools:secret-scan -- git --redact --no-banner

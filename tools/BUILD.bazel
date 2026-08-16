@@ -29,3 +29,10 @@ alias(
     name = "update",
     actual = "@multitool//tools/multitool:workspace_root",
 )
+
+# bazel run //tools:secret-scan -- git --redact
+# This repository is public; a secret committed here is a secret published.
+alias(
+    name = "secret-scan",
+    actual = "@multitool//tools/gitleaks:workspace_root",
+)

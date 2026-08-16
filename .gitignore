@@ -1,0 +1,33 @@
+# Bazel
+/bazel-*
+.bazelrc.user
+
+# direnv
+.direnv/
+
+# OpenTofu: state and anything it materialises locally. State is not committed;
+# a remote backend replaces it before more than one person runs apply.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform.lock.hcl.bak
+crash.log
+
+# Talos: talhelper renders machine configs and secrets. Only the *encrypted*
+# talsecret is ever committed; the plaintext and rendered configs are not.
+/infra/talos/clusterconfig/
+talsecret.yaml
+!talsecret.sops.yaml
+
+# Kubernetes / secrets
+kubeconfig
+talosconfig
+*.decrypted.yaml
+*.decrypted.yml
+key.txt
+
+# Local env
+.env
+.env.*
+.claude/settings.local.json

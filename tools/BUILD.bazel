@@ -1,0 +1,31 @@
+load("@bazel_env.bzl", "bazel_env")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load(":tools.bzl", "TOOLS", "tool_label")
+
+exports_files(["multitool.lock.json"])
+
+# `bazel run //tools:bazel_env` + `direnv allow` puts every pinned tool on PATH,
+# so interactive kubectl/talosctl/tofu match exactly what the build uses.
+bazel_env(
+    name = "bazel_env",
+    tools = {name: tool_label(name) for name in TOOLS},
+)
+
+# Proof that every tool runs through Bazel at a pinned version.
+sh_binary(
+    name = "versions",
+    srcs = ["versions.sh"],
+    args = [
+        "{}:{}:$(rlocationpath {})".format(name, ",".join(version_args), tool_label(name))
+        for name, version_args in TOOLS.items()
+    ],
+    data = [tool_label(name) for name in TOOLS],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
+)
+
+# Refreshes multitool.lock.json from upstream GitHub releases. Tools not hosted
+# on GitHub releases (kubectl, helm) are bumped by hand -- see README.md.
+alias(
+    name = "update",
+    actual = "@multitool//tools/multitool:workspace_root",
+)

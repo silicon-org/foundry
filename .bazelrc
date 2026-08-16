@@ -1,0 +1,26 @@
+# Fail loudly rather than silently falling back to a non-hermetic host tool.
+build --incompatible_strict_action_env
+
+# Locally, dependency edits update MODULE.bazel.lock; in CI a stale lockfile is
+# an error rather than something a build silently rewrites.
+common --lockfile_mode=update
+common:ci --lockfile_mode=error
+
+# Readable failures.
+common --color=yes
+build --verbose_failures
+test --test_output=errors
+
+# Remote execution / caching against our own Buildbarn, filled in once the
+# cluster exists. Untrusted builds must use the read-only frontend: they may
+# read the Action Cache but never write it. See infra/platform/buildbarn/.
+#
+# build:remote --remote_executor=grpcs://...
+# build:remote --remote_instance_name=silicon
+# build:remote --jobs=200
+#
+# build:remote-ro --config=remote
+# build:remote-ro --noremote_upload_local_results
+
+# Developer-local overrides; never committed.
+try-import %workspace%/.bazelrc.user

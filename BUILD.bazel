@@ -1,0 +1,2 @@
+# Root package. Build targets live in //tools, //infra and (later) the design
+# trees; nothing belongs here.

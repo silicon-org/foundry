@@ -1,0 +1,20 @@
+"""foundry: hardware designs plus the infrastructure that builds them."""
+
+module(
+    name = "foundry",
+    version = "0.0.0",
+)
+
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+# Pinned CLI toolchain. See //tools for the tool list and update workflow.
+bazel_dep(name = "rules_multitool", version = "1.11.1", dev_dependency = True)
+bazel_dep(name = "bazel_env.bzl", version = "0.8.0", dev_dependency = True)
+
+multitool = use_extension(
+    "@rules_multitool//multitool:extension.bzl",
+    "multitool",
+    dev_dependency = True,
+)
+multitool.hub(lockfile = "//tools:multitool.lock.json")
+use_repo(multitool, "multitool")

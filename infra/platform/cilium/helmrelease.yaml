@@ -1,0 +1,31 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cilium
+  namespace: kube-system
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: cilium
+      version: 1.20.0
+      sourceRef:
+        kind: HelmRepository
+        name: cilium
+        namespace: flux-system
+  # Values come from the ConfigMap generated out of values.yaml, so the release
+  # Flux manages and the one //infra/platform/cilium:bootstrap installs are
+  # rendered from the same source.
+  valuesFrom:
+    - kind: ConfigMap
+      name: cilium-values
+      valuesKey: values.yaml
+  install:
+    # The bootstrap install already created this release. Adopting it rather
+    # than colliding with it is what makes the handover from imperative to
+    # GitOps a non-event.
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3

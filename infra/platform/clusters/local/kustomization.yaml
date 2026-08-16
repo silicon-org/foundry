@@ -1,0 +1,7 @@
+# What this cluster runs. A second cluster is a sibling directory selecting a
+# different set of the same components, never a branch and never a fork.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - flux-system
+  - cilium.yaml

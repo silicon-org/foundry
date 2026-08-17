@@ -126,9 +126,41 @@ spec:
     # This list grows as real builds need more, and each addition should be
     # argued for. An allow-list that accumulates entries without scrutiny
     # becomes an allow-all with extra steps.
+    #
+    # Remote execution does not shrink this list, it grows it. Workers run
+    # actions; the runner still resolves the module graph and downloads every
+    # external repository itself, so each new dependency is a new name a runner
+    # must be able to resolve. See infra/platform/buildbarn/README.md.
+    #
+    # The Bazel Central Registry holds metadata, not archives -- each module's
+    # source.json points at wherever its author publishes -- so depending on a
+    # BCR module means depending on that host too. github.com covers most of
+    # the graph. These are the rest, and every one arrived with the hermetic
+    # C++ toolchain rather than being chosen directly:
+    #
+    #   gitlab.arm.com     ape, download_utils, rules_coreutils, toolchain_utils
+    #   mirror.bazel.build bison, m4
+    #   mirrors.kernel.org gawk
+    #
+    # Re-derive rather than trusting this comment, which is a snapshot:
+    #
+    #   bazel mod graph --output=json | jq -r '.. | objects | select(.key) | .key' \
+    #     | grep @ | sort -u | while IFS= read -r mv; do \
+    #         curl -s "https://bcr.bazel.build/modules/${mv%@*}/${mv##*@}/source.json" \
+    #           | jq -r '.url // empty'; done \
+    #     | sed 's|https://||; s|/.*||' | sort -u
+    #
+    # Note what is deliberately absent. files.pythonhosted.org appears in
+    # MODULE.bazel.lock, but those repositories are declared and never
+    # materialised, so allowing it would widen egress for a download that does
+    # not happen. The lockfile lists what could be fetched; the allow-list
+    # should only carry what is.
     - toFQDNs:
         - matchName: bcr.bazel.build
         - matchName: releases.bazel.build
+        - matchName: gitlab.arm.com
+        - matchName: mirror.bazel.build
+        - matchName: mirrors.kernel.org
       toPorts:
         - ports:
             - port: "443"

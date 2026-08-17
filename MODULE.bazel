@@ -8,26 +8,31 @@ module(
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "rules_cc", version = "0.2.16")
 
-# A C++ toolchain that targets Linux regardless of what the machine running
-# Bazel is. Without this, remote execution fails during analysis: Bazel's
-# autodetected toolchain only ever targets the host, so asking for a linux/arm64
-# execution platform finds no toolchain at all -- and Verilator, which is built
-# from source, is several thousand C++ actions that have to run somewhere.
+# A C++ toolchain that targets Linux regardless of what machine runs Bazel.
 #
-# Clang arrives as an external repository and is therefore an action input,
-# shipped to workers through the CAS. That is the half of the toolchain split
-# that should win wherever it can: the compiler version is in the build graph
-# rather than baked into a worker image nobody diffs.
-bazel_dep(name = "toolchains_llvm", version = "1.8.0")
+# Without one, remote execution fails during analysis rather than on a worker:
+# Bazel's autodetected toolchain only ever targets the host, so asking for a
+# linux/arm64 execution platform finds no toolchain at all. Verilator makes that
+# concrete, being several thousand C++ actions built from source.
+#
+# hermetic-llvm cross-compiles the target-specific pieces -- libc, libc++,
+# compiler-rt -- from source instead of requiring a sysroot per target. That
+# matters twice over: cross-compiling from a Mac needs no Linux rootfs, and the
+# toolchain is hermetic enough to ship to workers through the CAS. The compiler
+# version ends up in the build graph rather than baked into a worker image that
+# nobody diffs.
+bazel_dep(name = "llvm", version = "0.8.17")
 
-llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
-llvm.toolchain(
-    name = "llvm_toolchain",
-    llvm_version = "19.1.6",
-)
-use_repo(llvm, "llvm_toolchain")
+# Only the combinations we actually build: from a developer Mac or a Linux
+# runner, onto Linux workers.
+llvm_toolchain = use_extension("@llvm//extensions:toolchain.bzl", "toolchain")
+llvm_toolchain.exec(arch = "aarch64", os = "macos")
+llvm_toolchain.exec(arch = "aarch64", os = "linux")
+llvm_toolchain.target(arch = "aarch64", os = "linux")
+use_repo(llvm_toolchain, "llvm_toolchains")
 
-register_toolchains("@llvm_toolchain//:all")
+register_toolchains("@llvm_toolchains//:all")
+
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
 # Hardware. rules_verilator drives Verilator; rules_verilog provides the

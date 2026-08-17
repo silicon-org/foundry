@@ -18,7 +18,13 @@ test --test_output=errors
 # Remote execution against the in-cluster Buildbarn. The endpoint is a
 # port-forward locally and a service name in CI, so it is passed on the command
 # line rather than pinned here.
+# All three are needed, not just the first. --extra_execution_platforms alone
+# leaves the host platform ahead of ours in exec selection, so tool actions get
+# built for the host with no exec_properties -- which the scheduler reports as
+# "no workers exist for platform {}", a long way from the cause.
 build:remote --extra_execution_platforms=//platforms:linux_arm64
+build:remote --host_platform=//platforms:linux_arm64
+build:remote --platforms=//platforms:linux_arm64
 build:remote --jobs=50
 
 # Developer-local overrides; never committed.

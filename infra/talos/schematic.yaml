@@ -1,0 +1,35 @@
+# The Talos image this cluster's cloud nodes boot.
+#
+# Hetzner publishes a Talos ISO, but it carries only qemu-guest-agent, and two
+# of the three extensions below are load-bearing for decisions made elsewhere in
+# this repository. So we build our own.
+#
+# Uploading this to the Image Factory returns a schematic ID, which is a hash of
+# the content: the same file always yields the same ID, and any edit yields a
+# different one. That ID appears in two places -- the snapshot built by
+# `//infra/talos:image` and `machine.install.image` in the Hetzner patch -- and
+# they have to agree, because the first is what boots and the second is what
+# gets written to disk on install.
+#
+# Changing this file is therefore not a small edit. It means a new image, a new
+# snapshot, and reinstalling nodes. Extensions that might plausibly be needed are
+# cheaper to include now than to add later.
+customization:
+  systemExtensions:
+    officialExtensions:
+      # Hetzner's console and graceful shutdown talk to this. Present in
+      # Hetzner's own public Talos ISO for the same reason.
+      - siderolabs/qemu-guest-agent
+
+      # The access plane. As a system extension rather than a pod, because
+      # tailscale starts before Kubernetes: the Talos API on 50000 stays
+      # reachable over the tailnet when the cluster is broken, which is exactly
+      # when it is needed. An in-cluster subnet router cannot make that promise,
+      # since it is one of the things that would be down.
+      - siderolabs/tailscale
+
+      # blkid, mkfs and friends, which the Hetzner CSI driver shells out to when
+      # it attaches a volume. Talos has no shell and no package manager, so a
+      # missing binary here is not something that can be fixed on a running
+      # node -- it is a rebuild.
+      - siderolabs/util-linux-tools

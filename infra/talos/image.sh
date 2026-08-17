@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Builds -- or finds -- the Hetzner snapshot this cluster's nodes boot from.
+#
+# Usage (from //infra/talos:image):
+#   image.sh <hcloud-rlocationpath> <hcloud-upload-image-rlocationpath> <talos-version>
+#
+# Prints the snapshot ID on stdout and nothing else there, so it can be fed
+# straight into tofu:
+#
+#   bazel run //infra/talos:image
+#
+# Needs HCLOUD_TOKEN. Uploading works by booting a throwaway rescue server and
+# writing the image to its disk, so it takes a few minutes and it costs a few
+# cents -- which is why this reuses an existing snapshot rather than making a
+# new one on every run.
+
+# --- begin runfiles.bash initialization v3 ---
+set -uo pipefail
+set +e
+f=bazel_tools/tools/bash/runfiles/runfiles.bash
+source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null ||
+  source "$(grep -sm1 "^$f " "${RUNFILES_MANIFEST_FILE:-/dev/null}" | cut -f2- -d' ')" 2>/dev/null ||
+  source "$0.runfiles/$f" 2>/dev/null ||
+  source "$(grep -sm1 "^$f " "$0.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null ||
+  {
+    echo >&2 "ERROR: cannot find $f"
+    exit 1
+  }
+f=
+set -e
+# --- end runfiles.bash initialization v3 ---
+
+set -euo pipefail
+
+hcloud="$(rlocation "$1")"
+upload="$(rlocation "$2")"
+talos_version="$3"
+
+if [[ -z "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
+  echo >&2 "ERROR: use 'bazel run', not 'bazel build' -- this reads schematic.yaml from the source tree."
+  exit 1
+fi
+
+if [[ -z "${HCLOUD_TOKEN:-}" ]]; then
+  echo >&2 "ERROR: HCLOUD_TOKEN is not set. See infra/doc/bootstrap.md."
+  exit 1
+fi
+
+schematic="${BUILD_WORKSPACE_DIRECTORY}/infra/talos/schematic.yaml"
+
+# Ask the Image Factory to name our schematic rather than hardcoding the answer.
+# Factory content-addresses schematics, so this round trip is what guarantees
+# the ID cannot drift from the committed file -- and the same ID has to appear
+# in machine.install.image, where a stale copy would install a different image
+# than the one that booted.
+echo >&2 "Resolving schematic ID from ${schematic#"$BUILD_WORKSPACE_DIRECTORY"/} ..."
+response="$(curl -sS --fail -X POST --data-binary "@${schematic}" https://factory.talos.dev/schematics)"
+schematic_id="$(sed -n 's/.*"id":"\([0-9a-f]*\)".*/\1/p' <<<"$response")"
+
+if [[ ! "$schematic_id" =~ ^[0-9a-f]{64}$ ]]; then
+  echo >&2 "ERROR: factory did not return a schematic ID. Response: $response"
+  exit 1
+fi
+echo >&2 "Schematic: $schematic_id"
+
+# Hetzner caps label values at 63 characters and a schematic ID is 64, so the
+# label carries a prefix. Thirty-two hex characters is not a collision anyone
+# will meet; the full ID is in the description.
+label_id="${schematic_id:0:32}"
+selector="talos.schematic==${label_id},talos.version==${talos_version}"
+
+existing="$("$hcloud" image list --type snapshot --selector "$selector" -o noheader -o columns=id || true)"
+existing="$(tr -d '[:space:]' <<<"$existing")"
+
+if [[ -n "$existing" ]]; then
+  echo >&2 "Reusing existing snapshot for this schematic and version."
+  echo "$existing"
+  exit 0
+fi
+
+echo >&2 "No snapshot for this schematic yet; building one (several minutes) ..."
+"$upload" upload \
+  --image-url "https://factory.talos.dev/image/${schematic_id}/${talos_version}/hcloud-arm64.raw.xz" \
+  --architecture arm \
+  --compression xz \
+  --description "talos ${talos_version} ${schematic_id}" \
+  --labels "talos.schematic=${label_id},talos.version=${talos_version}" >&2
+
+# The uploader does not print the ID in a form worth parsing, so ask again by
+# the labels we just set. This also proves the labels landed, which is what
+# every later run depends on to avoid rebuilding.
+"$hcloud" image list --type snapshot --selector "$selector" -o noheader -o columns=id

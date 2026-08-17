@@ -1,3 +1,4 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//tools:workspace_command.bzl", "workspace_command")
 
 # The local cluster runs Talos in Docker. Talos' Docker provisioner generates
@@ -9,6 +10,12 @@ CLUSTER = "foundry"
 # Matches what this Talos release is tested against. The pinned kubectl (1.36.3)
 # is one patch ahead, which is well inside the supported skew.
 KUBERNETES_VERSION = "1.36.2"
+
+# Must equal the pinned talosctl in //tools -- `bazel run //tools:versions`
+# prints both. The local provisioner takes the version from the talosctl binary
+# itself, so this only names it for the cloud image, where the version is part
+# of a URL rather than implied by a tool.
+TALOS_VERSION = "v1.13.8"
 
 # bazel run //infra/talos:up
 workspace_command(
@@ -74,6 +81,26 @@ workspace_command(
     ],
     tool = "@multitool//tools/talosctl",
     workdir = "infra/talos",
+)
+
+# bazel run //infra/talos:image
+#
+# Prints the Hetzner snapshot ID for the image described by schematic.yaml,
+# building it first if it does not exist yet. Feed it to tofu as
+# -var="talos_snapshot_id=...".
+sh_binary(
+    name = "image",
+    srcs = ["image.sh"],
+    args = [
+        "$(rlocationpath @multitool//tools/hcloud)",
+        "$(rlocationpath @multitool//tools/hcloud-upload-image)",
+        TALOS_VERSION,
+    ],
+    data = [
+        "@multitool//tools/hcloud",
+        "@multitool//tools/hcloud-upload-image",
+    ],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
 )
 
 # bazel run //infra/talos:kubeconfig -- --force

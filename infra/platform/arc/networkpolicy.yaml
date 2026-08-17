@@ -155,12 +155,30 @@ spec:
     # materialised, so allowing it would widen egress for a download that does
     # not happen. The lockfile lists what could be fetched; the allow-list
     # should only carry what is.
+    # The last name is not a typo and not a mirror we chose. A GitLab release
+    # download is a pair of redirects -- to the project's package API, then to
+    # the object store that holds the bytes -- so allowing gitlab.arm.com buys
+    # the redirect and nothing else, and the fetch still times out on the S3
+    # host. All four Arm modules land in this one bucket.
+    #
+    # This is the same shape as productionresultssa*.blob.core.windows.net
+    # above: the name a download is configured with is often not the name the
+    # bytes arrive from. So an allow-list entry is only proven by following the
+    # whole chain, which is what --location does:
+    #
+    #   curl -sS -o /dev/null -w '%{url_effective}\n' -L <url>
+    #
+    # Named exactly rather than as a wildcard over amazonaws.com. A pattern
+    # broad enough to cover every S3 bucket is barely an allow-list at all, and
+    # if Arm moves the bucket the failure should be a loud timeout that gets
+    # re-derived, not a silent success against somewhere new.
     - toFQDNs:
         - matchName: bcr.bazel.build
         - matchName: releases.bazel.build
         - matchName: gitlab.arm.com
         - matchName: mirror.bazel.build
         - matchName: mirrors.kernel.org
+        - matchName: gitlabcommunity-eu1-eu-west-1-prod-packages.s3.eu-west-1.amazonaws.com
       toPorts:
         - ports:
             - port: "443"

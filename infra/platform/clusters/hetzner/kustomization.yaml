@@ -1,0 +1,11 @@
+# What this cluster runs. A sibling of clusters/local selecting the same
+# components plus the ones only a real cloud needs -- never a branch, never a
+# fork of the components themselves.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - flux-system
+  - cilium.yaml
+  - hcloud.yaml
+  - buildbarn.yaml
+  - arc.yaml

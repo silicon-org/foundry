@@ -1,0 +1,19 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: buildbarn
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/platform/clusters/hetzner/buildbarn
+  prune: true
+  wait: true
+  timeout: 10m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  # Storage here is a real PersistentVolumeClaim, which nothing can satisfy
+  # until the CSI driver has provided a StorageClass. On the local cluster this
+  # dependency does not exist, because there the volume is an emptyDir.
+  dependsOn:
+    - name: hcloud

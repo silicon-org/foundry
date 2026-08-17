@@ -1,0 +1,21 @@
+# What differs from the shared values, and only that.
+#
+# This is the line the base values.yaml was split for. Cilium's kube-proxy
+# replacement needs node networking that behaves, which Docker Desktop cannot
+# provide and Hetzner can -- so the local cluster leaves kube-proxy in place and
+# this one does not have a kube-proxy at all. Talos never starts one here
+# (cluster.proxy.disabled in patches/hetzner.yaml), so Cilium is not replacing
+# anything and there is no window with two dataplanes carrying service traffic.
+kubeProxyReplacement: true
+
+# With no kube-proxy, Cilium cannot reach the API server through a Service --
+# the thing that would implement that Service is what is missing. So it needs a
+# direct address, and Talos provides KubePrism: a loopback endpoint on every
+# node that proxies to whichever control plane is healthy.
+#
+# Using it rather than the load balancer address is deliberate. It keeps Cilium
+# working during the window before the load balancer has targets, and it removes
+# a dependency on a Hetzner appliance from the path that makes the cluster's own
+# networking function.
+k8sServiceHost: localhost
+k8sServicePort: 7445

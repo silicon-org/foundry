@@ -1,0 +1,26 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: arc
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/platform/arc
+  prune: true
+  wait: true
+  timeout: 10m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  # Runners need a schedulable node, which means the CCM must have cleared the
+  # uninitialized taint first. On the local cluster there is no cloud provider
+  # and this reads simply "cilium".
+  dependsOn:
+    - name: hcloud
+  # The GitHub App credentials are committed encrypted. This is what lets Flux
+  # read them; the key itself is the one secret created outside git, because it
+  # is the key that would be needed to decrypt itself.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age

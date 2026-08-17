@@ -1,0 +1,23 @@
+apiVersion: v1
+data:
+    network: ENC[AES256_GCM,data:cpXl365/m/AH2z4N,iv:mOXg1uTz3JHXn7hCHxRMHLvFvp4PxQ49DPJWeudohZA=,tag:LZ1DmyuzdvfblMfK5PD3pw==,type:str]
+    token: ENC[AES256_GCM,data:1Mtj4rZxQPnrVnyNYZ2LYZMsTIew/xola36rlAtdElTolPZ85zQLMw3std9vi7MRbGAPFpDIPifqu78z0StXLb9zttOEhGZIdu6Sip/oENKVuxihpB3ehA==,iv:Eig3uVdri1x8gURydbUi+pJ1K2iyFokJ0Q4KIILl9V4=,tag:j9iOWyf1MpTBQO6/1fkvew==,type:str]
+kind: Secret
+metadata:
+    name: hcloud
+    namespace: kube-system
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBXeGp6VjY4MmVXT3RJeW1O
+            QllBUi9iS0pYSzE2emR5VWdXUjdVQmo2RFhvClYvZ1lCNm91akhQM3Azb3BFMEtB
+            TmFhRzBIK29XNVJwNWFLdlNoakpZMXcKLS0tIC94SEptSWtOVTVIY3RHZ0FSNFRn
+            ZXNQWFRlbWppVFAwWDcxY1lhQW1odzAKH6ORYtGGf+6WTak5XeBGEcINMMpXi3AV
+            h5VMPR92OxCvZ7l86jNpP/+Xa2ytXhIXgXTTmz0r/KGsG9y3TM8YGA==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1n8ujfcvu9c02jksjd8xfn8fcadqsjww5m42jcyknwekxj6h33e9s9x2cxj
+    encrypted_regex: ^(data|stringData)$
+    lastmodified: "2026-08-17T19:39:44Z"
+    mac: ENC[AES256_GCM,data:9Y7DnjHyvCGUrWTDZTdAqJBFnMhclT3wgLTuZP/IdvSeoMtt38m/otNDQm0a8NT1jMOSCvgiJDU+KWDncJbAGJQXUJ7+QbNakWUen750o16VBJOdy8pMnuNLDwVKGaeK5hq19+1NUaXiCh+50Kax/b3UpJ0E8mPW0H6ZE2g2XSM=,iv:rAlST0ZtaAjZOyzUx+r8dkkRnpcaCQF9RZ7tRYXaXc0=,tag:qiFLCTok5VGk2F73OGWO3A==,type:str]
+    version: 3.13.3

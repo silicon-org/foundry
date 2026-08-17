@@ -23,9 +23,16 @@ local common = import 'common.libsonnet';
     },
     runners: [{
       endpoint: { address: 'unix:///worker/runner' },
-      // One action at a time. This cluster is a laptop; concurrency here is a
-      // number to tune against real hardware, not to guess at.
-      concurrency: 1,
+      // How many actions this worker runs at once, from the environment for the
+      // same reason as ISA below: it is a property of the machine, not of
+      // Buildbarn. One on a laptop sharing a Docker VM with everything else;
+      // more on a node that has nothing else to do.
+      //
+      // Worth leaving headroom rather than matching the core count. The worker
+      // process also materialises inputs and uploads outputs, and a node
+      // saturated by its own build actions starves its kubelet -- which is
+      // precisely how the local cluster fell over.
+      concurrency: std.parseInt(std.extVar('RUNNER_CONCURRENCY')),
       // What this worker advertises. A client asking for exactly these
       // properties lands here; anything else waits for a worker that matches.
       // Must be lexicographically sorted by name. Buildbarn rejects the

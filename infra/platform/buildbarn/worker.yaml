@@ -54,6 +54,11 @@ spec:
             # it in ways that look like anything but a platform mismatch.
             - name: ISA
               value: arm64
+            # One at a time here, because this cluster is a Docker VM shared
+            # with a Kubernetes control plane, a CI runner and everything else.
+            # Cloud overlays raise it to suit the node they actually have.
+            - name: RUNNER_CONCURRENCY
+              value: "1"
           resources:
             requests: {cpu: 100m, memory: 256Mi}
             limits: {memory: 1Gi}

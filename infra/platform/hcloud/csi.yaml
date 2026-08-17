@@ -1,0 +1,39 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: hcloud-csi
+  namespace: kube-system
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: hcloud-csi
+      version: 2.22.1
+      sourceRef:
+        kind: HelmRepository
+        name: hcloud
+        namespace: flux-system
+  # The CCM has to have cleared the uninitialized taint before a CSI node plugin
+  # can be scheduled anywhere, so the ordering is enforced by the Kustomization
+  # rather than left to chance. See ../clusters/hetzner/hcloud.yaml.
+  dependsOn:
+    - name: hcloud-cloud-controller-manager
+      namespace: kube-system
+  values:
+    controller:
+      hcloudToken:
+        existingSecret:
+          name: hcloud
+          key: token
+
+    storageClasses:
+      - name: hcloud-volumes
+        defaultStorageClass: true
+        # Retain, not Delete. The cluster is torn down between work sessions and
+        # the Buildbarn cache is the thing worth keeping across them -- a cold
+        # cache costs about five minutes of rebuilding. Delete would discard it
+        # with the cluster and quietly undo the reason for having a volume.
+        #
+        # The cost is that volumes must be removed deliberately when the cluster
+        # is retired, because nothing else will.
+        reclaimPolicy: Retain

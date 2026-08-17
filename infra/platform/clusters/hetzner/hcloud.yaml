@@ -1,0 +1,25 @@
+# The cloud provider integration, and the first thing that must work: until the
+# CCM clears the uninitialized taint, nothing else on this cluster schedules at
+# all. It depends on Cilium only because a pod with no network cannot reach the
+# Hetzner API to do its job.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: hcloud
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/platform/hcloud
+  prune: true
+  wait: true
+  timeout: 10m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: cilium
+  # The API token is committed encrypted, like everything else.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age

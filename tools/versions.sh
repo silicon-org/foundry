@@ -33,13 +33,13 @@ for spec in "$@"; do
 
   binary="$(rlocation "$rlocation_path")"
   if [[ -z "$binary" || ! -x "$binary" ]]; then
-    printf '%-12s %s\n' "$name" "MISSING ($rlocation_path)"
+    printf '%-20s %s\n' "$name" "MISSING ($rlocation_path)"
     status=1
     continue
   fi
 
   if [[ -z "$version_args" ]]; then
-    printf '%-12s %s\n' "$name" "(no version flag; pinned in multitool.lock.json)"
+    printf '%-20s %s\n' "$name" "(no version flag; pinned in multitool.lock.json)"
     continue
   fi
 
@@ -50,20 +50,20 @@ for spec in "$@"; do
   # The one thing they agree on is printing a semver, so report the first line
   # that contains one.
   if ! output="$("$binary" "${args[@]}" 2>&1)"; then
-    printf '%-12s %s\n' "$name" "FAILED: ${output%%$'\n'*}"
+    printf '%-20s %s\n' "$name" "FAILED: ${output%%$'\n'*}"
     status=1
     continue
   fi
 
   if ! line="$(grep -m1 -E 'v?[0-9]+\.[0-9]+\.[0-9]+' <<<"$output")"; then
-    printf '%-12s %s\n' "$name" "NO VERSION IN OUTPUT: ${output%%$'\n'*}"
+    printf '%-20s %s\n' "$name" "NO VERSION IN OUTPUT: ${output%%$'\n'*}"
     status=1
     continue
   fi
 
   # Trim leading/trailing whitespace ("\tTag: v1.13.8").
   line="${line#"${line%%[![:space:]]*}"}"
-  printf '%-12s %s\n' "$name" "${line%"${line##*[![:space:]]}"}"
+  printf '%-20s %s\n' "$name" "${line%"${line##*[![:space:]]}"}"
 done
 
 exit "$status"

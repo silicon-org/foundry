@@ -180,6 +180,78 @@
       }
     ]
   },
+  "hcloud": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/hetznercloud/cli/releases/download/v1.67.0/hcloud-darwin-arm64.tar.gz",
+        "sha256": "086295a836f4ee3ff062d6435c4b93108833b35278249414c461857aa42ac21a",
+        "file": "hcloud",
+        "os": "macos",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/hetznercloud/cli/releases/download/v1.67.0/hcloud-darwin-amd64.tar.gz",
+        "sha256": "e3b90eeff9505640359e1a13de65314d31700d599b56cd18bfefd5571c32d949",
+        "file": "hcloud",
+        "os": "macos",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/hetznercloud/cli/releases/download/v1.67.0/hcloud-linux-arm64.tar.gz",
+        "sha256": "343a0c86cbdae5d370f1a199ecdfc67c2026d153114ef0992529b692cb9937e8",
+        "file": "hcloud",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/hetznercloud/cli/releases/download/v1.67.0/hcloud-linux-amd64.tar.gz",
+        "sha256": "7164483e05a1abef492768db429a28c21d579dc70e807558cb140debc2971477",
+        "file": "hcloud",
+        "os": "linux",
+        "cpu": "x86_64"
+      }
+    ]
+  },
+  "hcloud-upload-image": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/apricote/hcloud-upload-image/releases/download/v1.5.0/hcloud-upload-image_Darwin_arm64.tar.gz",
+        "sha256": "fca6aeed3a25ca3a8f2e386e29b60fbc931fa13e62d6b962722a97fd8ac5d9a7",
+        "file": "hcloud-upload-image",
+        "os": "macos",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/apricote/hcloud-upload-image/releases/download/v1.5.0/hcloud-upload-image_Darwin_x86_64.tar.gz",
+        "sha256": "167ce86b58940efeab1ec19ff46ee5beb3dedec5ef1996d2ee36ee9327e0d085",
+        "file": "hcloud-upload-image",
+        "os": "macos",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/apricote/hcloud-upload-image/releases/download/v1.5.0/hcloud-upload-image_Linux_arm64.tar.gz",
+        "sha256": "cf6736a34b7c28d4f84982be7a07c9422caad3a419606cd38f18f47405ae598b",
+        "file": "hcloud-upload-image",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/apricote/hcloud-upload-image/releases/download/v1.5.0/hcloud-upload-image_Linux_x86_64.tar.gz",
+        "sha256": "1b8b74e919a8192b23bdbd61fa145bbe49bd76f8595ec52d46f9f9b37a048596",
+        "file": "hcloud-upload-image",
+        "os": "linux",
+        "cpu": "x86_64"
+      }
+    ]
+  },
   "helm": {
     "binaries": [
       {

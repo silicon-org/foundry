@@ -16,6 +16,11 @@ TOOLS = {
     "cilium": ["version", "--client"],
     "flux": ["--version"],
     "gitleaks": ["version"],
+    "hcloud": ["version"],
+    # Writes a raw disk image into a Hetzner snapshot; how Talos gets onto a
+    # cloud server at all, since Hetzner has no stock Talos image with the
+    # extensions we need. See //infra/talos.
+    "hcloud-upload-image": ["--version"],
     "helm": ["version", "--short"],
     "kubectl": ["version", "--client"],
     "multitool": [],

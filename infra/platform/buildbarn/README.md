@@ -84,15 +84,43 @@ The local cluster overlay replaces the volume with an `emptyDir` and drops the
 claim: that cluster has no StorageClass by design, because `bazel run
 //infra/talos:down` deletes it.
 
-## Not here yet
+## Remote execution
 
-Remote **execution** — scheduler, workers, runner images, action platforms. Only
-caching is running. Execution decisions are about worker sizing and action
-environments, which is precisely what a Docker-on-a-Mac cluster cannot tell you
-anything useful about.
+Five components. `storage` holds blobs, two frontends guard access, `scheduler`
+matches actions to workers, and `worker` runs them.
 
-Workers will be arm64, matching the cluster. That constrains the toolchain:
-anything that must run under remote execution has to build and run on arm64.
+The worker pod has two containers that must share a filesystem and a lifecycle:
+`worker` materialises an action's inputs onto a volume and hands the command to
+`runner` over a unix socket on that same volume. An init container copies the
+`bb_runner` binary in, so the action environment image needs to know nothing
+about Buildbarn.
+
+**The runner container's image is the action environment.** Whatever an action
+can execute is what is baked into it. That makes it the place where the toolchain
+decision below gets implemented.
+
+To use it:
+
+```
+kubectl -n buildbarn port-forward svc/frontend-rw 8980:8980 &
+bazel build --config=remote --remote_executor=grpc://localhost:8980 //...
+```
+
+`--config=remote` adds `--extra_execution_platforms=//platforms:linux_arm64`,
+whose `exec_properties` must match what the worker advertises in
+`config/worker.jsonnet` **exactly**. Two things about that matching are worth
+knowing, because both fail far from their cause:
+
+- Properties must be **lexicographically sorted by name**. Buildbarn rejects a
+  worker registration that is not, and the symptom appears at the other end of
+  the system as "no workers exist for platform".
+- A mismatch does not fall back to local execution. It queues until
+  `platformQueueWithNoWorkersTimeout` expires, which is why that timeout is set
+  rather than left infinite.
+
+Confirm work really is leaving the machine by reading the worker log: each
+action produces an `ExecuteResponse` naming the pod and node that ran it,
+alongside CPU time and peak RSS.
 
 ## What remote execution will and will not move
 

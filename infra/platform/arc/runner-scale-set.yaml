@@ -43,7 +43,14 @@ spec:
             type: RuntimeDefault
         containers:
           - name: runner
-            image: ghcr.io/actions/actions-runner:2.334.0
+            # This pin has a shelf life, unlike every other version in this
+            # repository. GitHub deprecates old runner versions server-side and
+            # then refuses them at the broker, so an unmaintained pin does not
+            # keep working -- it breaks, and it breaks badly: the runner exits
+            # immediately, the scale set wedges, and jobs queue forever instead
+            # of failing. Bump this when GitHub releases a new runner.
+            # See actions/actions-runner-controller#4601.
+            image: ghcr.io/actions/actions-runner:2.336.0
             command: ["/home/runner/run.sh"]
             securityContext:
               allowPrivilegeEscalation: false

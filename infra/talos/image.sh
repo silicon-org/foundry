@@ -35,6 +35,8 @@ set -euo pipefail
 hcloud="$(rlocation "$1")"
 upload="$(rlocation "$2")"
 talos_version="$3"
+location="$4"
+server_type="$5"
 
 if [[ -z "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
   echo >&2 "ERROR: use 'bazel run', not 'bazel build' -- this reads schematic.yaml from the source tree."
@@ -94,11 +96,22 @@ if [[ -n "$existing" ]]; then
   exit 0
 fi
 
-echo >&2 "No snapshot for this schematic yet; building one (several minutes) ..."
+echo >&2 "No snapshot for this schematic yet; building one on ${server_type} in ${location} (several minutes) ..."
+
+# Location and server type are both stated rather than defaulted. The uploader
+# would otherwise pick fsn1 and cax11, invisibly, and report the consequence as
+# "unsupported location for server type" -- an error naming neither the type it
+# chose nor the reason, since Hetzner says "unsupported" when a type is merely
+# out of stock in that datacenter.
+#
+# --server-type replaces --architecture, which the two are mutually exclusive
+# over. The architecture is implied by the type, and cax11 is exactly the
+# instance most likely to be exhausted.
 "$upload" upload \
   --image-url "https://factory.talos.dev/image/${schematic_id}/${talos_version}/hcloud-arm64.raw.xz" \
-  --architecture arm \
+  --server-type "$server_type" \
   --compression xz \
+  --location "$location" \
   --description "talos ${talos_version} ${schematic_id}" \
   --labels "talos.schematic=${label_id},talos.version=${talos_version}" >&2
 

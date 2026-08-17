@@ -17,6 +17,20 @@ KUBERNETES_VERSION = "1.36.2"
 # of a URL rather than implied by a tool.
 TALOS_VERSION = "v1.13.8"
 
+# Where the image is built, and on what. The snapshot is project-wide, so these
+# govern only the throwaway server that writes it.
+#
+# Both are passed explicitly because the uploader's defaults -- fsn1 and cax11 --
+# are invisible until they fail, and they fail as "unsupported location for
+# server type", which names neither the type nor the reason. Hetzner reports a
+# type as unsupported in a datacenter when it is merely out of stock there, so
+# the smallest arm instance is a poor thing to depend on: it is the one most
+# likely to be exhausted. cax21 is what the control planes use anyway, so if it
+# cannot be had here, the cluster could not be built either.
+LOCATION = "fsn1"
+
+SERVER_TYPE = "cax21"
+
 # bazel run //infra/talos:up
 workspace_command(
     name = "up",
@@ -95,6 +109,8 @@ sh_binary(
         "$(rlocationpath @multitool//tools/hcloud)",
         "$(rlocationpath @multitool//tools/hcloud-upload-image)",
         TALOS_VERSION,
+        LOCATION,
+        SERVER_TYPE,
     ],
     data = [
         "@multitool//tools/hcloud",

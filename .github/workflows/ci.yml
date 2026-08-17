@@ -17,6 +17,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # So the self-hosted path can be exercised on demand, without inventing a
+  # commit. Useful when what changed is the cluster rather than the code.
+  workflow_dispatch:
 
 permissions:
   contents: read

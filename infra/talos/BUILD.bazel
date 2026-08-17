@@ -23,6 +23,37 @@ workspace_command(
         KUBERNETES_VERSION,
         "--workers",
         "1",
+        # Sized deliberately, because the defaults are 2 CPUs and 2GiB per node
+        # and nothing in Kubernetes will tell you that.
+        #
+        # A Talos node here is a container with a cgroup limit, but Talos reads
+        # the host's /proc/meminfo, so the kubelet advertises the whole Docker
+        # VM's memory as node capacity. Scheduling decisions are therefore made
+        # against a number an order of magnitude larger than the node can
+        # actually use, and the usual protections never engage: nothing is
+        # evicted and MemoryPressure stays False, because by the kubelet's
+        # arithmetic there is plenty free.
+        #
+        # What that looks like when it bites is not an OOM kill. It is every
+        # workload on the node degrading at once -- the Cilium agent failing its
+        # liveness probe, CoreDNS refusing connections on :53, Flux controllers
+        # killed -- and a build failing far away with "Unknown host" on a domain
+        # that is definitely allow-listed. Then it recovers cleanly the moment
+        # the load stops, which makes it read like a network fault rather than
+        # exhaustion.
+        #
+        # The worker gets the larger share: it runs the CI runner and the
+        # Buildbarn worker, and the runner alone is capped at 3GiB, which
+        # exceeded a whole default-sized node. Sized to leave the Mac room
+        # rather than to fill it -- 14 GiB of the VM's 23.4, 10 CPUs of 14.
+        "--memory-controlplanes",
+        "4gb",
+        "--cpus-controlplanes",
+        "2.0",
+        "--memory-workers",
+        "10gb",
+        "--cpus-workers",
+        "8.0",
         "--config-patch",
         "@patches/base.yaml",
         "--config-patch",

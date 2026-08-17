@@ -21,6 +21,13 @@ on:
 permissions:
   contents: read
 
+env:
+  # GitHub-hosted images ship bazelisk; our runner image deliberately ships
+  # almost nothing. Naming the version here means both jobs bootstrap Bazel the
+  # same way, instead of one of them depending on what GitHub happens to
+  # preinstall this month.
+  BAZELISK_VERSION: "1.29.0"
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -37,6 +44,7 @@ jobs:
 
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
         with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           repository-cache: true
 
@@ -65,6 +73,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          repository-cache: true
 
       # Trusted builds write the cache; everything else may only read it.
       # The read-only frontend refuses Action Cache writes outright, so this

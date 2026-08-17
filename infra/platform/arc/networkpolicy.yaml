@@ -72,10 +72,24 @@ spec:
     # Actions service actually assigns a runner -- and whose name changes.
     # Getting this wrong does not fail loudly: the runner retries the connection
     # until the job times out, and the job simply sits queued.
+    # These cover every entry in GitHub's own published list, which is worth
+    # re-deriving rather than trusting this comment:
+    #
+    #   gh api meta --jq '.domains.actions[]'
+    #
+    # The blob storage entry is not optional and is not about caching. A runner
+    # uploads step logs and job results to productionresultssa0-19, so without
+    # it a job runs to completion and then hangs in post, unable to report what
+    # happened. Dropping the Actions cache does not remove this dependency.
     - toFQDNs:
         - matchName: github.com
+        - matchName: ghcr.io
         - matchPattern: "**.github.com"
         - matchPattern: "**.githubusercontent.com"
+        - matchPattern: "**.githubapp.com"
+        # A single '*' is correct here: it matches characters within one label,
+        # which is exactly the shard number.
+        - matchPattern: "productionresultssa*.blob.core.windows.net"
       toPorts:
         - ports:
             - port: "443"

@@ -14,7 +14,7 @@
 resource "hcloud_load_balancer" "apiserver" {
   name               = "foundry-apiserver"
   load_balancer_type = "lb11"
-  location           = var.location
+  location           = local.location
 }
 
 resource "hcloud_load_balancer_network" "apiserver" {

@@ -27,10 +27,27 @@ variable "hcloud_token" {
   sensitive   = true
 }
 
-variable "location" {
-  description = "Hetzner location. CAX (arm64) exists only in the EU sites: fsn1, nbg1, hel1."
+# Hetzner scopes some resources to a datacenter (servers, primary IPs) and
+# others to the location containing it (load balancers). Only the datacenter is
+# configured, and the location is derived from it, so the two cannot be set to
+# disagree -- a mismatch otherwise surfaces at apply time as a load balancer
+# that cannot see its own targets.
+#
+# The datacenter is named outright rather than derived from a location, because
+# no rule connects them: fsn1 has dc14, nbg1 has dc3, hel1 has dc2.
+variable "datacenter" {
+  description = "Hetzner datacenter. Must sit in a region offering CAX (arm64): fsn1, nbg1, hel1."
   type        = string
-  default     = "fsn1"
+  default     = "fsn1-dc14"
+
+  validation {
+    condition     = can(regex("^(fsn1|nbg1|hel1)-dc[0-9]+$", var.datacenter))
+    error_message = "CAX servers exist only in fsn1, nbg1 and hel1; anywhere else there is no arm64 to run on."
+  }
+}
+
+locals {
+  location = split("-", var.datacenter)[0]
 }
 
 variable "talos_snapshot_id" {

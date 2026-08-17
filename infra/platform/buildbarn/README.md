@@ -169,3 +169,20 @@ The second option also drags in a networking requirement: commercial tools
 generally need to reach a license server, so workers cannot be given the same
 blanket egress denial as runners. That exception should be written as narrowly
 as the license server allows.
+
+The C++ toolchain follows the first rule, which is what makes the worker image
+uninteresting: it provides a kernel and an init process, not a compiler. Clang,
+libc and the C++ runtime are Bazel dependencies shipped to workers through the
+CAS, so upgrading a compiler is a lockfile change with a diff rather than a
+rebuilt image nobody inspects.
+
+That has one sharp edge worth knowing before it costs an afternoon. Projects
+that grew up on GCC link GCC's runtime libraries by reflex -- `-latomic` and
+`-lgcc_s` are the common two -- and an LLVM toolchain ships neither, so the link
+fails with "unable to find library" a long way from the dependency that asked
+for it. Usually the flag is autoconf-era defensiveness and nothing actually
+references the library, in which case an empty stub is both sufficient and
+self-policing: if a symbol really were needed, the link fails with an undefined
+reference instead of silently producing a wrong binary. See
+`//third_party/libatomic`, and `@llvm//runtimes/libunwind`, which does the same
+for `libgcc_s`.

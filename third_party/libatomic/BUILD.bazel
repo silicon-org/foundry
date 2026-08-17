@@ -1,0 +1,49 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# An empty libatomic, so that `-latomic` resolves under an LLVM toolchain.
+#
+# libatomic is a GCC runtime library. No LLVM toolchain ships one, so any
+# dependency that passes `-latomic` fails to link with "unable to find library".
+# Both Verilator's registry BUILD and rules_verilator's `verilated_runtime` do,
+# which is what makes this a toolchain-level concern rather than something to
+# patch per dependency.
+#
+# The flag is autoconf-era defensiveness. A compiler emits calls to __atomic_*
+# helpers only for atomics it cannot lower to instructions -- oversized, or
+# misaligned, or wider than the target's largest lock-free access. Verilator
+# uses bool, int, unsigned, uint32_t, uint64_t and size_t, all at most eight
+# bytes and all lock-free on aarch64 and x86_64; it asserts as much at runtime
+# via atomic_is_lock_free(). So the helpers are never referenced and the library
+# is never read. The link is simply short a file it did not need.
+#
+# This is safe in the way that matters: an empty archive cannot paper over a
+# real dependency. If some future code does emit a call to __atomic_*, there is
+# nothing here to satisfy it and the link fails with an undefined symbol. The
+# failure mode is loud, not a subtly wrong binary.
+#
+# Precedent, not invention: hermetic-llvm ships stub libraries for exactly this
+# situation -- see @llvm//runtimes/libunwind, which stubs libgcc_s because
+# "it is possible for dependencies that you do not control to pass -lgcc_s
+# linker flags." This is the same problem with a different library name.
+#
+# Written as raw archive bytes rather than compiled, because `!<arch>\n` is the
+# entire content of a valid archive with no members, and producing it directly
+# keeps the output name exactly `libatomic.a` -- which is what `-latomic` looks
+# for, and what a cc_library would not reliably be called across PIC modes.
+genrule(
+    name = "empty_archive",
+    outs = ["libatomic.a"],
+    cmd = "printf '!<arch>\\n' > $@",
+)
+
+# Linked into every binary through
+# --@bazel_tools//tools/cpp:link_extra_libs, set in .bazelrc. That flag is
+# Bazel's designated hook for "add this to every link", which is the right
+# scope: the missing library is a property of the toolchain, so any target
+# linking any dependency that wants it is affected.
+cc_library(
+    name = "atomic",
+    additional_linker_inputs = [":libatomic.a"],
+    linkopts = ["-L$(BINDIR)/third_party/libatomic"],
+    visibility = ["//visibility:public"],
+)

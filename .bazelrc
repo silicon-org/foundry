@@ -27,5 +27,10 @@ build:remote --host_platform=//platforms:linux_arm64
 build:remote --platforms=//platforms:linux_arm64
 build:remote --jobs=50
 
+# An LLVM toolchain has no libatomic, but Verilator and rules_verilator both
+# pass -latomic on Linux. This links an empty one into every binary so the flag
+# resolves. See //third_party/libatomic for why that is sound.
+build --@bazel_tools//tools/cpp:link_extra_libs=//third_party/libatomic:atomic
+
 # Developer-local overrides; never committed.
 try-import %workspace%/.bazelrc.user

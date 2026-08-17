@@ -5,11 +5,20 @@
 # direnv
 .direnv/
 
-# OpenTofu: state and anything it materialises locally. State is not committed;
-# a remote backend replaces it before more than one person runs apply.
+# OpenTofu. State *is* committed here, which is only defensible because it is
+# encrypted: see the encryption block in infra/tofu/versions.tf. The passphrase
+# never enters the repository, so what lands in git is AES-GCM ciphertext with
+# PBKDF2 key derivation -- the same posture as the SOPS-encrypted secrets
+# alongside it, and it buys durability and history for free.
+#
+# The lock file is committed too, on OpenTofu's own advice: it is what pins
+# provider versions.
+#
+# What stays out: downloaded providers, saved plans (also encrypted, but
+# ephemeral and large), and state backups, which are churn rather than history
+# once git is keeping the history.
 .terraform/
-*.tfstate
-*.tfstate.*
+*.tfstate.backup
 *.tfplan
 .terraform.lock.hcl.bak
 crash.log

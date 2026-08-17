@@ -1,7 +1,8 @@
 # OpenTofu
 
-Provisioning: Hetzner Cloud servers, private network, firewall. Later, Hetzner
-Robot for dedicated machines.
+Provisioning for the Hetzner cluster: private network, firewall, three arm64
+control planes, a build worker, and the load balancer that gives three control
+planes one address.
 
 ```
 bazel run //infra/tofu:init
@@ -10,8 +11,15 @@ bazel run //infra/tofu:apply
 bazel run //infra/tofu:fmt -- -check
 ```
 
-Empty for now by design — the wrappers exist so the pattern is proven before it
-has to be trusted with real resources.
+Two environment variables are required, and nothing runs without them:
+
+```
+export TF_VAR_hcloud_token=...       # Hetzner Cloud API token, read/write
+export TF_VAR_state_passphrase=...   # encrypts state; stored beside the age key
+```
+
+The snapshot to boot comes from `bazel run //infra/talos:image`; pass it as
+`-var="talos_snapshot_id=..."`.
 
 ## Why wrappers instead of just running `tofu`
 
@@ -24,12 +32,67 @@ Consequently the wrappers `cd` into `$BUILD_WORKSPACE_DIRECTORY/infra/tofu`
 before exec'ing tofu, so state and provider locks land in the source tree rather
 than in a sandbox that gets discarded. See `tofu.bzl`.
 
-## What lands here
+## State is committed, because it is encrypted
 
-- `hcloud` provider and CAX (arm64) servers — three control-plane nodes, so etcd
-  quorum is real rather than nominal.
-- A private network, and a firewall denying all inbound. Access is outbound-only
-  via Tailscale; in particular `6443` (Kubernetes API) and `50000` (Talos API)
-  must never be reachable from the public internet.
-- A remote state backend. Local state is tolerable for a single operator and
-  stops being tolerable the moment it isn't one.
+State maps declared resources to real ones. Lose it and tofu cannot tell "create
+this server" from "this server already exists", and recovery is `tofu import`
+for every resource by hand. It also holds provider credentials in clear text by
+default — which, combined with the wrapper keeping it in the source tree of a
+*public* repository, is a real hazard rather than a theoretical one.
+
+So `versions.tf` encrypts it: AES-GCM, with the key derived from a passphrase by
+PBKDF2. The passphrase is supplied through `TF_VAR_state_passphrase` and never
+enters the repository. What git sees is ciphertext, which makes committing it
+the same kind of decision as committing a SOPS-encrypted secret — and buys
+durability and history for nothing.
+
+The protection that matters is against forgetting. `state_passphrase` has no
+default, so tofu stops rather than falling back to plaintext, and `enforced =
+true` prevents anyone quietly adding an unencrypted fallback later. Verify
+rather than trust it: after the first apply, the canary is that no resource
+value appears in `terraform.tfstate` — the file should be a `meta` block and an
+`encrypted_data` string, nothing else.
+
+What this does not provide is locking. Two concurrent applies would corrupt
+state. That is acceptable for one operator and stops being acceptable the moment
+CI applies infrastructure or a second person does; at that point this moves to a
+backend that locks, and the encryption block travels with it unchanged.
+
+## Talos arrives without configuration, on purpose
+
+Servers boot the snapshot and wait in maintenance mode. Nothing here passes
+`user_data`.
+
+Machine configuration belongs to talhelper and contains cluster secrets; putting
+it here would copy those into tofu state and collapse a boundary the
+architecture deliberately keeps. Tofu owns machines and networks. `//infra/talos`
+owns what runs on them.
+
+The same reasoning explains `ignore_changes = [image]` on the servers. A new
+schematic yields a new snapshot ID, and acting on that would replace every
+control plane at once — an outage, not an upgrade. Talos upgrades in place with
+`talosctl upgrade`, one node at a time.
+
+## The firewall is closed, including to us
+
+Hetzner firewalls filter the public interface only, so denying essentially all
+inbound traffic costs the cluster nothing internally — the private network
+carries etcd, the API server, kubelet and pod traffic regardless.
+
+Two exceptions:
+
+- **UDP 41641**, so Tailscale can establish direct connections. Without it peers
+  fall back to DERP relays, which is fine for a shell and poor for a build cache
+  moving large blobs. Nothing there authenticates by network position; it is a
+  WireGuard endpoint, so unauthenticated packets are dropped by key.
+- **`admin_access_enabled`**, off by default, which opens 6443 and 50000 to one
+  address. This is invariant #6's break-glass path, and it is also how the
+  cluster is built at all: a node in maintenance mode has no tailnet yet, so
+  something has to hand it its first configuration. Dual-use, which is why it is
+  a variable rather than a note in a runbook.
+
+The load balancer has no public interface for the same reason. Hetzner load
+balancers cannot have a firewall attached, so a public one would put the
+Kubernetes API on the open internet with nothing in front of it. It is reachable
+because the Talos Tailscale extension advertises the private network as a
+tailnet route.

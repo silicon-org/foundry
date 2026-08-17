@@ -1,0 +1,11 @@
+# Which key encrypts what. `sops` reads this automatically, so nobody has to
+# remember recipients on the command line -- and nobody can quietly encrypt a
+# secret to the wrong key.
+creation_rules:
+  - path_regex: \.sops\.ya?ml$
+    # Only the payload is encrypted. apiVersion, kind, metadata and the key
+    # *names* stay readable, which is what lets kustomize and Flux handle these
+    # files like any other manifest, and what makes a diff show that a secret
+    # changed without showing what it changed to.
+    encrypted_regex: ^(data|stringData)$
+    age: age1n8ujfcvu9c02jksjd8xfn8fcadqsjww5m42jcyknwekxj6h33e9s9x2cxj

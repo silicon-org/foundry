@@ -75,37 +75,34 @@ jobs:
     # The gate that makes self-hosted CI on a public repository survivable.
     # A fork's pull request never reaches this job, so it never reaches our
     # cluster. Fork contributors are served by the GitHub-hosted job above.
+    #
+    # workflow_dispatch is included because triggering it requires write access,
+    # the same bar as pushing a branch here. Without it, the manual trigger
+    # cannot exercise the one path that depends on cluster state.
     if: >-
       github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: foundry-arm64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # No bazelisk-cache or repository-cache here. Those store to GitHub's
-      # Actions cache, which lives behind Azure blob storage -- a whole extra
-      # egress destination to allow-list, for a cache that is in the wrong place
-      # for a self-hosted runner anyway. Bazel's own remote cache is in-cluster
-      # and one hop away.
+      # No bazelisk-cache or repository-cache. Those store to GitHub's Actions
+      # cache, which is a round trip out of the cluster and back for something
+      # our own cache already does one hop away.
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
 
-      # Trusted builds write the cache; everything else may only read it.
-      # The read-only frontend refuses Action Cache writes outright, so this
-      # choice of hostname is a courtesy to the client rather than the control.
-      # Deliberately not //..., which pulls in //tools:bazel_env and eagerly
-      # fetches all twelve pinned CLIs -- roughly 500MB, re-downloaded by every
-      # ephemeral runner. The GitHub-hosted job above already builds the whole
-      # tree and checks the toolchain, so doing it twice buys nothing.
+      # Every self-hosted build both reads and writes, so iterating on a pull
+      # request reuses the previous push's work. See the runner network policy
+      # for why that is acceptable here, and what would change it.
       #
-      # This builds the cache probe instead, which is what this job is actually
-      # for: proving remote caching works on our own hardware. It gets replaced
-      # by a real workload once there is one.
+      # Deliberately not //..., which pulls in //tools:bazel_env and eagerly
+      # fetches all twelve pinned CLIs. The GitHub-hosted job above already
+      # builds the tree and toolchain.yml checks the pins on a schedule.
       - name: Build against the remote cache
-        env:
-          FRONTEND: ${{ github.event_name == 'push' && 'frontend-rw' || 'frontend-ro' }}
         run: |
           bazel build --config=ci \
-            --remote_cache=grpc://${FRONTEND}.buildbarn.svc.cluster.local:8980 \
+            --remote_cache=grpc://frontend-rw.buildbarn.svc.cluster.local:8980 \
             //infra/platform/buildbarn:cache_probe

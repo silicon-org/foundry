@@ -17,9 +17,10 @@ description. Everything here follows from it:
   credential gets it scoped and short-lived.
 - **No fork-PR execution.** Fork PRs run on GitHub-hosted runners or not at all.
 - **No host Docker socket.** Ever. Rootless BuildKit or buildah instead.
-- **Egress allow-list only** — DNS, GitHub FQDNs, the read-only Buildbarn
-  frontend, and the dependency registries the real builds need. Enforced by
-  Cilium default-deny on this namespace.
+- **Egress allow-list only** — DNS, GitHub, the Buildbarn frontends, and the
+  dependency registries builds actually need. Everything else is refused,
+  including the Kubernetes API, the Talos API and other namespaces. Enforced by
+  Cilium default-deny on this namespace, in `networkpolicy.yaml`.
 
 ## This repository is public
 
@@ -28,11 +29,27 @@ request, and a pull request is arbitrary code plus a request to execute it.
 
 The split that makes it safe:
 
-| Trigger                       | Runs on           | Cache access                    |
-| ----------------------------- | ----------------- | ------------------------------- |
-| `push` to `main`              | self-hosted       | read-write                      |
-| PR from a branch in this repo | self-hosted       | read-only                       |
-| **PR from a fork**            | **GitHub-hosted** | read-only, public frontend only |
+| Trigger                       | Runs on           | Cache access |
+| ----------------------------- | ----------------- | ------------ |
+| `push` to `main`              | self-hosted       | read-write   |
+| PR from a branch in this repo | self-hosted       | read-write   |
+| **PR from a fork**            | **GitHub-hosted** | none         |
+
+Pull requests write the cache too, which is a deliberate relaxation of the
+original design. A namespace-level network policy cannot distinguish a push from
+a pull request -- every runner in `arc-runners` gets the same network access
+whatever the workflow asks for -- so enforcing that split at the network layer
+would need a second scale set in its own namespace.
+
+That is not worth building yet. Fork pull requests never run here, so every job
+on these runners comes from someone with write access to this repository, who
+can already merge to main and edit workflows. Writing the Action Cache adds
+almost nothing to what they can do, and in exchange a pull request populates the
+cache for its own next push, which matters a great deal for hour-long builds.
+
+The residual risk is a compromised build dependency rather than a compromised
+person. The conditions that end this arrangement are listed in
+`networkpolicy.yaml`, next to the rule that implements it.
 
 Fork PRs never touch our hardware. GitHub-hosted runners are free for public
 repositories, so contributors still get full CI — they just get it on
@@ -48,13 +65,9 @@ Enforcement is layered, because any single one of these can be misconfigured:
 - `pull_request_target` is banned outright. It runs base-branch workflow code
   with a writable token in the context of a fork's PR, and it is the single most
   common way self-hosted CI gets compromised.
-- Network-level: the read-write Buildbarn frontend is simply unreachable from
-  the runner namespace, so a workflow that slips through still cannot poison the
-  cache.
-
-While the cluster is being built, `.github/workflows/ci.yml` runs everything on
-GitHub-hosted runners; the `push` job moves to self-hosted once there is
-something to move it to.
+- Network-level: a runner can reach GitHub, the cache and little else. It
+  cannot reach the Kubernetes API, the Talos API, other namespaces or the open
+  internet, so a workflow that slips through the gates above is still contained.
 
 The GitHub App is scoped to `silicon-org/foundry` and nothing else. Widening
 that later is easy and safe; narrowing it after something has come to depend on

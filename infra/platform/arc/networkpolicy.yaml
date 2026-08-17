@@ -48,13 +48,38 @@ spec:
             dns:
               - matchPattern: "*"
 
-    # The read-only cache frontend. Note what is absent: frontend-rw, which
-    # sits in the same namespace on the same port and is deliberately not
-    # listed. That omission is the security control.
+    # Both cache frontends, including the read-write one. This is accepted
+    # risk, not an oversight, and it is worth stating the reasoning because the
+    # conclusion depends on facts that will change.
+    #
+    # Fork pull requests never run here -- the workflow sends them to
+    # GitHub-hosted runners -- so every job on these runners comes from someone
+    # who pushed a branch to this repository, which requires write access.
+    # Anyone with write access can already merge to main and edit workflows, so
+    # being able to write the Action Cache adds essentially nothing to what they
+    # can already do. In exchange, pull request builds populate the cache, which
+    # for hour-long builds is the difference between usable and not.
+    #
+    # The residual risk is a compromised build dependency rather than a
+    # compromised person: code running in a pull request job could poison an
+    # entry that a later trusted build consumes.
+    #
+    # Revisit the moment any of these becomes true:
+    #   - outside collaborators are given write access
+    #   - fork pull requests are allowed on self-hosted runners
+    #   - builds pull in dependencies we do not control end to end
+    #
+    # The two frontends already exist and the split is already proven, so
+    # tightening this is an edit to these few lines plus a second namespace --
+    # not a redesign. See infra/platform/buildbarn/README.md.
     - toEndpoints:
-        - matchLabels:
-            io.kubernetes.pod.namespace: buildbarn
-            app: frontend-ro
+        - matchExpressions:
+            - key: io.kubernetes.pod.namespace
+              operator: In
+              values: [buildbarn]
+            - key: app
+              operator: In
+              values: [frontend-ro, frontend-rw]
       toPorts:
         - ports:
             - port: "8980"

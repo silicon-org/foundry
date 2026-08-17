@@ -1,0 +1,18 @@
+# The controller and the runners are deliberately in separate namespaces.
+# The controller holds cluster-wide permissions; the runners execute untrusted
+# code. Keeping them apart is what makes it possible to write a network policy
+# and a Pod Security Standard that apply to the runners and nothing else.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: arc-systems
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: arc-runners
+  labels:
+    # Enforced by Kubernetes, independently of Kyverno. No privileged
+    # containers, no host namespaces, no running as root.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest

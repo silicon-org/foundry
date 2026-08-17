@@ -6,3 +6,4 @@ resources:
   - flux-system
   - cilium.yaml
   - buildbarn.yaml
+  - arc.yaml

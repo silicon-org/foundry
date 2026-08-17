@@ -22,6 +22,12 @@ resource "hcloud_load_balancer_network" "apiserver" {
   network_id              = hcloud_network.cluster.id
   enable_public_interface = false
 
+  # Chosen, not assigned. This address is the cluster endpoint that every node's
+  # machine configuration names, so talconfig.yaml can only be a static file if
+  # it is known in advance. Deliberately below the node range, which starts
+  # at .11.
+  ip = cidrhost(var.node_subnet, 5)
+
   depends_on = [hcloud_network_subnet.nodes]
 }
 

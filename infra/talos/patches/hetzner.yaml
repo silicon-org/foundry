@@ -1,0 +1,55 @@
+# Overrides for Hetzner Cloud, layered over base.yaml.
+#
+# The local overlay (local.yaml) is four lines because Docker Desktop can do
+# almost nothing real. This one is longer because everything the local
+# environment could not demonstrate lives here: a routable network, a cloud
+# provider, and a dataplane that replaces kube-proxy rather than sitting beside
+# it.
+machine:
+  install:
+    # The image installed to disk, which must be the same schematic the node
+    # booted from -- see ../schematic.yaml, where that ID is derived rather than
+    # written down. Booting one image and installing another produces a node
+    # that works until it reboots, which is the worst time to find out.
+    image: factory.talos.dev/installer/7d0c9bb43d29c3a66af593485d6d95ae14f241c90678c9cc05a4cf99d928ec1b:v1.13.8
+
+  kubelet:
+    # Which address a node calls its own.
+    #
+    # These machines have several: a public one, a private one, and later a
+    # Tailscale one. Left alone, the kubelet picks, and once Tailscale is
+    # running it may well pick that -- at which point pod traffic and API
+    # traffic quietly start transiting the VPN. It works, so nothing fails
+    # loudly; it is merely slower and newly dependent on a service that is
+    # supposed to be able to fail without taking the cluster down.
+    #
+    # Pinning it to the private network is what keeps the split honest:
+    # Tailscale carries administration, the private network carries the cluster.
+    nodeIP:
+      validSubnets:
+        - 10.0.0.0/16
+
+cluster:
+  # Hand node lifecycle to the Hetzner cloud controller manager: it sets
+  # provider IDs, populates node addresses, and deletes Node objects when the
+  # server behind them is gone. Without this the CCM's pods run and achieve
+  # nothing, because nothing has told Kubernetes to expect an external provider.
+  externalCloudProvider:
+    enabled: true
+
+  etcd:
+    # Same reasoning as kubelet.nodeIP above, and it matters more here. etcd
+    # peers address each other by advertised address, so an etcd that advertised
+    # a Tailscale address would put cluster consensus on the VPN -- and a
+    # tailnet outage would stop being an access problem and start being a
+    # quorum problem.
+    advertisedSubnets:
+      - 10.0.0.0/16
+
+  proxy:
+    # The inverse of local.yaml, and the line those two files exist to differ
+    # over. Cilium's kube-proxy replacement needs node networking that behaves,
+    # which Docker Desktop cannot provide and Hetzner can. Talos therefore never
+    # starts kube-proxy here, so Cilium is not replacing anything -- there is no
+    # window in which two dataplanes are both handling service traffic.
+    disabled: true

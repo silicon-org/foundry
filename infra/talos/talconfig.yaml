@@ -1,0 +1,58 @@
+# Machine configuration for the Hetzner cluster.
+#
+# talhelper generates per-node Talos configs from this plus the patches below.
+# The local Docker cluster does not use this file at all -- `talosctl cluster
+# create` generates its own configs and takes the same patches directly. What
+# the two share is patches/base.yaml, which is the whole point: environments
+# differ by an overlay, not by a fork.
+#
+#   bazel run //infra/talos:genconfig
+#
+# Every address here is fixed in //infra/tofu rather than assigned by Hetzner,
+# which is what allows this file to be static instead of generated after apply.
+# infra/tofu/outputs.tf prints the same values; if they ever disagree, tofu is
+# the one telling the truth.
+clusterName: foundry
+
+talosVersion: v1.13.8
+kubernetesVersion: v1.36.2
+
+# The load balancer's private address, fixed in infra/tofu/apiserver.tf. Private
+# because a Hetzner load balancer cannot have a firewall in front of it, so a
+# public one would be the Kubernetes API exposed to the internet. It resolves
+# from the tailnet and nowhere else.
+endpoint: https://10.0.1.5:6443
+
+# Control planes run etcd and the API server and nothing else. On a cluster this
+# small it is tempting to let them take workloads too, and the reason not to is
+# recent: a saturated node takes its control plane with it, and build workloads
+# are exactly the kind that saturate one.
+allowSchedulingOnControlPlanes: false
+
+cniConfig:
+  name: none
+
+patches:
+  - "@patches/base.yaml"
+  - "@patches/hetzner.yaml"
+
+nodes:
+  - hostname: foundry-cp-1
+    ipAddress: 10.0.1.11
+    controlPlane: true
+    installDisk: /dev/sda
+
+  - hostname: foundry-cp-2
+    ipAddress: 10.0.1.12
+    controlPlane: true
+    installDisk: /dev/sda
+
+  - hostname: foundry-cp-3
+    ipAddress: 10.0.1.13
+    controlPlane: true
+    installDisk: /dev/sda
+
+  - hostname: foundry-worker-1
+    ipAddress: 10.0.1.21
+    controlPlane: false
+    installDisk: /dev/sda

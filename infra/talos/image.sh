@@ -63,6 +63,22 @@ if [[ ! "$schematic_id" =~ ^[0-9a-f]{64}$ ]]; then
 fi
 echo >&2 "Schematic: $schematic_id"
 
+# The same ID has to appear in machine.install.image, because a node that boots
+# one image and installs another works until it reboots -- and that is the worst
+# moment to discover it. There is no way to derive it there (a Talos patch is
+# data, not a program), so it is written down, and this is what keeps the copy
+# honest.
+patch="${BUILD_WORKSPACE_DIRECTORY}/infra/talos/patches/hetzner.yaml"
+if ! grep -q "installer/${schematic_id}:" "$patch"; then
+  echo >&2
+  echo >&2 "ERROR: patches/hetzner.yaml does not install this schematic."
+  echo >&2 "  schematic.yaml resolves to: $schematic_id"
+  echo >&2 "  hetzner.yaml installs:      $(sed -n 's|.*installer/\([0-9a-f]*\):.*|\1|p' "$patch" | head -1)"
+  echo >&2
+  echo >&2 "Update machine.install.image in that file to match, then run this again."
+  exit 1
+fi
+
 # Hetzner caps label values at 63 characters and a schematic ID is 64, so the
 # label carries a prefix. Thirty-two hex characters is not a collision anyone
 # will meet; the full ID is in the description.

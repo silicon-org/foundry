@@ -103,6 +103,33 @@ sh_binary(
     deps = ["@bazel_tools//tools/bash/runfiles"],
 )
 
+# bazel run //infra/talos:genconfig
+#
+# Renders per-node machine configs from talconfig.yaml into clusterconfig/,
+# which is gitignored: they contain cluster secrets in the clear. The encrypted
+# talsecret.sops.yaml is the committed half, and it is what makes this
+# reproducible rather than a one-time event.
+workspace_command(
+    name = "genconfig",
+    args = ["genconfig"],
+    tool = "@multitool//tools/talhelper",
+    workdir = "infra/talos",
+)
+
+# bazel run //infra/talos:validate
+#
+# Checks talconfig.yaml without needing secrets, a cluster, or a network.
+workspace_command(
+    name = "validate",
+    args = [
+        "validate",
+        "talconfig",
+        "talconfig.yaml",
+    ],
+    tool = "@multitool//tools/talhelper",
+    workdir = "infra/talos",
+)
+
 # bazel run //infra/talos:kubeconfig -- --force
 # Merges the cluster's credentials into ~/.kube/config.
 workspace_command(

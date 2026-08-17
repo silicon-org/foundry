@@ -3,18 +3,20 @@ resource "hcloud_placement_group" "control_plane" {
   type = "spread"
 }
 
-# Addresses are assigned rather than accepted, both public and private, so that
-# every node's address is known before the node exists.
+# Private addresses are chosen here; public ones are allocated by Hetzner.
 #
-# That is what lets talconfig.yaml be a static file. The alternative is
-# generating machine configuration from tofu outputs after apply, which means
-# either codegen or environment substitution -- and a cluster whose configuration
-# cannot be read without first running something to produce it. Fixing the
-# addresses costs a few lines here and removes that problem rather than
-# automating it.
+# The private side is the one that matters, because it is what the cluster is
+# made of -- etcd peers, the API server, kubelet -- and choosing it is what lets
+# talconfig.yaml exist as a static file. Otherwise machine configuration could
+# only be produced after apply, by codegen or environment substitution, and the
+# cluster's own configuration could not be read without first running something
+# to generate it.
 #
-# It also survives replacement: destroy and recreate a node and it comes back on
-# the same addresses, so nothing downstream needs to be told.
+# The public side cannot work that way, because Hetzner picks the address. What
+# a primary IP buys is stability rather than predetermination: the address
+# outlives the server it is attached to, so a destroyed and recreated node keeps
+# its identity. Bootstrap reads these from `tofu output`, which is acceptable
+# because they are only needed in the window before the tailnet exists.
 resource "hcloud_primary_ip" "control_plane" {
   count = var.control_plane_count
 

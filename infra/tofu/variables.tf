@@ -100,13 +100,25 @@ variable "node_subnet" {
 }
 
 # Break-glass. Invariant #6 in infra/doc/architecture.md asks for a declarative
-# path to the Talos and Kubernetes APIs that is committed but normally inactive,
-# written before it is needed rather than during the outage that needs it.
+# path to the Talos and Kubernetes APIs, written before it is needed rather than
+# during the outage that needs it.
 #
-# It is also how the cluster gets built in the first place: a node in
-# maintenance mode has no tailnet yet, so something has to be able to reach
-# 50000 to hand it its first configuration. That makes this genuinely dual-use,
-# which is why it is a variable and not a comment in a runbook.
+# It is also how the cluster gets built at all: a node in maintenance mode has
+# no tailnet yet, so something has to reach 50000 to hand it its first
+# configuration. Genuinely dual-use, which is why it is a variable rather than a
+# note in a runbook.
+#
+# Note what is *not* here: an address. The mechanism is committed and the value
+# never is, because an administrator's address is usually dynamic -- and a rule
+# pinned to whatever it was on the day it was written is stale precisely when it
+# is needed. So this is opened at the moment of use, from wherever you are:
+#
+#   tofu apply -var="admin_access_enabled=true" \
+#              -var="admin_ipv4=$(curl -s https://ifconfig.me)/32"
+#
+# That still works during a tailnet outage, because the Hetzner API is a
+# separate control plane: it does not depend on the cluster, the VPN, or
+# anything else that might be the thing that broke.
 variable "admin_access_enabled" {
   description = "Allow admin_ipv4 to reach the Talos and Kubernetes APIs. Off once the tailnet works."
   type        = bool

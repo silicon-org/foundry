@@ -91,6 +91,27 @@ Two exceptions:
   something has to hand it its first configuration. Dual-use, which is why it is
   a variable rather than a note in a runbook.
 
+  No address is committed, and that is deliberate rather than an omission. An
+  administrator's address is usually dynamic, so a rule pinned to whatever it
+  was on the day it was written has gone stale by the time anyone reaches for
+  it — during the outage it was supposed to cover. Open it at the moment of use
+  instead:
+
+  ```
+  bazel run //infra/tofu:apply -- \
+    -var="admin_access_enabled=true" \
+    -var="admin_ipv4=$(curl -s https://ifconfig.me)/32"
+  ```
+
+  Close it the same way, with `admin_access_enabled=false`, and confirm from
+  off-tailnet that 6443 and 50000 are refused. This path works during a tailnet
+  outage because the Hetzner API is a separate control plane: it does not depend
+  on the cluster, the VPN, or whatever else has broken.
+
+  Resisted deliberately: an `http` data source that looks the address up on
+  every apply. It would keep itself current, and it would also mean the firewall
+  silently changes based on where the apply ran from — including from CI.
+
 The load balancer has no public interface for the same reason. Hetzner load
 balancers cannot have a firewall attached, so a public one would put the
 Kubernetes API on the open internet with nothing in front of it. It is reachable

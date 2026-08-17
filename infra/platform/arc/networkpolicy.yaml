@@ -63,10 +63,19 @@ spec:
     # GitHub, for the runner protocol itself and for fetching actions.
     # broker.actions.githubusercontent.com is the long-poll endpoint that makes
     # inbound ports unnecessary.
+    #
+    # Note the double asterisk. In Cilium a single `*` matches DNS characters
+    # *within one label* and never crosses a dot; `**.` is the specifier that
+    # matches one or more whole labels. So `*.githubusercontent.com` would match
+    # broker.actions... only by accident and would miss
+    # pipelinesghubeus15.actions.githubusercontent.com, which is the shard the
+    # Actions service actually assigns a runner -- and whose name changes.
+    # Getting this wrong does not fail loudly: the runner retries the connection
+    # until the job times out, and the job simply sits queued.
     - toFQDNs:
         - matchName: github.com
-        - matchPattern: "*.github.com"
-        - matchPattern: "*.githubusercontent.com"
+        - matchPattern: "**.github.com"
+        - matchPattern: "**.githubusercontent.com"
       toPorts:
         - ports:
             - port: "443"

@@ -59,3 +59,64 @@ something to move it to.
 The GitHub App is scoped to `silicon-org/foundry` and nothing else. Widening
 that later is easy and safe; narrowing it after something has come to depend on
 it is neither.
+
+## Creating the GitHub App
+
+This is the one step in the whole cluster that cannot be code. GitHub Apps are
+created through the web UI and their credentials are issued once, so it is
+written down here instead — an undocumented manual step is a step that gets
+performed differently every time, and this one is the cluster's connection to
+the outside world.
+
+Everything the App produces *does* end up in git: the credentials are committed
+SOPS-encrypted and Flux decrypts them in-cluster. Nothing is created with
+`kubectl create secret`, which is what GitHub's own instructions suggest — a
+secret made by hand is invisible to git and silently missing the next time the
+cluster is rebuilt.
+
+Create the App at
+`https://github.com/organizations/silicon-org/settings/apps/new`, owned by the
+organization rather than a personal account:
+
+| Field | Value |
+|---|---|
+| Name | `silicon-foundry-arc` (globally unique across GitHub) |
+| Homepage URL | `https://github.com/silicon-org/foundry` |
+| Webhook → Active | **unchecked** |
+| Where can this App be installed? | Only on this account |
+| Subscribe to events | none |
+
+**The webhook must stay off.** A runner scale set long-polls GitHub outbound; a
+webhook would require GitHub to reach *in*. That single checkbox is the
+difference between self-hosted CI with zero inbound ports and self-hosted CI
+with a public endpoint to defend.
+
+Permissions, per
+[GitHub's ARC documentation](https://docs.github.com/en/actions/how-tos/manage-runners/use-actions-runner-controller/authenticate-to-the-api):
+
+- **Repository → Administration:** Read and write — required for registering
+  runners at repository scope, and only at repository scope.
+- **Repository → Metadata:** Read-only (selected automatically).
+- **Organization → Self-hosted runners:** Read and write.
+
+Note that ARC's own `docs/authenticating-to-the-github-api.md` additionally asks
+for `Actions: read`. That document covers ARC's legacy mode
+(`actions.summerwind.net`), not runner scale sets, and the permission is not
+needed here.
+
+Then install it: **Install App** → `silicon-org` → **Only select repositories**
+→ `foundry`.
+
+Three values come out of this, and they are needed by
+`github-app.sops.yaml`:
+
+| Value | Where to find it | Secret? |
+|---|---|---|
+| App ID | Top of the App's settings page | no |
+| Installation ID | Final path segment of the URL after installing: `.../settings/installations/<ID>` | no |
+| Private key | "Generate a private key" at the bottom of the App page; downloads a `.pem` | **yes** |
+
+The `.pem` is issued once and cannot be re-downloaded. Encrypt it into
+`github-app.sops.yaml` directly from the file and delete the plaintext; if it is
+ever lost or exposed, revoke it on the App page and generate a new one rather
+than trying to contain it.

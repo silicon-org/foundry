@@ -5,6 +5,7 @@ module(
     version = "0.0.0",
 )
 
+bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
 # Pinned CLI toolchain. See //tools for the tool list and update workflow.

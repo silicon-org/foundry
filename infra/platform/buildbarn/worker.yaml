@@ -1,0 +1,71 @@
+# Worker and runner are one pod on purpose. The worker materialises an action's
+# inputs onto a shared volume and hands the command to the runner over a unix
+# socket on that same volume, so they must share a filesystem and a lifecycle.
+#
+# The runner container's image is the action environment. Whatever an action can
+# execute is what is inside that image, which makes this the place where the EDA
+# toolchain decision gets made: freely redistributable tools can arrive as Bazel
+# action inputs, but anything multi-gigabyte or licence-restricted belongs here.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: buildbarn
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      initContainers:
+        # Copies the bb_runner binary into a volume the runner container can
+        # see, so the action environment image does not have to know anything
+        # about Buildbarn.
+        - name: runner-installer
+          image: ghcr.io/buildbarn/bb-runner-installer@sha256:e102ade0952f9a6f98fc91e6b88da4c08e2354f561f8aed8de7d8d3ae18b283f
+          volumeMounts:
+            - {name: bb, mountPath: /bb}
+        - name: volume-init
+          image: busybox@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+          command: [sh, -c, "mkdir -pm 0777 /worker/build && mkdir -pm 0777 /worker/cache && chmod 0777 /worker"]
+          volumeMounts:
+            - {name: worker, mountPath: /worker}
+      containers:
+        - name: worker
+          image: ghcr.io/buildbarn/bb-worker@sha256:49ccaa7e3e298ebdf4b31f43d207bb72b7b36636cfd8b4c8e73adc10e1693505
+          args: [/config/worker.jsonnet]
+          env:
+            - name: NODE_NAME
+              valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
+            - name: POD_NAME
+              valueFrom: {fieldRef: {fieldPath: metadata.name}}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: config, mountPath: /config, readOnly: true}
+            - {name: worker, mountPath: /worker}
+        - name: runner
+          image: ubuntu@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+          command: [/bb/bb_runner, /config/runner.jsonnet]
+          securityContext:
+            allowPrivilegeEscalation: false
+          resources:
+            requests: {cpu: 200m, memory: 256Mi}
+            limits: {memory: 2Gi}
+          volumeMounts:
+            - {name: config, mountPath: /config, readOnly: true}
+            - {name: worker, mountPath: /worker}
+            - {name: bb, mountPath: /bb, readOnly: true}
+      volumes:
+        - name: bb
+          emptyDir: {}
+        - name: worker
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: buildbarn-config

@@ -15,12 +15,11 @@ test --test_output=errors
 # cluster exists. Untrusted builds must use the read-only frontend: they may
 # read the Action Cache but never write it. See infra/platform/buildbarn/.
 #
-# build:remote --remote_executor=grpcs://...
-# build:remote --remote_instance_name=silicon
-# build:remote --jobs=200
-#
-# build:remote-ro --config=remote
-# build:remote-ro --noremote_upload_local_results
+# Remote execution against the in-cluster Buildbarn. The endpoint is a
+# port-forward locally and a service name in CI, so it is passed on the command
+# line rather than pinned here.
+build:remote --extra_execution_platforms=//platforms:linux_arm64
+build:remote --jobs=50
 
 # Developer-local overrides; never committed.
 try-import %workspace%/.bazelrc.user

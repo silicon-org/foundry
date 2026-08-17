@@ -1,16 +1,22 @@
 # Kyverno
 
-Admission control. Backstop for the workload rules, so that a mistake in a Helm
-chart's values cannot quietly grant a runner more than it should have.
+Not deployed, and currently not needed.
 
-Policies:
+The policies originally planned here — block privileged pods, block host
+namespaces, require rootless — are already enforced by the Pod Security
+Standards `restricted` label on `arc-runners`. That check runs in the API server
+on every pod creation. Adding an admission controller to repeat it would be
+motion rather than defence in depth.
 
-- Block privileged pods and privilege escalation.
-- Block host namespaces (`hostPID`, `hostIPC`, `hostNetwork`) and host path
-  mounts. In particular: never the host Docker socket.
-- Require rootless containers (`runAsNonRoot`) in `arc-runners`.
-- Enforce Pod Security Standards `restricted` on the runner namespace.
+What would justify Kyverno is something PSS cannot express:
 
-These duplicate protections that PSS and the Cilium policy already provide. That
-is intentional — invariant #2 is the one an attacker attacks first, so it gets
-defence in depth rather than a single control.
+- **Image provenance.** Only images from registries we trust, referenced by
+  digest rather than tag. That is a real supply-chain control and nothing here
+  currently provides it.
+- **Cluster-wide defaults**, so a namespace created without the right labels
+  does not silently opt out of everything.
+- **Mutation**, for instance injecting resource limits or security contexts
+  rather than rejecting workloads that omit them.
+
+Until one of those is worth having, this directory stays empty. An unused
+controller is still a controller with cluster-wide admission rights.

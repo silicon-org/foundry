@@ -11,6 +11,25 @@ function(actionCachePutAuthorizer) {
   maximumMessageSizeBytes: common.maximumMessageSizeBytes,
   global: common.global,
 
+  // Where execution requests go. Both frontends forward to the same scheduler:
+  // executing an action is not the dangerous operation, claiming that an action
+  // produced a given result is, and that is the Action Cache below.
+  schedulers: {
+    '': {
+      endpoint: {
+        address: 'scheduler:8982',
+        addMetadataJmespathExpression: {
+          expression: |||
+            {
+              "build.bazel.remote.execution.v2.requestmetadata-bin": incomingGRPCMetadata."build.bazel.remote.execution.v2.requestmetadata-bin"
+            }
+          |||,
+        },
+      },
+    },
+  },
+  executeAuthorizer: { allow: {} },
+
   // The Content Addressable Store is writable from both frontends, on purpose.
   // A CAS blob is stored under the hash of its own contents, so writing to it
   // cannot change what anyone else reads: to poison a lookup for hash(X) you

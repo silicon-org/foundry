@@ -1,0 +1,20 @@
+package(default_visibility = ["//visibility:public"])
+
+# The execution platform for remote actions.
+#
+# exec_properties are what Bazel sends to the scheduler, and the scheduler
+# matches them against what a worker advertises in its `platform.properties`.
+# They have to agree exactly: a mismatch does not fall back to local execution,
+# it queues until platformQueueWithNoWorkersTimeout expires. See
+# infra/platform/buildbarn/config/worker.jsonnet for the other half.
+platform(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    exec_properties = {
+        "OSFamily": "linux",
+        "ISA": "arm64",
+    },
+)

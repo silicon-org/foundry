@@ -6,6 +6,8 @@ resources:
   - storage.yaml
   - frontend-rw.yaml
   - frontend-ro.yaml
+  - scheduler.yaml
+  - worker.yaml
 configMapGenerator:
   - name: buildbarn-config
     files:
@@ -14,5 +16,8 @@ configMapGenerator:
       - config/frontend-ro.jsonnet
       - config/frontend-rw.jsonnet
       - config/storage.jsonnet
+      - config/scheduler.jsonnet
+      - config/worker.jsonnet
+      - config/runner.jsonnet
 generatorOptions:
   disableNameSuffixHash: true

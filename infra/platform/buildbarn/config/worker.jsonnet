@@ -28,10 +28,13 @@ local common = import 'common.libsonnet';
       concurrency: 1,
       // What this worker advertises. A client asking for exactly these
       // properties lands here; anything else waits for a worker that matches.
+      // Must be lexicographically sorted by name. Buildbarn rejects the
+      // worker's registration outright if it is not, and the symptom shows up
+      // at the other end of the system as "no workers exist for platform".
       platform: {
         properties: [
-          { name: 'OSFamily', value: 'linux' },
           { name: 'ISA', value: 'arm64' },
+          { name: 'OSFamily', value: 'linux' },
         ],
       },
       workerId: {

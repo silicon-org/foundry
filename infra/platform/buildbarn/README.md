@@ -93,3 +93,51 @@ anything useful about.
 
 Workers will be arm64, matching the cluster. That constrains the toolchain:
 anything that must run under remote execution has to build and run on arm64.
+
+## What remote execution will and will not move
+
+Worth writing down before designing workers, because the intuition is wrong in a
+useful way.
+
+Remote execution moves **actions**. It does not move repository rules.
+`http_archive`, `http_file` and module extensions run on the client, during
+loading and analysis, in every version of Bazel. So a CI runner under remote
+execution still checks out the source, downloads every external repository,
+builds the action graph, and uploads missing inputs to the CAS. Only execution
+goes elsewhere.
+
+| Runner resource | Effect of remote execution |
+|---|---|
+| CPU | Collapses. Compilation and simulation move to workers. |
+| Output disk and network | Collapses with `--remote_download_minimal`; outputs stay in the CAS. |
+| Input and repository network | Unchanged. |
+| Memory | Unchanged. The action graph still lives in the runner's RAM. |
+
+The runner becomes CPU-thin while staying network- and memory-bound, so
+repository fetching becomes a larger share of its work, not a smaller one. The
+only mechanism that moves repository downloads off the client is the [Remote
+Asset API](https://github.com/bazelbuild/remote-apis/blob/master/build/bazel/remote/asset/v1/remote_asset.proto),
+via `--experimental_remote_downloader` and a service such as
+[bb-remote-asset](https://github.com/buildbarn/bb-remote-asset). Note that
+Buildbarn's own reference deployment does not include it, and the Bazel flag is
+still marked experimental, so it is a considered choice rather than an obvious
+one.
+
+## Where toolchains live
+
+Remote execution forces this decision to be explicit, and it matters more than
+where the repository cache lives.
+
+**As Bazel external repositories.** The client downloads the tool and uploads it
+to the CAS; actions receive it as an input. The tool version is part of the
+build graph, so builds are hermetic and reproducible. This is the right choice
+for Verilator, Yosys, OpenROAD and anything else that is freely redistributable.
+
+**Baked into the worker image**, selected through platform properties. The
+client never touches it. This is unavoidable for multi-gigabyte commercial EDA
+tools, and for anything license-restricted that must not be copied into a CAS.
+
+The second option also drags in a networking requirement: commercial tools
+generally need to reach a license server, so workers cannot be given the same
+blanket egress denial as runners. That exception should be written as narrowly
+as the license server allows.

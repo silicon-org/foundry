@@ -1,0 +1,24 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+# Every directory holding a kustomization.yaml. Flux renders these at reconcile
+# time; this renders them at commit time, where a failure is attached to the
+# change that caused it.
+KUSTOMIZE_ROOTS = [
+    "infra/platform/arc",
+    "infra/platform/buildbarn",
+    "infra/platform/cilium",
+    "infra/platform/clusters/local",
+    "infra/platform/clusters/local/buildbarn",
+]
+
+sh_test(
+    name = "kustomize_test",
+    size = "small",
+    srcs = ["kustomize_test.sh"],
+    args = ["$(rlocationpath @multitool//tools/kubectl)"] + KUSTOMIZE_ROOTS,
+    data = [
+        "@multitool//tools/kubectl",
+        "//infra/platform/buildbarn:manifests",
+        "//infra/platform/cilium:manifests",
+    ] + glob(["**/*.yaml"]),
+)

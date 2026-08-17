@@ -30,3 +30,9 @@ workspace_command(
     tool = "@multitool//tools/helm",
     workdir = "infra/platform/cilium",
 )
+
+filegroup(
+    name = "manifests",
+    srcs = glob(["*.yaml"]),
+    visibility = ["//infra/platform:__pkg__"],
+)

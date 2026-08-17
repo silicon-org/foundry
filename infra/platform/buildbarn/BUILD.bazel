@@ -17,3 +17,15 @@ filegroup(
     name = "cache_probe",
     srcs = [":probe_%d" % i for i in range(8)],
 )
+
+# Exposed so //infra/platform:kustomize_test can render this root. Globs do not
+# cross package boundaries.
+filegroup(
+    name = "manifests",
+    srcs = glob([
+        "*.yaml",
+        "config/*.jsonnet",
+        "config/*.libsonnet",
+    ]),
+    visibility = ["//infra/platform:__pkg__"],
+)

@@ -48,13 +48,20 @@ jobs:
           bazelisk-cache: true
           repository-cache: true
 
+      # Builds the wrappers and renders every kustomize root, which is the
+      # check that actually catches things: a malformed kustomization otherwise
+      # reaches the cluster and surfaces as a Flux reconcile failure, minutes
+      # later, attached to a controller rather than to the commit.
+      #
+      # Deliberately not //..., which would drag in //tools:versions and
+      # //tools:bazel_env and fetch all twelve pinned CLIs. Whether those still
+      # download is a question about upstream, not about this commit, so it is
+      # asked on a schedule instead -- see toolchain.yml.
+      #
       # --config=ci makes a stale MODULE.bazel.lock an error rather than
       # something the build quietly rewrites.
-      - name: Pinned toolchain
-        run: bazel run --config=ci //tools:versions
-
-      - name: Build
-        run: bazel build --config=ci //...
+      - name: Build and render manifests
+        run: bazel test --config=ci //infra/...
 
       # --redact: findings must never be echoed into a public build log.
       - name: Secret scan

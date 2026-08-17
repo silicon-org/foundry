@@ -4,15 +4,18 @@ The build and CI cluster this monorepo is built on: Bazel remote execution and
 caching (Buildbarn) plus ephemeral GitHub Actions runners (ARC), on Kubernetes
 on Talos Linux, provisioned with OpenTofu and reconciled by Flux.
 
-Start with [`doc/architecture.md`](doc/architecture.md) — it carries the
-rationale for every choice here, and the security invariants that constrain all
-of them.
+To build a cluster, follow [`doc/bootstrap.md`](doc/bootstrap.md): four
+commands, then everything else comes from git.
+
+For why any of it looks the way it does, read
+[`doc/architecture.md`](doc/architecture.md) — it carries the rationale for
+every choice here and the security invariants that constrain all of them.
 
 ## Layout
 
 | Path | Contents |
 |---|---|
-| `doc/` | Architecture and design notes. |
+| `doc/` | How to bootstrap a cluster, and why it is built this way. |
 | `tofu/` | OpenTofu: Hetzner provisioning, private network, firewall. |
 | `talos/` | talhelper: one base machine config plus per-environment overlays. |
 | `platform/` | Everything Flux reconciles into the cluster. |

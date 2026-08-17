@@ -130,8 +130,10 @@ kubectl -n flux-system create secret generic sops-age \
   --from-file=age.agekey=$HOME/.config/sops/age/foundry.txt
 ```
 
-That is the whole bootstrap. One command, one secret, and everything else
-follows from git.
+That is the whole bootstrap: one command, one secret, and everything else
+follows from git. The namespace has to exist first, and the secret has to exist
+before Flux reconciles anything encrypted -- see
+[bootstrap](../../doc/bootstrap.md) for the ordering.
 
 ## Rotating the key
 

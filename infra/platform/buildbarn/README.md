@@ -1,12 +1,12 @@
 # Buildbarn
 
-Bazel remote cache. Apache-2.0, no vendor lock-in, and the reason the rest of
-this cluster exists.
+Bazel remote execution and caching. Apache-2.0, no vendor lock-in, and the
+reason the rest of this cluster exists.
 
-Three deployments: `storage` holds the blobs, and two frontends sit in front of
-it. Nothing talks to storage directly — it has no opinion about who may do what,
-because that decision belongs at the edge, where the caller's trust level is
-known.
+Five deployments: `storage` holds the blobs, two frontends sit in front of it,
+`scheduler` matches actions to workers, and `worker` runs them. Nothing talks to
+storage directly — it has no opinion about who may do what, because that
+decision belongs at the edge, where the caller's trust level is known.
 
 ## The read/write split
 
@@ -61,8 +61,8 @@ bazel clean && bazel build --action_env=CACHE_PROBE_SALT=$SALT \
   --remote_cache=grpc://localhost:8980 //infra/platform/buildbarn:cache_probe
 ```
 
-The read-only runs must report `8 darwin-sandbox` both times — never a cache
-hit. The read-write second run must report `8 remote cache hit`. The absence of
+The read-only runs must report eight locally-executed actions both times — never
+a cache hit. The read-write second run must report `8 remote cache hit`. The absence of
 the entry is the evidence; an error message on the write is not, since a
 misconfigured endpoint can log complaints and store the entry anyway.
 

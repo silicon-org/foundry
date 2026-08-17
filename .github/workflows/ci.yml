@@ -97,12 +97,23 @@ jobs:
       # Every self-hosted build both reads and writes, so iterating on a pull
       # request reuses the previous push's work. See the runner network policy
       # for why that is acceptable here, and what would change it.
-      #
-      # Deliberately not //..., which pulls in //tools:bazel_env and eagerly
-      # fetches all twelve pinned CLIs. The GitHub-hosted job above already
-      # builds the tree and toolchain.yml checks the pins on a schedule.
-      - name: Build against the remote cache
+      - name: Cache probe
         run: |
           bazel build --config=ci \
             --remote_cache=grpc://frontend-rw.buildbarn.svc.cluster.local:8980 \
             //infra/platform/buildbarn:cache_probe
+
+      # The real workload: Verilator built from source, the design verilated,
+      # and the test compiled -- all executed on cluster workers rather than on
+      # the runner.
+      #
+      # This runs here rather than from a developer machine for a structural
+      # reason. The execution platform is linux/arm64, and so is this runner, so
+      # the hermetic clang targets the host natively. Running the same thing
+      # from a Mac would be cross-compilation and would need a Linux sysroot,
+      # which is why developer machines use the remote *cache* instead.
+      - name: Verilator on the cluster
+        run: |
+          bazel test --config=ci --config=remote \
+            --remote_executor=grpc://frontend-rw.buildbarn.svc.cluster.local:8980 \
+            //hardware/...

@@ -7,6 +7,27 @@ module(
 
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "rules_cc", version = "0.2.16")
+
+# A C++ toolchain that targets Linux regardless of what the machine running
+# Bazel is. Without this, remote execution fails during analysis: Bazel's
+# autodetected toolchain only ever targets the host, so asking for a linux/arm64
+# execution platform finds no toolchain at all -- and Verilator, which is built
+# from source, is several thousand C++ actions that have to run somewhere.
+#
+# Clang arrives as an external repository and is therefore an action input,
+# shipped to workers through the CAS. That is the half of the toolchain split
+# that should win wherever it can: the compiler version is in the build graph
+# rather than baked into a worker image nobody diffs.
+bazel_dep(name = "toolchains_llvm", version = "1.8.0")
+
+llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
+llvm.toolchain(
+    name = "llvm_toolchain",
+    llvm_version = "19.1.6",
+)
+use_repo(llvm, "llvm_toolchain")
+
+register_toolchains("@llvm_toolchain//:all")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
 # Hardware. rules_verilator drives Verilator; rules_verilog provides the

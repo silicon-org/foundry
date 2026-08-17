@@ -1,0 +1,20 @@
+# Integration point for pulp-platform/common_cells.
+#
+# The sources are not vendored here. They are fetched by the http_archive in
+# //MODULE.bazel, pinned by sha256, and this package supplies the BUILD file
+# that turns them into Bazel targets plus aliases so they can be referred to by
+# a label that reads like part of this repository.
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["common_cells.BUILD.bazel"])
+
+alias(
+    name = "cc_pkg",
+    actual = "@common_cells//:cc_pkg",
+)
+
+alias(
+    name = "cc_lzc",
+    actual = "@common_cells//:cc_lzc",
+)

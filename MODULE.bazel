@@ -6,7 +6,35 @@ module(
 )
 
 bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_cc", version = "0.2.16")
 bazel_dep(name = "rules_shell", version = "0.8.0")
+
+# Hardware. rules_verilator drives Verilator; rules_verilog provides the
+# verilog_library that describes a design's sources and its top module.
+bazel_dep(name = "rules_verilator", version = "1.1.2")
+bazel_dep(name = "rules_verilog", version = "1.4.2")
+
+register_toolchains("@rules_verilator//verilator:verilator_toolchain")
+
+# Third-party IP is pinned by hash rather than vendored into this history. The
+# BUILD file that makes it a Bazel target lives with us, in
+# //hardware/ip/common_cells, because it is our integration and not upstream's.
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "common_cells",
+    build_file = "//hardware/ip/common_cells:common_cells.BUILD.bazel",
+    sha256 = "df7e2086e59d144ccd9bee2196778fdf23dfec803affd0273c6f69f56c5f5b46",
+    # Anchors the include search path. rules_verilog derives -I from each
+    # header's directory, but its `includes` attribute is computed from
+    # ctx.label.package and ignores an external repository's root, so it emits a
+    # bare "-Iinclude" that resolves against the wrong tree. Cells include
+    # "common_cells/assertions.svh", so the search path has to be include/ --
+    # and an empty header sitting there produces exactly that. Worth upstreaming.
+    patch_cmds = ["touch include/_incdir_anchor.svh"],
+    strip_prefix = "common_cells-2.0.0-beta.3",
+    url = "https://github.com/pulp-platform/common_cells/archive/refs/tags/v2.0.0-beta.3.tar.gz",
+)
 
 # Pinned CLI toolchain. See //tools for the tool list and update workflow.
 bazel_dep(name = "rules_multitool", version = "1.11.1", dev_dependency = True)

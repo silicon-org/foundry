@@ -1,0 +1,30 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
+load("@rules_verilog//verilog:defs.bzl", "verilog_library")
+
+# The concrete top. cc_lzc is a parameterised library cell with no fixed width
+# until something instantiates it, so verilating it directly would verilate its
+# defaults rather than anything we care about.
+verilog_library(
+    name = "lzc_tb",
+    srcs = ["lzc_tb.sv"],
+    top_module = "lzc_tb",
+    deps = ["//hardware/ip/common_cells:cc_lzc"],
+)
+
+# Verilator turns the design into a C++ class.
+verilator_cc_library(
+    name = "lzc_verilated",
+    module = ":lzc_tb",
+    vopts = [
+        "-Wall",
+        "-Wno-fatal",
+    ],
+)
+
+cc_test(
+    name = "lzc_test",
+    size = "small",
+    srcs = ["lzc_test.cc"],
+    deps = [":lzc_verilated"],
+)

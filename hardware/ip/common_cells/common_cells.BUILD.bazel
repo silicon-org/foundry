@@ -1,0 +1,32 @@
+# Bazel view of pulp-platform/common_cells. Upstream builds with Bender and
+# ships no Bazel support, so this file is ours; it is applied as an overlay onto
+# the fetched archive by the http_archive in //MODULE.bazel.
+#
+# Kept deliberately small. Only what a target here actually needs gets a
+# verilog_library, so that adding a cell is a visible decision rather than a
+# by-product of a glob.
+
+load("@rules_verilog//verilog:defs.bzl", "verilog_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Shared macros. Cells include them as `common_cells/assertions.svh`, so the
+# search path is `include/` and the header keeps its subdirectory.
+# The package that carries the width-calculation functions and enums the cells
+# take as parameters.
+verilog_library(
+    name = "cc_pkg",
+    srcs = ["src/cc_pkg.sv"],
+)
+
+# Leading-zero counter. Purely combinational, which makes it a good first
+# target: correctness is a truth table, not a waveform.
+verilog_library(
+    name = "cc_lzc",
+    srcs = ["src/cc_lzc.sv"],
+    hdrs = glob([
+        "include/*.svh",
+        "include/common_cells/*.svh",
+    ]),
+    deps = [":cc_pkg"],
+)

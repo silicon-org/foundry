@@ -28,11 +28,11 @@ request, and a pull request is arbitrary code plus a request to execute it.
 
 The split that makes it safe:
 
-| Trigger | Runs on | Cache access |
-|---|---|---|
-| `push` to `main` | self-hosted | read-write |
-| PR from a branch in this repo | self-hosted | read-only |
-| **PR from a fork** | **GitHub-hosted** | read-only, public frontend only |
+| Trigger                       | Runs on           | Cache access                    |
+| ----------------------------- | ----------------- | ------------------------------- |
+| `push` to `main`              | self-hosted       | read-write                      |
+| PR from a branch in this repo | self-hosted       | read-only                       |
+| **PR from a fork**            | **GitHub-hosted** | read-only, public frontend only |
 
 Fork PRs never touch our hardware. GitHub-hosted runners are free for public
 repositories, so contributors still get full CI — they just get it on
@@ -75,16 +75,32 @@ secret made by hand is invisible to git and silently missing the next time the
 cluster is rebuilt.
 
 Create the App at
-`https://github.com/organizations/silicon-org/settings/apps/new`, owned by the
-organization rather than a personal account:
+`https://github.com/organizations/silicon-org/settings/apps/new`. The URL
+matters: `https://github.com/settings/apps/new` looks almost identical and
+creates a **personally owned** App instead. Personal ownership ties the
+organization's CI to one individual's account, which is a problem that surfaces
+at the worst possible time.
 
-| Field | Value |
-|---|---|
-| Name | `silicon-foundry-arc` (globally unique across GitHub) |
-| Homepage URL | `https://github.com/silicon-org/foundry` |
-| Webhook → Active | **unchecked** |
-| Where can this App be installed? | Only on this account |
-| Subscribe to events | none |
+The symptom of getting this wrong is that "Install App" offers only your own
+username and not `silicon-org`. "Where can this GitHub App be installed?" means
+*the owner's* account, so on a personally owned App it resolves to you. The fix
+is ownership, not the installability setting: on the App's settings page, use
+**Transfer ownership** to move it to `silicon-org` — this keeps the App ID and
+private key — or delete it and create it again from the organization URL.
+
+Setting installability to "Any account" also makes the install possible, and is
+the wrong fix. It leaves the App personally owned and makes it installable by
+anyone on GitHub, solving the symptom while keeping the cause.
+
+With the App owned by the organization:
+
+| Field                            | Value                                                 |
+| -------------------------------- | ----------------------------------------------------- |
+| Name                             | `silicon-foundry-arc` (globally unique across GitHub) |
+| Homepage URL                     | `https://github.com/silicon-org/foundry`              |
+| Webhook → Active                 | **unchecked**                                         |
+| Where can this App be installed? | Only on this account                                  |
+| Subscribe to events              | none                                                  |
 
 **The webhook must stay off.** A runner scale set long-polls GitHub outbound; a
 webhook would require GitHub to reach *in*. That single checkbox is the
@@ -110,11 +126,11 @@ Then install it: **Install App** → `silicon-org` → **Only select repositorie
 Three values come out of this, and they are needed by
 `github-app.sops.yaml`:
 
-| Value | Where to find it | Secret? |
-|---|---|---|
-| App ID | Top of the App's settings page | no |
-| Installation ID | Final path segment of the URL after installing: `.../settings/installations/<ID>` | no |
-| Private key | "Generate a private key" at the bottom of the App page; downloads a `.pem` | **yes** |
+| Value           | Where to find it                                                                  | Secret? |
+| --------------- | --------------------------------------------------------------------------------- | ------- |
+| App ID          | Top of the App's settings page                                                    | no      |
+| Installation ID | Final path segment of the URL after installing: `.../settings/installations/<ID>` | no      |
+| Private key     | "Generate a private key" at the bottom of the App page; downloads a `.pem`        | **yes** |
 
 The `.pem` is issued once and cannot be re-downloaded. Encrypt it into
 `github-app.sops.yaml` directly from the file and delete the plaintext; if it is

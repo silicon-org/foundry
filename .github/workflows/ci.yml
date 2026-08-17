@@ -81,10 +81,18 @@ jobs:
       # Trusted builds write the cache; everything else may only read it.
       # The read-only frontend refuses Action Cache writes outright, so this
       # choice of hostname is a courtesy to the client rather than the control.
+      # Deliberately not //..., which pulls in //tools:bazel_env and eagerly
+      # fetches all twelve pinned CLIs -- roughly 500MB, re-downloaded by every
+      # ephemeral runner. The GitHub-hosted job above already builds the whole
+      # tree and checks the toolchain, so doing it twice buys nothing.
+      #
+      # This builds the cache probe instead, which is what this job is actually
+      # for: proving remote caching works on our own hardware. It gets replaced
+      # by a real workload once there is one.
       - name: Build against the remote cache
         env:
           FRONTEND: ${{ github.event_name == 'push' && 'frontend-rw' || 'frontend-ro' }}
         run: |
           bazel build --config=ci \
             --remote_cache=grpc://${FRONTEND}.buildbarn.svc.cluster.local:8980 \
-            //...
+            //infra/platform/buildbarn:cache_probe

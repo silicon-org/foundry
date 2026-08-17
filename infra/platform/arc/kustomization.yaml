@@ -6,3 +6,4 @@ resources:
   - github-app.sops.yaml
   - controller.yaml
   - runner-scale-set.yaml
+  - networkpolicy.yaml

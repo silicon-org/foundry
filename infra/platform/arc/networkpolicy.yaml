@@ -1,0 +1,87 @@
+# Default-deny egress for everything running in arc-runners.
+#
+# This is the half of the cache-poisoning defence that config alone cannot
+# provide. The read-only Buildbarn frontend already refuses Action Cache writes,
+# but a refusal is a decision made by a service that could be misconfigured. The
+# rule below means the read-write frontend is not reachable from this namespace
+# at all: there is no route, so there is nothing to misconfigure.
+#
+# It is also what contains a compromised job. Runners execute untrusted code by
+# design; without this, a malicious workflow can reach the Kubernetes API, the
+# Talos API, every other namespace, and the whole internet.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: runners
+  namespace: arc-runners
+spec:
+  # Every pod in the namespace, present and future. A policy that selects
+  # specific runners is a policy that misses the next scale set someone adds.
+  endpointSelector: {}
+
+  # Stated explicitly rather than inferred from the presence of rules below.
+  # Cilium only enforces a direction that a policy mentions, so an egress-only
+  # policy silently leaves ingress wide open.
+  enableDefaultDeny:
+    ingress: true
+    egress: true
+
+  # Nothing connects *to* a runner. It reaches out to GitHub and is told what to
+  # do; there is no inbound path in the design, so there is none here.
+  ingress: []
+
+  egress:
+    # DNS, and only to the cluster's own resolver. The L7 rules matter for more
+    # than filtering: Cilium's DNS proxy is what makes toFQDNs below work at
+    # all, since it learns which addresses a name resolved to.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+          rules:
+            dns:
+              - matchPattern: "*"
+
+    # The read-only cache frontend. Note what is absent: frontend-rw, which
+    # sits in the same namespace on the same port and is deliberately not
+    # listed. That omission is the security control.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: buildbarn
+            app: frontend-ro
+      toPorts:
+        - ports:
+            - port: "8980"
+              protocol: TCP
+
+    # GitHub, for the runner protocol itself and for fetching actions.
+    # broker.actions.githubusercontent.com is the long-poll endpoint that makes
+    # inbound ports unnecessary.
+    - toFQDNs:
+        - matchName: github.com
+        - matchPattern: "*.github.com"
+        - matchPattern: "*.githubusercontent.com"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+
+    # Build dependencies: the Bazel Central Registry and Bazel releases, which
+    # bazelisk needs in order to produce a Bazel at all.
+    #
+    # This list grows as real builds need more, and each addition should be
+    # argued for. An allow-list that accumulates entries without scrutiny
+    # becomes an allow-all with extra steps.
+    - toFQDNs:
+        - matchName: bcr.bazel.build
+        - matchName: releases.bazel.build
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

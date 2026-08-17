@@ -19,5 +19,11 @@ configMapGenerator:
       - config/scheduler.jsonnet
       - config/worker.jsonnet
       - config/runner.jsonnet
-generatorOptions:
-  disableNameSuffixHash: true
+# The generated ConfigMap keeps its content hash in the name, so editing any
+# jsonnet file produces a new name, which rewrites the Deployments that mount
+# it, which rolls the pods. Without this a config change lands in the cluster
+# and changes nothing until something happens to restart the pod -- and the
+# symptom is a service quietly running configuration nobody can see in git.
+#
+# Cilium's ConfigMap deliberately does the opposite, because HelmRelease
+# valuesFrom is not rewritten by kustomize and a hashed name would dangle.

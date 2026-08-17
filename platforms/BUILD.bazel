@@ -1,12 +1,20 @@
 package(default_visibility = ["//visibility:public"])
 
-# The execution platform for remote actions.
+# The execution platforms for remote actions.
 #
 # exec_properties are what Bazel sends to the scheduler, and the scheduler
 # matches them against what a worker advertises in its `platform.properties`.
 # They have to agree exactly: a mismatch does not fall back to local execution,
 # it queues until platformQueueWithNoWorkersTimeout expires. See
 # infra/platform/buildbarn/config/worker.jsonnet for the other half.
+#
+# Two of them, because the two clusters differ in architecture and there is no
+# way to paper over that: an action built for one will not run on the other.
+# The local cluster is Talos in Docker on an Apple Silicon Mac, so it is arm64.
+# The cloud cluster is Hetzner, which is x86 -- not by preference but by
+# availability, since Hetzner's arm64 line was out of stock everywhere when it
+# was built. See infra/doc/architecture.md.
+
 platform(
     name = "linux_arm64",
     constraint_values = [
@@ -16,5 +24,17 @@ platform(
     exec_properties = {
         "OSFamily": "linux",
         "ISA": "arm64",
+    },
+)
+
+platform(
+    name = "linux_amd64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    exec_properties = {
+        "OSFamily": "linux",
+        "ISA": "amd64",
     },
 )

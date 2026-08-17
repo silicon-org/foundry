@@ -27,6 +27,18 @@ build:remote --host_platform=//platforms:linux_arm64
 build:remote --platforms=//platforms:linux_arm64
 build:remote --jobs=50
 
+# The cloud cluster, which is x86 rather than arm64 because that is what Hetzner
+# had. Same three flags for the same reason; only the architecture differs.
+#
+# Deliberately a separate config rather than a variable in the one above: the
+# two clusters have different caches and different action digests, and a flag
+# that silently changed which one you were talking to would be a bad way to
+# find that out.
+build:hetzner --extra_execution_platforms=//platforms:linux_amd64
+build:hetzner --host_platform=//platforms:linux_amd64
+build:hetzner --platforms=//platforms:linux_amd64
+build:hetzner --jobs=50
+
 # An LLVM toolchain has no libatomic, but Verilator and rules_verilator both
 # pass -latomic on Linux. This links an empty one into every binary so the flag
 # resolves. See //third_party/libatomic for why that is sound.

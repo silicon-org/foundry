@@ -24,11 +24,19 @@ bazel_dep(name = "rules_cc", version = "0.2.16")
 bazel_dep(name = "llvm", version = "0.8.17")
 
 # Only the combinations we actually build: from a developer Mac or a Linux
-# runner, onto Linux workers.
+# runner, onto Linux workers of either architecture.
+#
+# Both Linux targets are registered because the two clusters differ: the local
+# one is Talos in Docker on Apple Silicon, so arm64, and the Hetzner one is x86
+# because that is what could be bought. Cross-compiling to either from the same
+# Mac is the entire reason for a zero-sysroot toolchain -- without it, adding
+# x86 would have meant finding a Linux machine to build on.
 llvm_toolchain = use_extension("@llvm//extensions:toolchain.bzl", "toolchain")
 llvm_toolchain.exec(arch = "aarch64", os = "macos")
 llvm_toolchain.exec(arch = "aarch64", os = "linux")
+llvm_toolchain.exec(arch = "x86_64", os = "linux")
 llvm_toolchain.target(arch = "aarch64", os = "linux")
+llvm_toolchain.target(arch = "x86_64", os = "linux")
 use_repo(llvm_toolchain, "llvm_toolchains")
 
 register_toolchains("@llvm_toolchains//:all")

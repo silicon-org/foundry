@@ -43,6 +43,17 @@ spec:
               valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
             - name: POD_NAME
               valueFrom: {fieldRef: {fieldPath: metadata.name}}
+            # What this worker tells the scheduler it can execute. It has to be
+            # the architecture of the node underneath it and it has to match the
+            # exec_properties of the platform in //platforms that clients ask
+            # for -- three things that must agree, in three different files.
+            #
+            # arm64 here because the local cluster is Apple Silicon; the Hetzner
+            # overlay patches it to amd64. Getting it wrong does not fail at
+            # deploy time: the worker registers happily and then actions fail on
+            # it in ways that look like anything but a platform mismatch.
+            - name: ISA
+              value: arm64
           resources:
             requests: {cpu: 100m, memory: 256Mi}
             limits: {memory: 1Gi}

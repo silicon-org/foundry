@@ -36,13 +36,17 @@ variable "hcloud_token" {
 # The datacenter is named outright rather than derived from a location, because
 # no rule connects them: fsn1 has dc14, nbg1 has dc3, hel1 has dc2.
 variable "datacenter" {
-  description = "Hetzner datacenter. Must sit in a region offering CAX (arm64): fsn1, nbg1, hel1."
+  description = "Hetzner datacenter. European sites only: fsn1, nbg1, hel1."
   type        = string
   default     = "fsn1-dc14"
 
+  # EU only. Not a technical constraint -- the dedicated line is sold in Ashburn,
+  # Hillsboro and Singapore too -- but the US sites price the shared tiers at
+  # roughly three times the European rate, and there is no reason to build in
+  # another jurisdiction for a cluster whose users are here.
   validation {
     condition     = can(regex("^(fsn1|nbg1|hel1)-dc[0-9]+$", var.datacenter))
-    error_message = "CAX servers exist only in fsn1, nbg1 and hel1; anywhere else there is no arm64 to run on."
+    error_message = "Use a European datacenter: fsn1, nbg1 or hel1."
   }
 }
 
@@ -69,10 +73,15 @@ variable "control_plane_count" {
   }
 }
 
+# ccx13 is 2 dedicated cores and 8 GB. Dedicated rather than shared not because
+# a control plane needs guaranteed cores, but because Hetzner's shared tiers
+# (cx23, cx33, cx43) were unbuyable when this was written -- they sell out and
+# come back within minutes, which is fine for a hobby VM and useless for
+# something a cluster's existence depends on.
 variable "control_plane_type" {
-  description = "Server type for control planes. Must be arm64 (CAX) -- see infra/doc/architecture.md."
+  description = "Server type for control planes. Dedicated (ccx) because the shared tiers are rarely in stock."
   type        = string
-  default     = "cax21"
+  default     = "ccx13"
 }
 
 variable "worker_count" {
@@ -81,10 +90,18 @@ variable "worker_count" {
   default     = 1
 }
 
+# The build worker, and the bulk of the bill: ccx33 is 8 dedicated cores and
+# 32 GB at about EUR 0.24/hour. Dedicated cores matter here in a way they do not
+# for the control planes, since this runs compilation and a noisy neighbour is
+# indistinguishable from a slow build.
+#
+# Scale by adding workers rather than by growing this one. Buildbarn schedules
+# across workers, so two nodes are worth more than one twice the size -- and
+# they can be bought when the larger single instance cannot.
 variable "worker_type" {
-  description = "Server type for workers. cax41 (16 vCPU / 32 GB) is the largest arm64 Hetzner offers."
+  description = "Server type for build workers. Dedicated cores, because this runs compilation."
   type        = string
-  default     = "cax41"
+  default     = "ccx33"
 }
 
 variable "network_cidr" {

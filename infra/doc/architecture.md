@@ -132,8 +132,29 @@ by a fork.
 
 ## Hardware
 
-Nodes and remote-execution workers are arm64: developer machines are Apple
-Silicon and cluster nodes are Hetzner CAX. Remote execution requires worker
-platforms to match what actions need, so this constrains the toolchain —
-anything that must run under remote execution has to build and run on arm64.
-Revisit only if a required tool ships x86-Linux-only.
+Two clusters, two architectures. The local one is Talos in Docker on an Apple
+Silicon Mac, so arm64. The cloud one is Hetzner x86.
+
+That split is not a preference. The original intent was arm64 everywhere —
+developer machines are Apple Silicon and Hetzner's CAX line is arm64 and cheap,
+so one architecture would have covered everything. When the cloud cluster was
+built, every CAX type was out of stock in every Hetzner location, and the
+alternatives with arm64 in stock cost three to six times as much for the same
+specification. So the cloud cluster is x86, and the constraint is gone.
+
+What makes that affordable rather than disruptive is that the C++ toolchain is
+a Bazel dependency rather than something installed on a machine. hermetic-llvm
+cross-compiles from one Mac to both targets, so supporting a second
+architecture is two lines in `MODULE.bazel` and a second `platform` — not a
+second build environment. Had the toolchain been baked into worker images, this
+would have been a rebuild of everything instead.
+
+The cost is real but bounded: an action's cache entry is per-platform, so the
+two clusters do not share results. They already did not — macOS and Linux
+differ regardless — and each cluster's cache is internally consistent, which is
+what actually matters.
+
+Both `//platforms:linux_arm64` and `//platforms:linux_amd64` are therefore
+maintained, and `exec_properties` on each must match what the corresponding
+Buildbarn worker advertises. Anything that must run under remote execution has
+to build and run on whichever architecture its cluster has.

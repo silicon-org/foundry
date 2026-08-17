@@ -18,18 +18,20 @@ KUBERNETES_VERSION = "1.36.2"
 TALOS_VERSION = "v1.13.8"
 
 # Where the image is built, and on what. The snapshot is project-wide, so these
-# govern only the throwaway server that writes it.
+# govern only the throwaway server that writes it, not where the cluster runs.
 #
-# Both are passed explicitly because the uploader's defaults -- fsn1 and cax11 --
-# are invisible until they fail, and they fail as "unsupported location for
-# server type", which names neither the type nor the reason. Hetzner reports a
-# type as unsupported in a datacenter when it is merely out of stock there, so
-# the smallest arm instance is a poor thing to depend on: it is the one most
-# likely to be exhausted. cax21 is what the control planes use anyway, so if it
-# cannot be had here, the cluster could not be built either.
+# Both are stated rather than defaulted, because the uploader picks cax11 in
+# fsn1 on its own and reports the consequence as "unsupported location for
+# server type" -- an error naming neither the type it chose nor the real reason,
+# which is that Hetzner says "unsupported" when a type is simply out of stock
+# there. That cost an afternoon.
+#
+# ccx13 for the same reason it carries the control planes: the dedicated line is
+# the only one reliably purchasable. If this cannot be had, neither can the
+# cluster, so the failure arrives somewhere that makes sense.
 LOCATION = "fsn1"
 
-SERVER_TYPE = "cax21"
+SERVER_TYPE = "ccx13"
 
 # bazel run //infra/talos:up
 workspace_command(

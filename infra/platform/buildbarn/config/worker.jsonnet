@@ -31,9 +31,19 @@ local common = import 'common.libsonnet';
       // Must be lexicographically sorted by name. Buildbarn rejects the
       // worker's registration outright if it is not, and the symptom shows up
       // at the other end of the system as "no workers exist for platform".
+      // ISA comes from the environment because the two clusters differ: the
+      // local one is arm64 (Talos in Docker on Apple Silicon) and the Hetzner
+      // one is x86. Everything else about this file is identical for both, and
+      // one substituted value is a smaller difference to maintain than a second
+      // copy of the worker configuration.
+      //
+      // An unset ISA is a jsonnet evaluation error, so the worker refuses to
+      // start rather than registering as an architecture it cannot execute --
+      // which would be far worse, since actions would be scheduled to it and
+      // then fail in ways that look like compiler bugs.
       platform: {
         properties: [
-          { name: 'ISA', value: 'arm64' },
+          { name: 'ISA', value: std.extVar('ISA') },
           { name: 'OSFamily', value: 'linux' },
         ],
       },

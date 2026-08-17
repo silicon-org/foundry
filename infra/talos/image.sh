@@ -108,7 +108,7 @@ echo >&2 "No snapshot for this schematic yet; building one on ${server_type} in 
 # over. The architecture is implied by the type, and cax11 is exactly the
 # instance most likely to be exhausted.
 "$upload" upload \
-  --image-url "https://factory.talos.dev/image/${schematic_id}/${talos_version}/hcloud-arm64.raw.xz" \
+  --image-url "https://factory.talos.dev/image/${schematic_id}/${talos_version}/hcloud-amd64.raw.xz" \
   --server-type "$server_type" \
   --compression xz \
   --location "$location" \

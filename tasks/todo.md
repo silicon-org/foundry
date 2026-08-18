@@ -74,7 +74,18 @@ are answered by building CIRCT in this graph with this toolchain.
 - [ ] Deps: fmt, tomlplusplus from BCR; Boost regex fork header-only
 - [ ] genrules for `syntax_gen.py` / `diagnostic_gen.py`
 - [ ] `SLANG_USE_THREADS` off; `SLANG_DEBUG` / `SLANG_ASSERT_ENABLED` as defines
-- [ ] ImportVerilog at C++20 with exceptions, CIRCT proper stays C++17
+- [ ] C++20. **Not** the per-target arrangement originally planned: the RTTI and
+      exceptions half of the conflict does not exist here (see lessons.md), so
+      what is left is the language standard alone. Decide global `-std=c++20`
+      versus per-target `copts` when slang lands -- global avoids compiling MLIR
+      headers at two different standards inside ImportVerilog's translation
+      unit, which is an ODR hazard upstream's CMake lives with by setting
+      CMAKE_CXX_STANDARD 20 for that directory only.
+- [ ] Reference, not a dependency: hankhsu1996/slang carries a full bzlmod build
+      on `feature/bazel-support-*` branches, including genrules that drive
+      `diagnostic_gen.py` and `syntax_gen.py`. It is two major versions behind
+      CIRCT's pin (declares 9.1.0 against v11.0+85) and lives on unmerged
+      branches of a fork, so the pattern transfers and the code does not.
 - [ ] Moore dialect, MooreToCore, `//third_party/circt:circt-verilog`
 - [ ] **Gate:** circt-verilog round-trips a common_cells design
 

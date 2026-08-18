@@ -50,14 +50,22 @@ chisel_library(
 # The generator itself: once the Scala is compiled, producing RTL is running a
 # JVM program with arguments.
 #
-# The heap and stack sizes are upstream's, from build.mill. Neither is
-# decoration: elaborating a full XiangShan builds a graph in the tens of
-# gigabytes, and diplomacy's parameter negotiation recurses deeply enough that
-# the default 1 MB stack overflows well before it finishes.
+# Neither flag is decoration. Elaborating a full XiangShan builds a graph in the
+# tens of gigabytes, and diplomacy's parameter negotiation recurses deeply enough
+# that the default 1 MB stack overflows well before it finishes -- hence
+# upstream's -Xss256m, kept as it is.
+#
+# The heap is deliberately not upstream's -Xmx40G, which is a developer machine
+# stated as a constant. A remote worker runs this action under a cgroup limit,
+# and a 40 GB ceiling there does not make more memory available: it tells the
+# collector it has room it does not have, so the heap grows past the limit and
+# the kernel kills the process instead of the collector reclaiming. A percentage
+# is the same intent expressed against whatever is actually there -- the cgroup
+# limit on a worker, physical memory on a laptop.
 scala_binary(
     name = "generator",
     jvm_flags = [
-        "-Xmx40G",
+        "-XX:MaxRAMPercentage=75",
         "-Xss256m",
     ],
     main_class = "top.TopMain",

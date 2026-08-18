@@ -75,8 +75,15 @@ are answered by building CIRCT in this graph with this toolchain.
 - [x] Point `//tools/firtool:firtool` at the source build
 - [x] Delete both firtool http_archives, `firtool.BUILD.bazel`, the select
 - [x] Rewrite the now-false arm64 comments
-- [ ] **Gate:** `bazel build --config=remote //hardware/...` on arm64 -- needs
-      the cluster port-forward running, so not yet exercised.
+- [x] **Gate, by a shorter route.** Running the whole design remotely needs the
+      cluster port-forward plus hours on a worker with RUNNER_CONCURRENCY=1 and
+      a 2Gi runner limit, so instead the cross-compiled binary was executed
+      directly under linux/arm64 -- `docker run --platform linux/arm64` on the
+      Apple Silicon host, which is native. It reports firtool-1.149.0 and
+      compiles a FIRRTL design to correct SystemVerilog. That is the artifact
+      CIRCT does not publish, working on the architecture it was missing for.
+- [ ] Still worth doing once a tunnel is up: a real `--config=remote` build, to
+      exercise the cluster path rather than only the binary.
 
 ## M5 — slang and circt-verilog
 

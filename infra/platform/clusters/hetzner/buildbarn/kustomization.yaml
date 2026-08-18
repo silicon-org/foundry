@@ -8,6 +8,36 @@ resources:
   - ../../../buildbarn
   - storage-volume.yaml
 patches:
+  # The cache sized to the volume this cluster has, rather than to the laptop the
+  # base config describes. 56 of the 62.8 GiB the filesystem reports, leaving room
+  # for the Action Cache beside it and slack on top -- Buildbarn's block files are
+  # sparse, so a total larger than the volume would start cleanly and then fail
+  # with ENOSPC once the files had grown into space that never existed.
+  #
+  # The blob ceiling follows from the size: 56 GiB over 21 blocks is 2.7 GiB,
+  # which is the other half of why this matters. At 8 GiB it was 390 MiB, and
+  # before that 215.6 MiB, which a single JDK exceeded.
+  #
+  # A strategic merge rather than a JSON patch by index, because env entries merge
+  # by name: adding a variable to the base does not silently repoint this one at a
+  # different array element.
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: storage
+        namespace: buildbarn
+      spec:
+        template:
+          spec:
+            containers:
+              - name: storage
+                env:
+                  - name: CAS_SIZE_GIB
+                    value: "56"
+                  - name: AC_SIZE_MIB
+                    value: "2048"
+
   # The nodes here are x86, and a worker that advertised the wrong architecture
   # would be given actions it cannot run. See //platforms for the other end of
   # this agreement.

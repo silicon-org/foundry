@@ -87,6 +87,20 @@ spec:
         - name: storage
           image: ghcr.io/buildbarn/bb-storage@sha256:ebd7d282c79879687792f615e8a0b2e3a6e2d13e6cb2686c8b99a14cf37f08a9
           args: [/config/storage.jsonnet]
+          # How much cache to keep. Buildbarn exposes the environment to jsonnet
+          # as ext vars, which is the same mechanism the worker uses for its
+          # architecture -- see config/storage.jsonnet for why this is a per
+          # cluster value and not a constant.
+          #
+          # These are the emptyDir numbers: small, because the cluster that uses
+          # them is a Docker VM that gets destroyed. Cloud overlays raise them to
+          # suit the volume they actually have, and must not exceed it -- the
+          # block files are sparse, so too large a value fails later, not now.
+          env:
+            - name: CAS_SIZE_GIB
+              value: "8"
+            - name: AC_SIZE_MIB
+              value: "128"
           ports:
             - containerPort: 8981
             - containerPort: 9980

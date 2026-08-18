@@ -43,8 +43,8 @@ allowSchedulingOnControlPlanes: false
 # They are attached to primary IPs, so they survive rebuilding the servers; they
 # do not survive destroying the primary IPs themselves.
 additionalApiServerCertSans:
-  - 2.28.8.220
   - 178.105.1.30
+  - 46.224.107.25
   - 178.104.185.153
 
 cniConfig:

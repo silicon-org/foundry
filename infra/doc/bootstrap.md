@@ -1,6 +1,11 @@
-# Building a cluster from nothing
+# Building the local cluster from nothing
 
 Four commands. Everything else comes from git.
+
+For the Hetzner cluster, see [bootstrap-hetzner](bootstrap-hetzner.md). It is
+longer for two reasons: a cloud makes you provision what Docker hands you, and
+an external cloud provider adds a second bootstrap cycle that GitOps cannot
+break on its own.
 
 This is the irreducible part: you cannot use GitOps to install GitOps, and you
 cannot schedule the thing that installs the CNI onto a cluster that has no CNI.

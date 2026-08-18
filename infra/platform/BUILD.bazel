@@ -10,6 +10,7 @@ KUSTOMIZE_ROOTS = [
     "infra/platform/clusters/local",
     "infra/platform/clusters/local/buildbarn",
     "infra/platform/hcloud",
+    "infra/platform/bb-portal",
     "infra/platform/clusters/hetzner/buildbarn",
     "infra/platform/clusters/hetzner/cilium",
     "infra/platform/clusters/hetzner/arc",
@@ -27,5 +28,6 @@ sh_test(
         "//infra/platform/buildbarn:manifests",
         "//infra/platform/cilium:manifests",
         "//infra/platform/hcloud:manifests",
+        "//infra/platform/bb-portal:manifests",
     ] + glob(["**/*.yaml"]),
 )

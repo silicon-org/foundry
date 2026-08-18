@@ -1,0 +1,90 @@
+# The one stateful thing the portal needs, and the reason deploying it is a
+# real decision rather than another Deployment.
+#
+# Only the BES service uses it: invocation history has to outlive the build that
+# produced it. The scheduler and browser views read live from the cluster.
+#
+# A single instance with no replication, because what it holds is diagnostic.
+# Losing it costs build history, not builds -- so the failure is annoying rather
+# than expensive, and the machinery to prevent it would cost more than the thing
+# it protects.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres
+  namespace: bb-portal
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: bb-portal
+spec:
+  replicas: 1
+  strategy:
+    # Never two Postgres processes on one volume. The default rolling update
+    # would start the new pod before the old one exits, and both would attach
+    # the same ReadWriteOnce claim.
+    type: Recreate
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: postgres
+          image: postgres@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+          env:
+            - name: POSTGRES_USER
+              value: portal
+            - name: POSTGRES_DB
+              value: portal
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: postgres, key: password}}
+            # The image defaults to a directory that is the mount point itself,
+            # which fails on a volume with a lost+found in it.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - {name: postgres, containerPort: 5432}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 1Gi}
+          readinessProbe:
+            exec: {command: [pg_isready, -U, portal, -d, portal]}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: bb-portal
+spec:
+  selector:
+    app: postgres
+  ports:
+    - {name: postgres, port: 5432, targetPort: 5432}

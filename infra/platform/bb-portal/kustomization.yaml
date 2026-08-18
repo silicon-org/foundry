@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: bb-portal
+resources:
+  - namespace.yaml
+  - postgres.sops.yaml
+  - postgres.yaml
+  - portal.yaml
+  - networkpolicy.yaml
+configMapGenerator:
+  - name: bb-portal-config
+    files:
+      - config/portal.jsonnet

@@ -1,0 +1,11 @@
+# Exposed so //infra/platform:kustomize_test can render this root. Globs do not
+# cross package boundaries, and the config is jsonnet rather than YAML, so the
+# test's own glob would not pick it up.
+filegroup(
+    name = "manifests",
+    srcs = glob([
+        "*.yaml",
+        "config/*.jsonnet",
+    ]),
+    visibility = ["//infra/platform:__pkg__"],
+)

@@ -1,0 +1,25 @@
+# Only on this cluster. The local one has no StorageClass, so the portal's
+# Postgres would have nowhere to live, and build history on a cluster that is
+# destroyed by `bazel run //infra/talos:down` would be history of nothing.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: bb-portal
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/platform/bb-portal
+  prune: true
+  wait: true
+  timeout: 10m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  # Needs a StorageClass for Postgres, and something to read from.
+  dependsOn:
+    - name: hcloud
+    - name: buildbarn
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age

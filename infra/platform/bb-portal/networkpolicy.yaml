@@ -1,0 +1,63 @@
+# The portal reads; it does not reach out.
+#
+# Worth constraining even though it is a dashboard, because it holds a database
+# credential and speaks to two Buildbarn services. Nothing about displaying a
+# build requires the internet, so it does not get it -- which also means a
+# compromised portal cannot exfiltrate what it has read.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: bb-portal
+  namespace: bb-portal
+spec:
+  endpointSelector:
+    matchLabels:
+      app: bb-portal
+
+  # Ingress stays open: this is a web interface, reached over a port-forward
+  # today and over the tailnet once the operator exists. Ports are the control
+  # here, not the source.
+  enableDefaultDeny:
+    ingress: false
+    egress: true
+
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+          rules:
+            dns:
+              - matchPattern: "*"
+
+    # Its own database.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: bb-portal
+            app: postgres
+      toPorts:
+        - ports:
+            - {port: "5432", protocol: TCP}
+
+    # Blobs through the read-only frontend, and cluster state from the
+    # scheduler. Note frontend-ro rather than frontend-rw: the portal displays
+    # what exists and has no business being able to write the Action Cache.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: buildbarn
+            app: frontend-ro
+      toPorts:
+        - ports:
+            - {port: "8980", protocol: TCP}
+
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: buildbarn
+            app: scheduler
+      toPorts:
+        - ports:
+            - {port: "8984", protocol: TCP}

@@ -1,0 +1,62 @@
+# The web interface. Reads BEP streams from Bazel, cluster state from the
+# scheduler, and blobs through the read-only frontend.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bb-portal
+  namespace: bb-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bb-portal
+  template:
+    metadata:
+      labels:
+        app: bb-portal
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: bb-portal
+          image: ghcr.io/buildbarn/bb-portal@sha256:01ee4c14fe7ffe323f2688864b5a6e10cb75fb9b2eae2b46a99d912acdf274d2
+          args: [/config/portal.jsonnet]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+          env:
+            # The connection string is assembled here rather than written into
+            # the jsonnet, so the password stays in a Secret and the config
+            # stays readable in git.
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: postgres, key: password}}
+            - name: BB_PORTAL_DATABASE_URL
+              value: postgresql://portal:$(POSTGRES_PASSWORD)@postgres:5432/portal?sslmode=disable
+          ports:
+            - {name: http, containerPort: 8081}
+            - {name: bes, containerPort: 8082}
+            - {name: metrics, containerPort: 9980}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: config, mountPath: /config, readOnly: true}
+      volumes:
+        - name: config
+          configMap:
+            name: bb-portal-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bb-portal
+  namespace: bb-portal
+spec:
+  selector:
+    app: bb-portal
+  ports:
+    - {name: http, port: 8081, targetPort: 8081}
+    - {name: bes, port: 8082, targetPort: 8082}
+    - {name: metrics, port: 9980, targetPort: 9980}

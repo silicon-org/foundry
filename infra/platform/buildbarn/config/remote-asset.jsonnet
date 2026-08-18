@@ -31,12 +31,22 @@ local common = import 'common.libsonnet';
   global: common.global,
   maximumMessageSizeBytes: common.maximumMessageSizeBytes,
 
-  // Fetching is allowed; pushing is not. Push lets a client assert "this URI
-  // has these bytes" without anything verifying it, which is the same
-  // unverifiable claim the Action Cache split exists to contain -- and here it
-  // would poison a dependency rather than a build result.
+  // Both allowed, and the push half is not optional however much it looks it.
+  //
+  // Denying push seemed right by analogy with the Action Cache: a push asserts
+  // "this URI has these bytes" and nothing verifies the claim. But the caching
+  // fetcher records its own result through the same path, so denying push does
+  // not stop clients asserting anything -- it stops the service storing what it
+  // just downloaded, and every fetch fails with PERMISSION_DENIED after the
+  // bytes have already been retrieved.
+  //
+  // What actually contains a poisoned mapping is Bazel: the qualifiers on each
+  // request carry checksum.sri, taken from MODULE.bazel.lock, and a body that
+  // does not match is rejected by the client. That is a real control and it is
+  // the reason this is acceptable; it is also why an unpinned download would
+  // not be protected by it.
   fetchAuthorizer: { allow: {} },
-  pushAuthorizer: { deny: {} },
+  pushAuthorizer: { allow: {} },
 
   // Which instance names this service may store fetched blobs under. It reads
   // as a push control and is not one: leaving it empty does not forbid clients

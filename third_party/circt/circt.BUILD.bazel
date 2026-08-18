@@ -1,0 +1,82 @@
+# Bazel view of CIRCT. Overlaid onto the fetched archive by the http_archive in
+# //MODULE.bazel.
+#
+# CIRCT's own build is CMake and upstream has declined to carry a Bazel one, so
+# everything here is a transcription of the CMakeLists files in the tree this is
+# laid over. Where a target looks arbitrary, the CMake file next to the sources
+# is the authority; where this file departs from it, there is a comment saying
+# why.
+#
+# One file rather than a tree of them. The alternative was LLVM's arrangement --
+# a directory of BUILD files symlinked over the sources by a repository rule --
+# which buys per-directory diffs against upstream at the cost of a vendored copy
+# of a private LLVM helper and a solution to the problem that BUILD files in
+# //third_party would also be loaded as packages of this repository. The
+# repository already overlays twelve archives with a single file each; this is
+# that pattern at a larger size, not a new one.
+
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# What CMake generates by asking git for the newest matching tag, and what the
+# emitted SystemVerilog carries in its header comment.
+#
+# Written from the pin rather than discovered, for the reason //MODULE.bazel
+# gives for XiangShan's publishVersion: a version derived from the builder's
+# working copy is a version that differs per builder. `firtool-1.149.0` is what
+# `git describe --tags --match 'firtool*'` produces at the pinned commit.
+expand_template(
+    name = "version_cpp",
+    out = "lib/Support/Version.cpp",
+    substitutions = {"@CIRCT_VERSION@": "firtool-1.149.0"},
+    template = "lib/Support/Version.cpp.in",
+)
+
+cc_library(
+    name = "Version",
+    srcs = [":version_cpp"],
+    hdrs = ["include/circt/Support/Version.h"],
+    includes = ["include"],
+)
+
+# The subset of //lib/Support that is headers only. circt-tblgen needs
+# circt/Support/LLVM.h, which is a set of using-declarations pulling LLVM and
+# MLIR names into the circt namespace and nothing else, and pulling in the whole
+# of CIRCTSupport to get it would mean building MLIR before the tool that
+# generates MLIR's inputs.
+cc_library(
+    name = "SupportHeaders",
+    hdrs = ["include/circt/Support/LLVM.h"],
+    includes = ["include"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+# CIRCT's own tablegen backends, on top of MLIR's.
+#
+# Needed for exactly three generated files in the firtool closure, all FIRRTL:
+# the annotation details and records headers in include/circt/Dialect/FIRRTL,
+# and FIRRTLIntrinsics.cpp.inc in lib/Dialect/FIRRTL. The RTG backends compiled
+# in alongside them belong to a dialect nothing here builds, but they are in the
+# same binary upstream and splitting them would be a fork of the tool rather
+# than a transcription of it.
+cc_binary(
+    name = "circt-tblgen",
+    srcs = glob([
+        "tools/circt-tblgen/*.cpp",
+        "tools/circt-tblgen/*.h",
+    ]),
+    deps = [
+        ":SupportHeaders",
+        ":Version",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:TableGen",
+        "@llvm-project//mlir:MlirTableGenMain",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TableGen",
+    ],
+)

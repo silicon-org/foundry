@@ -101,6 +101,17 @@ register_toolchains("//hardware/ip/xiangshan:transitive_classpath")
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     name = "xs_maven",
+    # Google's mirror of Maven Central ahead of Central itself, which is not a
+    # preference so much as a rate limit. Fetching fifty artifacts from one
+    # cluster IP earns "429 Too Many Requests" from Central, and a repository
+    # fetch that is refused is a build that fails rather than one that slows
+    # down. The mirror is a GCS bucket and does not throttle; Central stays as
+    # the fallback, and as the authority if the two ever disagree -- the lock
+    # file's checksums are what make that safe.
+    repositories = [
+        "https://maven-central.storage-download.googleapis.com/maven2",
+        "https://repo1.maven.org/maven2",
+    ],
     artifacts = [
         "org.chipsalliance:chisel_2.13:7.13.0",
         "org.chipsalliance:chisel-plugin_2.13.18:7.13.0",

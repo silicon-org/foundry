@@ -112,20 +112,31 @@ spec:
         # which is why it went unnoticed until CI ran on an x86 cluster.
         - matchName: snapshot-cloudflare.debian.org
 
-        # Chisel and the jars XiangShan's generator is compiled against. Derived
-        # from the lock file, which records the repository each artifact was
-        # resolved from:
+        # Maven, for Chisel and the jars the Scala toolchain is built from. Four
+        # entries because two rule sets fetch jars and they disagree about where
+        # from: rules_jvm_external uses the repository named in our lock file,
+        # while rules_scala ships its own mirror list -- Apache, Google's GCS
+        # mirror, mirror.bazel.build, and jcenter -- and tries them in order.
         #
-        #   python3 -c "import json;print(list(json.load(open( \
-        #     'hardware/ip/xiangshan/maven_install.json'))['repositories']))"
+        # Allowing only the first host is worse than it looks. A blocked host does
+        # not fail, it times out, so every jar rules_scala wanted paid three
+        # timeouts before reaching the one host it was allowed, and the host that
+        # remained then answered 429 because one cluster IP was asking Maven
+        # Central for fifty artifacts at once.
         #
-        # One host today, and the lock file is where a second would appear.
-        #
-        # This one hid behind a warm cache: a developer's machine has the jars in
-        # its repository cache from before remote execution was configured, so
-        # nothing asks the asset service for them. CI starts empty and asks for
-        # every one, which is the case that matters and the case nobody runs.
+        # jcenter is deliberately absent. It is last in that list, so with the
+        # three above it is never reached, and it is a sunset service that should
+        # not be reachable from here on the strength of a default in someone
+        # else's rule set.
         - matchName: repo1.maven.org
+        - matchName: repo.maven.apache.org
+        - matchName: maven-central.storage-download.googleapis.com
+
+        # JDK distributions. rules_java takes most of them from mirror.bazel.build
+        # above, and Azul for the platforms it does not mirror -- which on a Linux
+        # runner is none of them, so this one is invisible until a developer does a
+        # cold build on a Mac. The reverse of the busybox case below it.
+        - matchName: cdn.azul.com
       toPorts:
         - ports:
             - {port: "443", protocol: TCP}

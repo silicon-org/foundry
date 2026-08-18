@@ -6,6 +6,7 @@ kind: Kustomization
 # is the point of running one at all.
 resources:
   - ../../../buildbarn
+  - storage-volume.yaml
 patches:
   # The nodes here are x86, and a worker that advertised the wrong architecture
   # would be given actions it cannot run. See //platforms for the other end of

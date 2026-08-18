@@ -1,0 +1,33 @@
+# Binds the Buildbarn cache to a volume that outlived the cluster.
+#
+# The StorageClass reclaims rather than deletes, so `tofu destroy` leaves the
+# volume behind -- but that alone does not bring the cache back. A rebuilt
+# cluster's PersistentVolumeClaim is a new claim, and dynamic provisioning would
+# happily satisfy it with a brand new empty volume while the old one sat
+# unattached, costing money and holding the only copy of the cache. "Retain"
+# prevents deletion; it does not preserve anything by itself.
+#
+# So the volume is named explicitly and pre-bound to the claim. claimRef is what
+# stops any other claim taking it, and what makes this claim skip provisioning.
+#
+# The handle is this cluster's, and it is the one value here that cannot be
+# derived: `hcloud volume list` prints it. It changes only if the volume is
+# deliberately deleted, in which case remove this file and let dynamic
+# provisioning make a fresh one -- the next build simply runs cold.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: buildbarn-storage
+spec:
+  capacity:
+    storage: 16Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: hcloud-volumes
+  claimRef:
+    namespace: buildbarn
+    name: storage
+  csi:
+    driver: csi.hetzner.cloud
+    volumeHandle: "106644197"
+    fsType: ext4

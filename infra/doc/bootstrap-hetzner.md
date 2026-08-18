@@ -257,8 +257,15 @@ Servers, network, load balancer and primary IPs go. Two things deliberately do
 not, because tofu never knew about them:
 
 - **The Buildbarn volume**, created through a PersistentVolumeClaim by the CSI
-  driver, whose StorageClass reclaims rather than deletes. This is the point:
-  the next cluster starts with a warm cache instead of rebuilding everything.
+  driver, whose StorageClass reclaims rather than deletes.
+
+  Retaining it is not by itself enough to keep the cache. A rebuilt cluster
+  makes a new claim, and dynamic provisioning would satisfy it with a fresh
+  empty volume while the old one sat unattached, costing money and holding the
+  only copy. `clusters/hetzner/buildbarn/storage-volume.yaml` names the volume
+  explicitly and pre-binds it to the claim, which is what actually makes the
+  next cluster start warm. Its handle comes from `hcloud volume list` and is the
+  one value in this repository that cannot be derived from anything else.
 - **The Talos snapshot**, which costs a couple of cents a month and saves
   several minutes.
 

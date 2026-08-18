@@ -46,7 +46,12 @@
 
     database: {
       postgres: {
-        connectionString: '${BB_PORTAL_DATABASE_URL}',
+        // From the environment, so the password stays in a Secret and this file
+        // stays readable in git. std.extVar rather than shell-style
+        // interpolation: jsonnet does not expand ${...}, it would be passed
+        // through verbatim and fail at connect time as an unparseable
+        // keyword/value.
+        connectionString: std.extVar('BB_PORTAL_DATABASE_URL'),
       },
       connectionPoolConfiguration: {
         maxOpenConnections: 10,

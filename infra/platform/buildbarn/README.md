@@ -114,12 +114,26 @@ about Buildbarn.
 can execute is what is baked into it. That makes it the place where the toolchain
 decision below gets implemented.
 
-To use it:
+To use it, open the tunnels in one terminal and build in another:
 
 ```
-kubectl -n buildbarn port-forward svc/frontend-rw 8980:8980 &
-bazel build --config=remote --remote_executor=grpc://localhost:8980 //...
+bazel run //infra/platform/buildbarn:tunnel-hetzner    # or :tunnel-local
+bazel test --config=hetzner-dev //...                  # or --config=local-dev
 ```
+
+The `-dev` configs carry the platform, the executor, the asset service and --
+for Hetzner -- the portal, so none of it has to be retyped. The port numbers
+differ per cluster deliberately: both can be tunnelled at once, and a build
+cannot silently reach the cluster you did not mean.
+
+The tunnel target also picks the right credentials. The local cluster is a
+context in the usual kubeconfig and the Hetzner one has a kubeconfig of its own,
+which is the easiest way to end up building against the wrong cluster if it is
+left to whatever KUBECONFIG happens to be exported.
+
+CI does not use these. It passes in-cluster service addresses, which is why the
+endpoints layer over the platform-only configs rather than being folded into
+them.
 
 `--config=remote` adds `--extra_execution_platforms=//platforms:linux_arm64`
 (and `--config=hetzner` its amd64 equivalent, for the cloud cluster),

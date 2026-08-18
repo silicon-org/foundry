@@ -39,6 +39,26 @@ build:hetzner --host_platform=//platforms:linux_amd64
 build:hetzner --platforms=//platforms:linux_amd64
 build:hetzner --jobs=50
 
+# Developer shorthands: platform, endpoints and build UI in one flag, so none
+# of it has to be remembered or retyped.
+#
+#   bazel run //infra/platform/buildbarn:tunnel-hetzner    # in one terminal
+#   bazel test --config=hetzner-dev //...                  # in another
+#
+# Layered over the platform-only configs above rather than folded into them,
+# because CI passes in-cluster service addresses and must not inherit a
+# localhost endpoint that happens to be forwarded to the wrong cluster.
+build:local-dev --config=remote
+build:local-dev --remote_executor=grpc://localhost:8980
+build:local-dev --experimental_remote_downloader=grpc://localhost:8985
+
+build:hetzner-dev --config=hetzner
+build:hetzner-dev --remote_executor=grpc://localhost:8990
+build:hetzner-dev --experimental_remote_downloader=grpc://localhost:8991
+# Build results in the portal, and a URL printed for every invocation.
+build:hetzner-dev --bes_backend=grpc://localhost:8082
+build:hetzner-dev --bes_results_url=http://localhost:8081/bes/
+
 # An LLVM toolchain has no libatomic, but Verilator and rules_verilator both
 # pass -latomic on Linux. This links an empty one into every binary so the flag
 # resolves. See //third_party/libatomic for why that is sound.

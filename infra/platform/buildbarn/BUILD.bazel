@@ -29,3 +29,45 @@ filegroup(
     ]),
     visibility = ["//infra/platform:__pkg__"],
 )
+
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+# bazel run //infra/platform/buildbarn:tunnel-local
+# bazel run //infra/platform/buildbarn:tunnel-hetzner
+#
+# Opens the ports the matching --config expects and holds them until Ctrl-C.
+# The port numbers differ per cluster on purpose: both can be tunnelled at once,
+# and a build cannot silently reach the cluster you did not mean.
+[
+    sh_binary(
+        name = "tunnel-" + cluster,
+        srcs = ["tunnel.sh"],
+        args = [
+            "$(rlocationpath @multitool//tools/kubectl)",
+            target,
+            cluster,
+        ] + specs,
+        data = ["@multitool//tools/kubectl"],
+        deps = ["@bazel_tools//tools/bash/runfiles"],
+    )
+    for cluster, target, specs in [
+        (
+            "local",
+            "admin@foundry-3",
+            [
+                "buildbarn/frontend-rw:8980:8980",
+                "buildbarn/remote-asset:8985:8985",
+            ],
+        ),
+        (
+            "hetzner",
+            "infra/talos/clusterconfig/kubeconfig",
+            [
+                "buildbarn/frontend-rw:8990:8980",
+                "buildbarn/remote-asset:8991:8985",
+                "bb-portal/bb-portal:8081:8081",
+                "bb-portal/bb-portal:8082:8082",
+            ],
+        ),
+    ]
+]

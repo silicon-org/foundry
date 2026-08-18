@@ -37,5 +37,14 @@ local common = import 'common.libsonnet';
   // would poison a dependency rather than a build result.
   fetchAuthorizer: { allow: {} },
   pushAuthorizer: { deny: {} },
-  allowUpdatesForInstances: [],
+
+  // Which instance names this service may store fetched blobs under. It reads
+  // as a push control and is not one: leaving it empty does not forbid clients
+  // from pushing, it forbids the service from writing what it just downloaded,
+  // and every fetch then fails with PERMISSION_DENIED after successfully
+  // retrieving the bytes.
+  //
+  // The empty string is our instance name -- nothing here configures one, so
+  // clients, frontends and workers all use the default.
+  allowUpdatesForInstances: [''],
 }

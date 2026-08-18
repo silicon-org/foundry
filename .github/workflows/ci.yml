@@ -1,17 +1,18 @@
 name: CI
 
-# Two jobs, and on any given event only one of them runs.
+# One job for the code, and a weekly one that asks a question the first cannot.
 #
-# What decides which is trust, not convenience. This repository is public, so a
-# pull request can carry arbitrary code from someone we have no reason to trust,
-# and that code must never execute on our hardware. Everything else follows:
+# The code job runs on our own cluster and runs everything -- `bazel test //...`
+# rather than a curated list of directories, because deciding what needs to
+# re-run is Bazel's job and it is better at it than a path filter. Unchanged
+# targets are cache hits and cost nothing; changing a pin re-runs exactly what
+# depends on that pin, on the commit that changed it.
 #
-#   trusted code   -> `cluster`, on our runners, against our cache
-#   a fork's PR    -> `fork`, on hardware GitHub owns and isolates
-#
-# They are not two halves of one pipeline and they do not run together. The
-# cluster job is the real one; the fork job is what we can honestly offer to a
-# contributor whose code we will not run on our own machines.
+# A fork's pull request gets nothing here. That is deliberate: this repository
+# is public, arbitrary code must never execute on our hardware, and offering a
+# reduced GitHub-hosted pipeline instead meant maintaining a second job that
+# duplicated the first and told us nothing we did not already know. Anyone can
+# run `bazel test //...` locally; what they cannot have is our runners.
 #
 # See infra/platform/arc/README.md for the full threat model.
 
@@ -22,39 +23,39 @@ on:
   # So the cluster path can be exercised without inventing a commit. Useful when
   # what changed is the cluster rather than the code.
   workflow_dispatch:
+  schedule:
+    # Weekly, for the upstream job below only.
+    - cron: "17 6 * * 1"
 
 permissions:
   contents: read
 
 env:
-  # GitHub-hosted images ship bazelisk; our runner image deliberately ships
-  # almost nothing. Naming the version here means both jobs bootstrap Bazel the
-  # same way, instead of one of them depending on what GitHub happens to
-  # preinstall this month.
+  # Our runner image deliberately ships almost nothing, so the version is named
+  # here rather than left to whatever a runner happens to preinstall.
   BAZELISK_VERSION: "1.29.0"
 
 jobs:
-  # The real CI. Everything runs here: manifests, secret scan, and the hardware
-  # build under remote execution.
   cluster:
     # A fork's pull request never reaches this job. workflow_dispatch is
     # included because triggering it requires write access, the same bar as
-    # pushing a branch here.
+    # pushing a branch here. Excluded on schedule: the weekly run exists to ask
+    # the upstream question, not to rebuild unchanged code.
     if: >-
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: foundry-hetzner-amd64
 
-    # Its own group, so this job can never hold up the fork job -- they are
-    # independent answers to independent questions. Sharing one group once meant
-    # a cluster job waiting on runners that no longer existed cancelled five
-    # consecutive runs behind it, and CI produced no signal while appearing
-    # broken rather than blocked.
+    # Its own group, so this can never hold up the job below. Sharing one group
+    # once meant a cluster job waiting on runners that no longer existed
+    # cancelled five consecutive runs behind it, and CI produced no signal while
+    # appearing broken rather than blocked.
     #
-    # If the cluster is down this job queues and eventually fails. That is the
-    # intended behaviour: the cluster being unavailable is a failure worth
-    # seeing, not a condition to skip past.
+    # If the cluster is down this queues and eventually fails, which is the
+    # intended behaviour: the cluster being unavailable is a fact worth seeing,
+    # not a condition to skip past.
     concurrency:
       group: ${{ github.workflow }}-cluster-${{ github.ref }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -73,9 +74,9 @@ jobs:
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
 
-      # Seconds against the cache before spending minutes on a real build. It
-      # answers a different question from the steps below -- whether this runner
-      # can reach the cache at all -- and keeping them apart is what stops an
+      # Seconds against the cache before spending minutes on a build. It answers
+      # a different question from the step below -- whether this runner can
+      # reach the cache at all -- and keeping them apart is what stops an
       # unreachable cluster reading as a broken commit.
       - name: Cache reachable
         run: |
@@ -83,58 +84,49 @@ jobs:
             --remote_cache=grpc://frontend-rw.buildbarn.svc.cluster.local:8980 \
             //infra/platform/buildbarn:cache_probe
 
-      # Renders every kustomize root, which is the check that catches things: a
-      # malformed kustomization otherwise reaches the cluster and surfaces as a
-      # Flux reconcile failure minutes later, attached to a controller rather
-      # than to the commit.
-      - name: Manifests render
+      # Everything: manifests rendered, pinned tools resolved and run, Verilator
+      # built from source, the design verilated and its test executed -- all on
+      # cluster workers, and all decided by Bazel rather than by a list here.
+      - name: Everything
         run: |
           bazel test --config=ci --config=hetzner \
             --remote_executor=grpc://frontend-rw.buildbarn.svc.cluster.local:8980 \
             --experimental_remote_downloader=grpc://remote-asset.buildbarn.svc.cluster.local:8985 \
-            //infra/...
-
-      # The real workload: Verilator built from source, the design verilated,
-      # the test compiled and run -- all on cluster workers rather than here.
-      - name: Hardware on the cluster
-        run: |
-          bazel test --config=ci --config=hetzner \
-            --remote_executor=grpc://frontend-rw.buildbarn.svc.cluster.local:8980 \
-            --experimental_remote_downloader=grpc://remote-asset.buildbarn.svc.cluster.local:8985 \
-            //hardware/...
+            //...
 
       # --redact: findings must never be echoed into a public build log.
+      # Not a Bazel target because it reads git history rather than the tree.
       - name: Secret scan
         run: bazel run --config=ci //tools:secret-scan -- git --redact --no-banner
 
-  # What a fork's pull request gets. Deliberately less: it cannot reach our
-  # cache or our workers, so it checks what can be checked without them.
-  # Contributors still get CI; they get it on infrastructure GitHub isolates.
-  fork:
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name != github.repository
+  # Can the pinned toolchain still be obtained from the internet?
+  #
+  # This is the one question the job above cannot ask, and it is not a
+  # scheduling preference. Our asset service caches downloads by URI, so a build
+  # routed through the cluster keeps succeeding long after upstream deletes a
+  # release -- the cache answers, and nobody finds out until the cache is gone
+  # too. So this runs on GitHub, with no cache of ours and none of GitHub's,
+  # fetching every pin from its true source.
+  #
+  # Weekly, because upstream rot is slow, and a broken pin nobody has touched is
+  # worth finding before someone needs a clean checkout in a hurry.
+  upstream:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     concurrency:
-      group: ${{ github.workflow }}-fork-${{ github.ref }}
-      cancel-in-progress: true
+      group: ${{ github.workflow }}-upstream
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
 
-      # This job may use GitHub's caches: it has no route to ours, and a fork's
-      # build has nothing worth protecting in it.
+      # No caches at all, deliberately. A cache hit here would answer the
+      # question with our own copy of the bytes, which is precisely the answer
+      # this job must not be allowed to give.
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          repository-cache: true
 
-      - name: Manifests render
-        run: bazel test --config=ci //infra/...
-
-      - name: Secret scan
-        run: bazel run --config=ci //tools:secret-scan -- git --redact --no-banner
+      - name: Every pinned tool resolves and runs
+        run: bazel run --config=ci //tools:versions

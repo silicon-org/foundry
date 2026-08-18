@@ -70,7 +70,13 @@ spec:
         - matchName: mirror.bazel.build
         - matchName: mirrors.kernel.org
         - matchName: gitlabcommunity-eu1-eu-west-1-prod-packages.s3.eu-west-1.amazonaws.com
+        # `**.github.com` rather than the bare name, because a tag archive
+        # redirects to codeload.github.com. Allowing only github.com gets the
+        # redirect and then times out on the body -- which reads as a network
+        # fault rather than a policy one, and is the same trap as the
+        # gitlab.arm.com release that redirects to S3.
         - matchName: github.com
+        - matchPattern: "**.github.com"
         - matchPattern: "**.githubusercontent.com"
       toPorts:
         - ports:

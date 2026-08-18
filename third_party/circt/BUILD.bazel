@@ -1,0 +1,13 @@
+# CIRCT, built from source.
+#
+# Only the BUILD file that turns the fetched sources into libraries and tools
+# lives here; the sources are pinned by the http_archive in //MODULE.bazel, the
+# same arrangement as //tools/espresso and the XiangShan submodules.
+#
+# In //third_party rather than //tools because this is not only a tool. firtool
+# is one output of it, but the libraries are the point: loom links them, and a
+# tool directory is the wrong place to look for a library.
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["circt.BUILD.bazel"])

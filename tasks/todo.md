@@ -34,12 +34,21 @@ are answered by building CIRCT in this graph with this toolchain.
 
 ## M2 — Overlay mechanism, circt-tblgen, one dialect
 
-- [ ] CIRCT http_archive at the `firtool-1.149.0` tag
-- [ ] Spike the overlay mechanism: vendored `overlay_directory` repo rule (a),
-      falling back to a single root BUILD file (b)
-- [ ] `circt-tblgen` cc_binary
+- [x] CIRCT http_archive at the `firtool-1.149.0` tag (9.6 MB, well under the
+      CAS ceiling unlike llvm-project)
+- [x] Overlay mechanism settled -- **(b), not (a)**. The single-file overlay is
+      the repository's existing pattern, used by twelve archives already, and it
+      works because CIRCT ships no BUILD files of its own, so the whole tree is
+      one package. (a) would have needed a vendored copy of a private LLVM
+      helper plus a way to stop BUILD files under //third_party being loaded as
+      packages of this repository -- real machinery, for per-directory diffs.
+- [x] `circt-tblgen` cc_binary -- builds in 64s, and `--help` lists all three
+      FIRRTL backends the closure needs
 - [ ] HW dialect end to end: `td_library` + `gentbl_cc_library` + `cc_library`
-- [ ] Version header via genrule
+- [x] Version header via `expand_template` over `lib/Support/Version.cpp.in`,
+      substituting `@CIRCT_VERSION@`. CMake derives it from `git describe`, so
+      writing it from the pin is what keeps generation reproducible -- the same
+      reasoning //MODULE.bazel gives for XiangShan's publishVersion.
 - [ ] **Gate:** HW dialect lit tests pass
 
 ## M3 — firtool

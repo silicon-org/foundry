@@ -242,6 +242,55 @@ http_archive(
     url = "https://github.com/OpenXiangShan/difftest/archive/bd5a0273c375cf1c38b3f5ca10e347e095a7aef1.tar.gz",
 )
 
+# LLVM and MLIR, the compiler framework CIRCT is built on, and therefore what has
+# to be in this graph before CIRCT can be.
+#
+# Not the `llvm` module near the top of this file. That one is the toolchain that
+# *compiles* this repository; this one is a library the graph builds and links.
+# They share a name and nothing else, which is worth saying once here rather than
+# rediscovering at the point where both appear in the same error message.
+#
+# The Bazel Central Registry is no help: its `llvm-project` module is pinned at
+# 17.0.4, generations behind what CIRCT needs. What LLVM does maintain is an
+# overlay of BUILD files inside its own tree, under utils/bazel, plus a repo rule
+# that lays them over the sources. Because the overlay ships *in* llvm-project,
+# pinning the commit CIRCT's `llvm` submodule names gets the matching MLIR build
+# for free -- there is no second version to keep in step, which is the failure
+# mode this arrangement is chosen to avoid.
+#
+# fb8243f3 is that commit for the firtool-1.149.0 tag. It moves when the CIRCT
+# pin moves and not otherwise: upstream tracks llvm main, we track Chisel.
+#
+# One number to know: this tarball is 260 MB, which makes it the largest blob the
+# cluster's CAS is asked to hold. The ceiling is 390 MiB, raised in
+# infra/platform/buildbarn/config/storage.jsonnet when a JDK first hit it. It
+# fits, with less headroom than anyone would choose.
+http_archive(
+    name = "llvm-raw",
+    # The sources arrive with no Bazel view of their own; llvm_configure below is
+    # what supplies one. An empty build file is upstream's own idiom for this.
+    build_file_content = "# empty",
+    sha256 = "ccada3bc979ea884e96ed5297aced9473a7143cde2357efc6ac92a71734adcee",
+    strip_prefix = "llvm-project-fb8243f32c955690ebdfdd32eb9aaaf0c391b648",
+    url = "https://github.com/llvm/llvm-project/archive/fb8243f32c955690ebdfdd32eb9aaaf0c391b648.tar.gz",
+)
+
+# What the overlay's BUILD files expect to find, at the versions LLVM's own
+# MODULE.bazel declares. These are its dependency choices rather than ours, and
+# picking differently would be testing a combination nobody upstream builds.
+#
+# zlib and zstd arrive under the names the overlay refers to them by. The rename
+# is not cosmetic: repository names inside @llvm-project resolve against the repo
+# mapping of the module that declared it, which is this one.
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "rules_python", version = "1.9.0")
+bazel_dep(name = "zlib-ng", version = "2.0.7", repo_name = "llvm_zlib")
+bazel_dep(name = "zstd", version = "1.5.7", repo_name = "llvm_zstd")
+
+llvm_configure = use_repo_rule("@llvm-raw//utils/bazel:configure.bzl", "llvm_configure")
+
+llvm_configure(name = "llvm-project")
+
 # firtool, the CIRCT compiler that turns the FIRRTL the generator emits into
 # SystemVerilog. Version 1.149.0 is not a choice: Chisel 7.13.0 records exactly
 # that version in etc/circt.json and its own tests run against it.

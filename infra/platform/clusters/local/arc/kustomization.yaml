@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# The scale set name is this cluster's alone. GitHub keys scale sets by name
+# against the repository, so sharing one between clusters means a job lands on
+# whichever listener claims it first -- and `runs-on` stops deciding anything.
+#
+# The architecture is in the name because it is what a workflow is really
+# choosing: this cluster's runners are arm64.
+resources:
+  - ../../../arc
+patches:
+  - target:
+      kind: HelmRelease
+      name: foundry
+    patch: |
+      - op: replace
+        path: /spec/values/runnerScaleSetName
+        value: foundry-local-arm64

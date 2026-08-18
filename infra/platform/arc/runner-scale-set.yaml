@@ -22,8 +22,18 @@ spec:
     githubConfigUrl: https://github.com/silicon-org/foundry
     githubConfigSecret: github-app
 
-    # What a workflow puts in `runs-on`.
-    runnerScaleSetName: foundry-arm64
+    # What a workflow puts in `runs-on`, and it must be unique per cluster.
+    #
+    # GitHub identifies a scale set by this name against the repository, not by
+    # which cluster it came from. Two clusters registering the same name are one
+    # scale set with two listeners as far as GitHub is concerned, and a job goes
+    # to whichever claims it first -- so a workflow silently runs on either
+    # machine, which is precisely what `runs-on` is supposed to decide.
+    #
+    # This placeholder is deliberately unusable. Every cluster overlay replaces
+    # it, and a cluster that forgets gets a visibly wrong scale set rather than
+    # quietly stealing another cluster's jobs.
+    runnerScaleSetName: foundry-CLUSTER-UNSET
 
     # Idle runners cost memory and hold a registration. Scale from nothing.
     minRunners: 0

@@ -12,9 +12,9 @@ KUSTOMIZE_ROOTS = [
     "infra/platform/hcloud",
     "infra/platform/clusters/hetzner/buildbarn",
     "infra/platform/clusters/hetzner/cilium",
-    # infra/platform/clusters/hetzner itself is absent on purpose: it lists a
-    # flux-system directory that `flux bootstrap` writes, so it cannot render
-    # until that cluster has been bootstrapped once. Add it then.
+    "infra/platform/clusters/hetzner/arc",
+    "infra/platform/clusters/hetzner",
+    "infra/platform/clusters/local/arc",
 ]
 
 sh_test(

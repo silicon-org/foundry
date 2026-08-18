@@ -5,7 +5,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./infra/platform/arc
+  path: ./infra/platform/clusters/hetzner/arc
   prune: true
   wait: true
   timeout: 10m

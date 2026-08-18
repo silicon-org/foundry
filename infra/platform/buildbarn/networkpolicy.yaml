@@ -56,13 +56,28 @@ spec:
         - ports:
             - {port: "8981", protocol: TCP}
 
-    # Where build dependencies may be fetched from. This is the same list the
-    # runners carry, and for the same reason -- each entry should be argued for,
-    # because an allow-list that accumulates without scrutiny is an allow-all
-    # with extra steps.
+    # Where build dependencies may be fetched from.
     #
-    # Re-derive rather than trusting this comment; see the note in
-    # ../arc/networkpolicy.yaml for how.
+    # This list was assembled one failed build at a time before it was derived
+    # properly, which is the wrong order and cost five round trips. Derive it:
+    # delete this policy on a scratch cluster, fetch everything through the
+    # asset service, and read back what it was asked for.
+    #
+    #   kubectl -n buildbarn delete cnp remote-asset      # temporarily
+    #   bazel --output_base=/tmp/h build --nobuild \
+    #     --experimental_remote_downloader=grpc://localhost:8985 \
+    #     --remote_cache=grpc://localhost:8981 //...
+    #   kubectl -n buildbarn logs deploy/remote-asset \
+    #     | grep -oE "Fetching Blob \[https://[^]/]+" | sort -u
+    #
+    # Run it twice, once natively and once with --config=hetzner. Repository
+    # rules fetch per platform, so a macOS run never asks for the Linux busybox
+    # and the host it comes from stays invisible until CI fails on it.
+    #
+    # Two entries below will not appear in that output at all, because the
+    # service follows redirects internally and logs only what it was asked for:
+    # codeload.github.com and the GitLab release bucket. Both are covered here
+    # and both were found the hard way.
     - toFQDNs:
         - matchName: bcr.bazel.build
         - matchName: releases.bazel.build
@@ -92,6 +107,10 @@ spec:
         # service.
         - matchName: dl.k8s.io
         - matchName: get.helm.sh
+
+        # busybox, fetched by rules_coreutils for //tools:bazel_env. Linux only,
+        # which is why it went unnoticed until CI ran on an x86 cluster.
+        - matchName: snapshot-cloudflare.debian.org
       toPorts:
         - ports:
             - {port: "443", protocol: TCP}

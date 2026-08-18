@@ -2,43 +2,15 @@
 # SystemVerilog. A build tool like the C compiler, so it lives here rather than
 # beside the IP that happens to need it.
 #
-# Unlike espresso next door, this is a downloaded binary rather than a build from
-# source: CIRCT is an LLVM-scale C++ project, and the version has to match what
-# Chisel was tested against anyway.
+# Built from source, in //third_party/circt. It used to be a downloaded binary,
+# which worked everywhere CIRCT publishes one -- and CIRCT publishes none for
+# linux/arm64, in any release variant, so RTL could not be generated on the local
+# cluster at all. Building it also puts the CIRCT libraries in the graph, which
+# is what an FPGA transformation pass would link against.
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["firtool.BUILD.bazel"])
-
-config_setting(
-    name = "linux_x64",
-    constraint_values = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
-)
-
-config_setting(
-    name = "macos_arm64",
-    constraint_values = [
-        "@platforms//os:macos",
-        "@platforms//cpu:arm64",
-    ],
-)
-
-# CIRCT publishes no linux/arm64 binary, so the select has no entry for it rather
-# than an entry that would hand an arm64 worker an x86 executable and let it fail
-# as a format error three actions later.
 alias(
     name = "firtool",
-    actual = select(
-        {
-            ":linux_x64": "@firtool_linux_x64//:bin/firtool",
-            ":macos_arm64": "@firtool_macos_arm64//:bin/firtool",
-        },
-        no_match_error = "Generating RTL from Chisel needs firtool, and CIRCT " +
-                         "publishes binaries only for linux/x86_64 and " +
-                         "macos/arm64. Generate on one of those, or build " +
-                         "CIRCT from source.",
-    ),
+    actual = "@circt//:firtool",
 )

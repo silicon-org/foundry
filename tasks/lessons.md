@@ -63,3 +63,21 @@ more time than it should have.
   sandbox: "Could not copy inputs into sandbox: firtool.cppmap (File exists)".
   CMake's CIRCTFirtool/firtool pair is exactly that. Same hazard as the YunSuan
   patch in //MODULE.bazel.
+
+- XiangShan's Chisel elaboration is **not reproducible**. Two runs of the same
+  generator, same config, same everything, produce different FIRRTL: 288 lines,
+  every one a `brAttribute_WIRE_N` temporary whose suffix shifts. firtool then
+  passes those names through faithfully, so the emitted SystemVerilog differs
+  too. This predates building CIRCT from source -- the prebuilt binary has the
+  same behaviour, because the variation is upstream of it.
+
+  It matters beyond tidiness: a 139 MB output that changes for no reason defeats
+  the action cache on every clean build and undercuts the reproducibility this
+  repository is built around. Worth its own investigation; `--target firrtl`
+  plus `--target-dir` is how to reproduce it in about three minutes without
+  running firtool at all.
+
+- When comparing two compilers, compare them on *one* input. Running the whole
+  pipeline twice and diffing the ends conflates every stage; dumping the
+  intermediate and feeding it to both binaries took the question from "216 names
+  differ, why?" to a byte-identical hash in one step.

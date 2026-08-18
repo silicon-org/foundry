@@ -310,9 +310,10 @@ llvm_configure = use_repo_rule("@llvm-raw//utils/bazel:configure.bzl", "llvm_con
 
 llvm_configure(name = "llvm-project")
 
-# CIRCT itself. Pinned to the tag firtool-1.149.0, which is the same version the
-# prebuilt binary below is pinned to and for the same reason: Chisel 7.13.0
-# names it in etc/circt.json.
+# CIRCT itself. Pinned to the tag firtool-1.149.0, which is not a choice:
+# Chisel 7.13.0 names that version in etc/circt.json and its own tests run
+# against it. The pin moves when Chisel moves, which is a handful of times a
+# year -- not with CIRCT's main branch, which moves daily.
 #
 # The BUILD file that makes this a Bazel target lives in //third_party/circt,
 # because it is our transcription of upstream's CMake and not upstream's own --
@@ -400,32 +401,6 @@ NARROW"""],
     sha256 = "06f46a2b6542979d1b5d30e560fdef513662237dd851c45e8f0772a2369687e6",
     strip_prefix = "circt-firtool-1.149.0",
     url = "https://github.com/llvm/circt/archive/refs/tags/firtool-1.149.0.tar.gz",
-)
-
-# firtool, the CIRCT compiler that turns the FIRRTL the generator emits into
-# SystemVerilog. Version 1.149.0 is not a choice: Chisel 7.13.0 records exactly
-# that version in etc/circt.json and its own tests run against it.
-#
-# `firrtl-bin` rather than `circt-full`, which is the same binary plus a
-# gigabyte of static libraries for linking against CIRCT.
-#
-# Note what is missing: CIRCT publishes no linux/arm64 binary. RTL generation
-# therefore runs locally on a Mac or remotely on the x86 cluster, but not on the
-# arm64 one without building CIRCT from source.
-http_archive(
-    name = "firtool_linux_x64",
-    build_file = "//tools/firtool:firtool.BUILD.bazel",
-    sha256 = "3b32374cf3fe364698d02439766b95ec085072f57d68f90e6b83212b7afdf54c",
-    strip_prefix = "firtool-1.149.0",
-    url = "https://github.com/llvm/circt/releases/download/firtool-1.149.0/firrtl-bin-linux-x64.tar.gz",
-)
-
-http_archive(
-    name = "firtool_macos_arm64",
-    build_file = "//tools/firtool:firtool.BUILD.bazel",
-    sha256 = "74e6bf66bf7f99f7e733f84730bee64d6838b9c59e1c70381de3d163935f70d6",
-    strip_prefix = "firtool-1.149.0",
-    url = "https://github.com/llvm/circt/releases/download/firtool-1.149.0/firrtl-bin-macos-arm64.tar.gz",
 )
 
 # espresso, the logic minimiser Chisel folds decoder tables with. XiangShan asks

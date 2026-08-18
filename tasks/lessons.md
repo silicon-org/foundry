@@ -71,13 +71,36 @@ more time than it should have.
   too. This predates building CIRCT from source -- the prebuilt binary has the
   same behaviour, because the variation is upstream of it.
 
-  It matters beyond tidiness: a 139 MB output that changes for no reason defeats
-  the action cache on every clean build and undercuts the reproducibility this
-  repository is built around. Worth its own investigation; `--target firrtl`
-  plus `--target-dir` is how to reproduce it in about three minutes without
-  running firtool at all.
+  **Found and fixed.** `utils/EnumUInt.scala` discovers an enum's members with
+  `Class.getDeclaredMethods`, which the JDK documents as returning them "not
+  sorted and ... not in any particular order", and which does vary run to run.
+  `validate()` keeps that order and `assertLegal` emits one comparison per value
+  in it, so a reordering renames FIRRTL nodes and changes every byte downstream.
+  Sorting by name in //MODULE.bazel's patch_cmds fixes it. Worth sending
+  upstream: the same file already sorts for its own error messages ten lines
+  earlier, so the order was never meant to be meaningful.
 
 - When comparing two compilers, compare them on *one* input. Running the whole
   pipeline twice and diffing the ends conflates every stage; dumping the
   intermediate and feeding it to both binaries took the question from "216 names
   differ, why?" to a byte-identical hash in one step.
+
+- Four hypotheses died before the right one. Worth keeping the order, because
+  each test was cheap and each ruled out a whole class:
+
+  | hypothesis | test | outcome |
+  |---|---|---|
+  | firtool differs from the release binary | both binaries, one 518 MB input | identical |
+  | espresso is nondeterministic | 60 captured inputs, replayed | deterministic |
+  | JVM identity-hash iteration order | `-XX:hashCode=3`, then `=2` | still varied |
+  | CIRCT's FIRRTL parse/print | `--dump-fir` to split the pipeline | raw .fir varied too |
+
+  `-XX:hashCode=2` is the airtight form of the hash test -- it returns a constant
+  for every object, so no iteration over an identity-keyed map can vary.
+  `hashCode=3` is a global counter and only looks deterministic: any other
+  thread calling hashCode advances it.
+
+- The generator needs NOOP_HOME set, or it throws NoSuchElementException from
+  difftest *after* writing its output. Running it by hand outside the Bazel rule
+  therefore produces complete artifacts and a non-zero exit, which is a good way
+  to believe a build failed when it did not, or to miss that it did.

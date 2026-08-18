@@ -7,18 +7,74 @@
 # is the authority; where this file departs from it, there is a comment saying
 # why.
 #
-# One file rather than a tree of them. The alternative was LLVM's arrangement --
-# a directory of BUILD files symlinked over the sources by a repository rule --
+# Scope is the firtool closure and nothing else: 33 libraries over 11 dialects,
+# derived by walking LINK_LIBS out from the thirteen libraries
+# tools/firtool/CMakeLists.txt names. CIRCT has 32 dialects in all, and the ones
+# left out -- Arc, Calyx, ESI, Handshake, Moore and the rest -- are absent
+# because nothing here builds them, not because they are hard.
+#
+# One file rather than a tree of them. The alternative was LLVM's arrangement, a
+# directory of BUILD files symlinked over the sources by a repository rule,
 # which buys per-directory diffs against upstream at the cost of a vendored copy
-# of a private LLVM helper and a solution to the problem that BUILD files in
+# of a private LLVM helper and a solution to the problem that BUILD files under
 # //third_party would also be loaded as packages of this repository. The
-# repository already overlays twelve archives with a single file each; this is
-# that pattern at a larger size, not a new one.
+# repository already overlays twelve archives with a single file each.
 
 load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@foundry//third_party/circt:defs.bzl", "circt_dialect", "circt_interface", "circt_tablegen")
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
 package(default_visibility = ["//visibility:public"])
+
+#-------------------------------------------------------------------------------
+# TableGen inputs
+#-------------------------------------------------------------------------------
+
+# Every .td file CIRCT ships, as one dependency.
+#
+# MLIR splits its own .td files into a hundred fine-grained td_library targets,
+# and for MLIR that is right: it is enormous and its .td files change daily, so
+# a narrow dependency is the difference between regenerating one header and
+# regenerating all of them. Neither applies here. This tree arrives frozen by an
+# http_archive pin and changes only when that pin moves, at which point every
+# generated header is stale anyway.
+#
+# It also sidesteps a real problem. Seq and Sim include each other's type
+# definitions -- SeqOps.td includes Sim/SimTypes.td while SimOps.td includes
+# Seq/SeqTypes.td -- so a td_library per dialect would be a dependency cycle,
+# and breaking it means splitting each dialect's types away from its operations
+# for no benefit that survives the paragraph above.
+td_library(
+    name = "CIRCTTdFiles",
+    srcs = glob([
+        "include/circt/**/*.td",
+        # Not all of them live under include/. lib/Dialect/FIRRTL holds the
+        # intrinsics *table*, which upstream's own comment distinguishes from
+        # the identically named ops file under include/ -- two files, one
+        # basename, different trees.
+        "lib/**/*.td",
+    ]),
+    includes = ["include"],
+    deps = [
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:CallInterfacesTdFiles",
+        "@llvm-project//mlir:ControlFlowInterfacesTdFiles",
+        "@llvm-project//mlir:EmitCTdFiles",
+        "@llvm-project//mlir:FunctionInterfacesTdFiles",
+        "@llvm-project//mlir:InferIntRangeInterfaceTdFiles",
+        "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
+        "@llvm-project//mlir:MemorySlotInterfacesTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
+        "@llvm-project//mlir:RewritePassBaseTdFiles",
+        "@llvm-project//mlir:SideEffectInterfacesTdFiles",
+    ],
+)
+
+#-------------------------------------------------------------------------------
+# Support
+#-------------------------------------------------------------------------------
 
 # What CMake generates by asking git for the newest matching tag, and what the
 # emitted SystemVerilog carries in its header comment.
@@ -41,11 +97,10 @@ cc_library(
     includes = ["include"],
 )
 
-# The subset of //lib/Support that is headers only. circt-tblgen needs
-# circt/Support/LLVM.h, which is a set of using-declarations pulling LLVM and
-# MLIR names into the circt namespace and nothing else, and pulling in the whole
-# of CIRCTSupport to get it would mean building MLIR before the tool that
-# generates MLIR's inputs.
+# circt-tblgen needs circt/Support/LLVM.h, which is a set of using-declarations
+# pulling LLVM and MLIR names into the circt namespace and nothing else. Kept
+# apart from :Support so that generating a dialect's headers does not depend on
+# compiling the library those headers are for.
 cc_library(
     name = "SupportHeaders",
     hdrs = ["include/circt/Support/LLVM.h"],
@@ -56,14 +111,53 @@ cc_library(
     ],
 )
 
+circt_interface(
+    name = "InstanceGraphInterface",
+    dir = "Support",
+)
+
+cc_library(
+    name = "Support",
+    srcs = glob(
+        [
+            "lib/Support/*.cpp",
+            "lib/Support/*.h",
+        ], allow_empty = True),
+    hdrs = glob(["include/circt/Support/*.h"]),
+    includes = ["include"],
+    deps = [
+        ":InstanceGraphInterfaceIncGen",
+        ":Version",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+
+# What every dialect here needs from MLIR, as reported by the mlir/ headers its
+# sources include rather than by guesswork. Named once because eleven copies of
+# the same nine labels is nine chances to let one drift.
+MLIR_DIALECT_DEPS = [
+    "@llvm-project//llvm:Support",
+    "@llvm-project//mlir:BytecodeOpInterface",
+    "@llvm-project//mlir:IR",
+    "@llvm-project//mlir:InferTypeOpInterface",
+    "@llvm-project//mlir:SideEffectInterfaces",
+    "@llvm-project//mlir:Support",
+]
+
 # CIRCT's own tablegen backends, on top of MLIR's.
 #
 # Needed for exactly three generated files in the firtool closure, all FIRRTL:
-# the annotation details and records headers in include/circt/Dialect/FIRRTL,
-# and FIRRTLIntrinsics.cpp.inc in lib/Dialect/FIRRTL. The RTG backends compiled
-# in alongside them belong to a dialect nothing here builds, but they are in the
-# same binary upstream and splitting them would be a fork of the tool rather
-# than a transcription of it.
+# the annotation details and records headers under include/, and
+# FIRRTLIntrinsics.cpp.inc under lib/. The RTG backends compiled in alongside
+# them belong to a dialect nothing here builds, but they are in the same binary
+# upstream and splitting them would be a fork of the tool rather than a
+# transcription of it.
 cc_binary(
     name = "circt-tblgen",
     srcs = glob([
@@ -79,4 +173,1235 @@ cc_binary(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TableGen",
     ],
+)
+
+#-------------------------------------------------------------------------------
+# Dialects
+#-------------------------------------------------------------------------------
+#
+# The *Reductions.cpp excluded from four of these belong to CIRCTReduce, which
+# backs circt-reduce and is not in the firtool closure. CMake keeps them out of
+# the dialect library by listing them under LLVM_OPTIONAL_SOURCES; a glob has to
+# be told.
+
+circt_dialect(
+    name = "HW",
+    namespace = "hw",
+)
+
+circt_tablegen(
+    name = "HWAttrIncGen",
+    dialect = "HW",
+    outs = {
+        "HWAttributes.h.inc": ["-gen-attrdef-decls"],
+        "HWAttributes.cpp.inc": ["-gen-attrdef-defs"],
+    },
+    td = "HW",
+)
+
+circt_tablegen(
+    name = "HWEnumsIncGen",
+    dialect = "HW",
+    outs = {
+        "HWEnums.h.inc": ["-gen-enum-decls"],
+        "HWEnums.cpp.inc": ["-gen-enum-defs"],
+    },
+    td = "HWEnums",
+)
+
+circt_tablegen(
+    name = "HWCanonicalizationIncGen",
+    dialect = "HW",
+    outs = {"HWCanonicalization.cpp.inc": ["-gen-rewriters"]},
+    td = "HWCanonicalization",
+)
+
+circt_tablegen(
+    name = "HWOpInterfacesIncGen",
+    dialect = "HW",
+    outs = {
+        "HWOpInterfaces.h.inc": ["-gen-op-interface-decls"],
+        "HWOpInterfaces.cpp.inc": ["-gen-op-interface-defs"],
+    },
+    td = "HWOpInterfaces",
+)
+
+circt_tablegen(
+    name = "HWTypeInterfacesIncGen",
+    dialect = "HW",
+    outs = {
+        "HWTypeInterfaces.h.inc": ["-gen-type-interface-decls"],
+        "HWTypeInterfaces.cpp.inc": ["-gen-type-interface-defs"],
+    },
+    td = "HWTypeInterfaces",
+)
+
+circt_tablegen(
+    name = "HWTransformsIncGen",
+    dialect = "HW",
+    outs = {"Passes.h.inc": ["-gen-pass-decls"]},
+    td = "Passes",
+)
+
+cc_library(
+    name = "HW",
+    srcs = glob(
+        [
+            "lib/Dialect/HW/*.cpp",
+            "lib/Dialect/HW/*.h",
+        ],
+        allow_empty = True,
+        exclude = ["lib/Dialect/HW/HWReductions.cpp"],
+    ),
+    hdrs = glob(["include/circt/Dialect/HW/**/*.h"]),
+    includes = ["include"],
+    deps = [
+        ":HWTransformsIncGen",
+        ":EmitOpInterfaces",
+        ":HWAttrIncGen",
+        ":HWCanonicalizationIncGen",
+        ":HWEnumsIncGen",
+        ":HWIncGen",
+        ":HWOpInterfacesIncGen",
+        ":HWTypeInterfacesIncGen",
+        ":Support",
+        "@llvm-project//mlir:ControlFlowInterfaces",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:InferIntRangeCommon",
+        "@llvm-project//mlir:InferIntRangeInterface",
+        "@llvm-project//mlir:MemorySlotInterfaces",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+circt_dialect(
+    name = "Comb",
+    namespace = "comb",
+)
+
+circt_tablegen(
+    name = "CombEnumsIncGen",
+    dialect = "Comb",
+    outs = {
+        "CombEnums.h.inc": ["-gen-enum-decls"],
+        "CombEnums.cpp.inc": ["-gen-enum-defs"],
+    },
+    td = "Comb",
+)
+
+cc_library(
+    name = "Comb",
+    srcs = glob(
+        [
+            "lib/Dialect/Comb/*.cpp",
+            "lib/Dialect/Comb/*.h",
+        ], allow_empty = True),
+    hdrs = glob(["include/circt/Dialect/Comb/**/*.h"]),
+    includes = ["include"],
+    deps = [
+        ":CombEnumsIncGen",
+        ":CombIncGen",
+        ":HW",
+        ":Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:InferIntRangeCommon",
+        "@llvm-project//mlir:InferIntRangeInterface",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+circt_dialect(
+    name = "Debug",
+    namespace = "dbg",
+)
+
+cc_library(
+    name = "Debug",
+    srcs = glob(
+        [
+            "lib/Dialect/Debug/*.cpp",
+            "lib/Dialect/Debug/*.h",
+        ], allow_empty = True),
+    hdrs = glob(["include/circt/Dialect/Debug/**/*.h"]),
+    includes = ["include"],
+    deps = [
+        ":DebugIncGen",
+        ":Support",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+circt_dialect(
+    name = "Emit",
+    namespace = "emit",
+)
+
+circt_tablegen(
+    name = "EmitOpInterfacesIncGen",
+    dialect = "Emit",
+    outs = {
+        "EmitOpInterfaces.h.inc": ["-gen-op-interface-decls"],
+        "EmitOpInterfaces.cpp.inc": ["-gen-op-interface-defs"],
+    },
+    td = "EmitOpInterfaces",
+)
+
+circt_tablegen(
+    name = "EmitTransformsIncGen",
+    dialect = "Emit",
+    outs = {"EmitPasses.h.inc": ["-gen-pass-decls"]},
+    td = "EmitPasses",
+)
+
+# Split out of :Emit so that :HW can depend on it, which it must: HWOps.h and
+# HWOpInterfaces.h include this header, while EmitDialect.h includes HW's
+# attributes. CMake does not notice the circularity because its include paths
+# are global and it tracks only library-level links, where the edge runs one way
+# -- CIRCTEmit links CIRCTHW and not the reverse.
+#
+# The split is honest rather than a workaround. EmitOpInterfaces.h includes
+# circt/Support/LLVM.h, an MLIR header and its own generated .inc, and nothing
+# else; it is free-standing precisely so that HW can implement the interface.
+cc_library(
+    name = "EmitOpInterfaces",
+    hdrs = ["include/circt/Dialect/Emit/EmitOpInterfaces.h"],
+    includes = ["include"],
+    deps = [
+        ":EmitOpInterfacesIncGen",
+        ":SupportHeaders",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+cc_library(
+    name = "Emit",
+    srcs = glob(
+        [
+            "lib/Dialect/Emit/*.cpp",
+            "lib/Dialect/Emit/*.h",
+        ],
+        allow_empty = True,
+        exclude = ["lib/Dialect/Emit/EmitReductions.cpp"],
+    ),
+    hdrs = glob(
+        ["include/circt/Dialect/Emit/**/*.h"],
+        exclude = ["include/circt/Dialect/Emit/EmitOpInterfaces.h"],
+    ),
+    includes = ["include"],
+    deps = [
+        ":EmitTransformsIncGen",
+        ":EmitIncGen",
+        ":EmitOpInterfaces",
+        ":HW",
+        ":Support",
+        "@llvm-project//mlir:Pass",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+circt_dialect(
+    name = "LTL",
+    namespace = "ltl",
+)
+
+circt_tablegen(
+    name = "LTLEnumsIncGen",
+    dialect = "LTL",
+    outs = {
+        "LTLEnums.h.inc": ["-gen-enum-decls"],
+        "LTLEnums.cpp.inc": ["-gen-enum-defs"],
+    },
+    td = "LTL",
+)
+
+circt_tablegen(
+    name = "LTLFoldsIncGen",
+    dialect = "LTL",
+    outs = {"LTLFolds.cpp.inc": ["-gen-rewriters"]},
+    td = "LTL",
+)
+
+cc_library(
+    name = "LTL",
+    srcs = glob(
+        [
+            "lib/Dialect/LTL/*.cpp",
+            "lib/Dialect/LTL/*.h",
+        ], allow_empty = True),
+    hdrs = glob(["include/circt/Dialect/LTL/**/*.h"]),
+    includes = ["include"],
+    deps = [
+        ":Comb",
+        ":HW",
+        ":LTLEnumsIncGen",
+        ":LTLFoldsIncGen",
+        ":LTLIncGen",
+        ":Support",
+        "@llvm-project//mlir:FunctionInterfaces",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+circt_dialect(
+    name = "OM",
+    namespace = "om",
+)
+
+circt_tablegen(
+    name = "OMEnumsIncGen",
+    dialect = "OM",
+    outs = {
+        "OMEnums.h.inc": ["-gen-enum-decls"],
+        "OMEnums.cpp.inc": ["-gen-enum-defs"],
+    },
+    td = "OMEnums",
+)
+
+circt_tablegen(
+    name = "OMAttrIncGen",
+    dialect = "OM",
+    outs = {
+        "OMAttributes.h.inc": ["-gen-attrdef-decls"],
+        "OMAttributes.cpp.inc": ["-gen-attrdef-defs"],
+    },
+    td = "OM",
+)
+
+circt_interface(
+    name = "OMOpInterfaces",
+    dir = "Dialect/OM",
+)
+
+circt_tablegen(
+    name = "OMTransformsIncGen",
+    dialect = "OM",
+    outs = {"OMPasses.h.inc": ["-gen-pass-decls"]},
+    td = "OMPasses",
+)
+
+cc_library(
+    name = "OM",
+    srcs = glob(
+        [
+            "lib/Dialect/OM/*.cpp",
+            "lib/Dialect/OM/*.h",
+        ],
+        allow_empty = True,
+        exclude = ["lib/Dialect/OM/OMReductions.cpp"],
+    ),
+    hdrs = glob(["include/circt/Dialect/OM/**/*.h"]),
+    includes = ["include"],
+    deps = [
+        ":OMTransformsIncGen",
+        ":HW",
+        ":OMAttrIncGen",
+        ":OMEnumsIncGen",
+        ":OMIncGen",
+        ":OMOpInterfacesIncGen",
+        ":Support",
+        "@llvm-project//mlir:ControlFlowInterfaces",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+circt_dialect(
+    name = "Seq",
+    namespace = "seq",
+)
+
+circt_tablegen(
+    name = "SeqEnumsIncGen",
+    dialect = "Seq",
+    outs = {
+        "SeqEnums.h.inc": ["-gen-enum-decls"],
+        "SeqEnums.cpp.inc": ["-gen-enum-defs"],
+    },
+    td = "Seq",
+)
+
+circt_tablegen(
+    name = "SeqAttributesIncGen",
+    dialect = "Seq",
+    outs = {
+        "SeqAttributes.h.inc": ["-gen-attrdef-decls", "-attrdefs-dialect=seq"],
+        "SeqAttributes.cpp.inc": ["-gen-attrdef-defs", "-attrdefs-dialect=seq"],
+    },
+    td = "Seq",
+)
+
+circt_tablegen(
+    name = "SeqOpInterfacesIncGen",
+    dialect = "Seq",
+    outs = {
+        "SeqOpInterfaces.h.inc": ["-gen-op-interface-decls"],
+        "SeqOpInterfaces.cpp.inc": ["-gen-op-interface-defs"],
+    },
+    td = "SeqOpInterfaces",
+)
+
+circt_tablegen(
+    name = "SeqTransformsIncGen",
+    dialect = "Seq",
+    outs = {"SeqPasses.h.inc": ["-gen-pass-decls"]},
+    td = "SeqPasses",
+)
+
+cc_library(
+    name = "Seq",
+    srcs = glob(
+        [
+            "lib/Dialect/Seq/*.cpp",
+            "lib/Dialect/Seq/*.h",
+        ], allow_empty = True),
+    hdrs = glob(["include/circt/Dialect/Seq/**/*.h"]),
+    includes = ["include"],
+    deps = [
+        ":SeqTransformsIncGen",
+        ":Comb",
+        ":HW",
+        ":SeqAttributesIncGen",
+        ":SeqEnumsIncGen",
+        ":SeqIncGen",
+        ":SeqOpInterfacesIncGen",
+        ":Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+circt_dialect(
+    name = "Sim",
+    namespace = "sim",
+)
+
+circt_tablegen(
+    name = "SimEnumsIncGen",
+    dialect = "Sim",
+    outs = {
+        "SimEnums.h.inc": ["-gen-enum-decls"],
+        "SimEnums.cpp.inc": ["-gen-enum-defs"],
+    },
+    td = "Sim",
+)
+
+circt_tablegen(
+    name = "SimOpInterfacesIncGen",
+    dialect = "Sim",
+    outs = {
+        "SimOpInterfaces.h.inc": ["-gen-op-interface-decls"],
+        "SimOpInterfaces.cpp.inc": ["-gen-op-interface-defs"],
+    },
+    td = "SimOpInterfaces",
+)
+
+circt_tablegen(
+    name = "SimTransformsIncGen",
+    dialect = "Sim",
+    outs = {"SimPasses.h.inc": ["-gen-pass-decls"]},
+    td = "SimPasses",
+)
+
+cc_library(
+    name = "Sim",
+    srcs = glob(
+        [
+            "lib/Dialect/Sim/*.cpp",
+            "lib/Dialect/Sim/*.h",
+        ], allow_empty = True),
+    hdrs = glob(["include/circt/Dialect/Sim/**/*.h"]),
+    includes = ["include"],
+    deps = [
+        ":SimTransformsIncGen",
+        ":HW",
+        ":Seq",
+        ":SimEnumsIncGen",
+        ":SimIncGen",
+        ":SimOpInterfacesIncGen",
+        ":Support",
+        ":SV",
+        "@llvm-project//mlir:CallOpInterfaces",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:LLVMDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+circt_dialect(
+    name = "SV",
+    namespace = "sv",
+)
+
+circt_tablegen(
+    name = "SVEnumsIncGen",
+    dialect = "SV",
+    outs = {
+        "SVEnums.h.inc": ["-gen-enum-decls"],
+        "SVEnums.cpp.inc": ["-gen-enum-defs"],
+    },
+    td = "SV",
+)
+
+circt_tablegen(
+    name = "SVAttributesIncGen",
+    dialect = "SV",
+    outs = {
+        "SVAttributes.h.inc": ["-gen-attrdef-decls", "--attrdefs-dialect=sv"],
+        "SVAttributes.cpp.inc": ["-gen-attrdef-defs", "--attrdefs-dialect=sv"],
+    },
+    td = "SV",
+)
+
+circt_tablegen(
+    name = "SVTransformsIncGen",
+    dialect = "SV",
+    outs = {"SVPasses.h.inc": ["-gen-pass-decls"]},
+    td = "SVPasses",
+)
+
+cc_library(
+    name = "SV",
+    textual_hdrs = ["lib/Dialect/SV/ReservedWords.def"],
+    srcs = glob(
+        [
+            "lib/Dialect/SV/*.cpp",
+            "lib/Dialect/SV/*.h",
+        ], allow_empty = True),
+    hdrs = glob(["include/circt/Dialect/SV/**/*.h"]),
+    includes = ["include"],
+    deps = [
+        ":SVTransformsIncGen",
+        ":Comb",
+        ":Emit",
+        ":HW",
+        ":LTL",
+        ":Support",
+        ":SVAttributesIncGen",
+        ":SVEnumsIncGen",
+        ":SVIncGen",
+        "@llvm-project//mlir:CallOpInterfaces",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:Pass",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+circt_dialect(
+    name = "Verif",
+    namespace = "verif",
+)
+
+circt_tablegen(
+    name = "VerifEnumsIncGen",
+    dialect = "Verif",
+    outs = {
+        "VerifEnums.h.inc": ["-gen-enum-decls"],
+        "VerifEnums.cpp.inc": ["-gen-enum-defs"],
+    },
+    td = "Verif",
+)
+
+circt_interface(
+    name = "VerifOpInterfaces",
+    dir = "Dialect/Verif",
+)
+
+circt_tablegen(
+    name = "VerifTransformsIncGen",
+    dialect = "Verif",
+    outs = {"Passes.h.inc": ["-gen-pass-decls"]},
+    td = "Passes",
+)
+
+cc_library(
+    name = "Verif",
+    srcs = glob(
+        [
+            "lib/Dialect/Verif/*.cpp",
+            "lib/Dialect/Verif/*.h",
+        ], allow_empty = True),
+    hdrs = glob(["include/circt/Dialect/Verif/**/*.h"]),
+    includes = ["include"],
+    deps = [
+        ":VerifTransformsIncGen",
+        ":HW",
+        ":LTL",
+        ":Seq",
+        ":Support",
+        ":VerifEnumsIncGen",
+        ":VerifIncGen",
+        ":VerifOpInterfacesIncGen",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+#-------------------------------------------------------------------------------
+# FIRRTL
+#-------------------------------------------------------------------------------
+#
+# The largest dialect here by some distance, and the only one whose generated
+# code needs CIRCT's own tablegen backends rather than MLIR's. CHIRRTL lives in
+# the same directory and the same library: it is FIRRTL's pre-inference form,
+# not a dialect anyone uses on its own.
+
+circt_dialect(
+    name = "FIRRTL",
+    namespace = "firrtl",
+)
+
+circt_dialect(
+    name = "CHIRRTL",
+    namespace = "chirrtl",
+    dir = "FIRRTL",
+)
+
+circt_tablegen(
+    name = "FIRRTLEnumsIncGen",
+    dialect = "FIRRTL",
+    outs = {
+        "FIRRTLEnums.h.inc": ["-gen-enum-decls"],
+        "FIRRTLEnums.cpp.inc": ["-gen-enum-defs"],
+    },
+    td = "FIRRTLEnums",
+)
+
+circt_tablegen(
+    name = "FIRRTLAttributesIncGen",
+    dialect = "FIRRTL",
+    outs = {
+        "FIRRTLAttributes.h.inc": ["-gen-attrdef-decls", "-attrdefs-dialect=firrtl"],
+        "FIRRTLAttributes.cpp.inc": ["-gen-attrdef-defs", "-attrdefs-dialect=firrtl"],
+    },
+    td = "FIRRTL",
+)
+
+circt_tablegen(
+    name = "FIRRTLCanonicalizationIncGen",
+    dialect = "FIRRTL",
+    outs = {"FIRRTLCanonicalization.h.inc": ["-gen-rewriters"]},
+    td = "FIRRTLCanonicalization",
+)
+
+circt_tablegen(
+    name = "FIRRTLOpInterfacesIncGen",
+    dialect = "FIRRTL",
+    outs = {
+        "FIRRTLOpInterfaces.h.inc": ["-gen-op-interface-decls"],
+        "FIRRTLOpInterfaces.cpp.inc": ["-gen-op-interface-defs"],
+    },
+    td = "FIRRTLOpInterfaces",
+)
+
+circt_tablegen(
+    name = "FIRRTLTypeInterfacesIncGen",
+    dialect = "FIRRTL",
+    outs = {
+        "FIRRTLTypeInterfaces.h.inc": ["-gen-type-interface-decls"],
+        "FIRRTLTypeInterfaces.cpp.inc": ["-gen-type-interface-defs"],
+    },
+    td = "FIRRTLTypeInterfaces",
+)
+
+circt_tablegen(
+    name = "FIRRTLTransformsIncGen",
+    dialect = "FIRRTL",
+    outs = {"Passes.h.inc": ["-gen-pass-decls"]},
+    td = "Passes",
+)
+
+# The three that need circt-tblgen. Written out rather than routed through the
+# macro above, because the tool is the whole point of them and hiding it behind
+# a default would make the one interesting thing about these rules invisible.
+gentbl_cc_library(
+    name = "FIRRTLAnnotationsIncGen",
+    tbl_outs = {
+        "include/circt/Dialect/FIRRTL/FIRRTLAnnotationDetails.h.inc": ["--firrtl-annotations-details"],
+        "include/circt/Dialect/FIRRTL/FIRRTLAnnotationRecords.h.inc": ["--firrtl-annotation-records"],
+    },
+    tblgen = ":circt-tblgen",
+    td_file = "include/circt/Dialect/FIRRTL/FIRRTLAnnotations.td",
+    deps = [":CIRCTTdFiles"],
+)
+
+# Generated beside the sources rather than under include/, and included bare as
+# "FIRRTLIntrinsics.cpp.inc" from FIRRTLIntrinsics.cpp. A quoted include looks
+# first in the directory of the including file, which in Bazel is the source
+# tree while the generated file is in the output tree -- so the include path has
+# to be stripped back to the directory the source expects to be sitting in.
+gentbl_cc_library(
+    name = "FIRRTLIntrinsicsIncGen",
+    strip_include_prefix = "lib/Dialect/FIRRTL",
+    tbl_outs = {"lib/Dialect/FIRRTL/FIRRTLIntrinsics.cpp.inc": ["--firrtl-intrinsics"]},
+    tblgen = ":circt-tblgen",
+    td_file = "lib/Dialect/FIRRTL/FIRRTLIntrinsics.td",
+    deps = [":CIRCTTdFiles"],
+)
+
+cc_library(
+    name = "FIRRTL",
+    srcs = glob(
+        [
+            "lib/Dialect/FIRRTL/*.cpp",
+            "lib/Dialect/FIRRTL/*.h",
+        ],
+        allow_empty = True,
+        exclude = ["lib/Dialect/FIRRTL/FIRRTLReductions.cpp"],
+    ),
+    hdrs = glob(["include/circt/Dialect/FIRRTL/**/*.h"]),
+    includes = ["include"],
+    deps = [
+        ":FIRRTLTransformsIncGen",
+        ":CHIRRTLIncGen",
+        ":FIRRTLAnnotationsIncGen",
+        ":FIRRTLAttributesIncGen",
+        ":FIRRTLCanonicalizationIncGen",
+        ":FIRRTLEnumsIncGen",
+        ":FIRRTLIncGen",
+        ":FIRRTLIntrinsicsIncGen",
+        ":FIRRTLOpInterfacesIncGen",
+        ":FIRRTLTypeInterfacesIncGen",
+        ":HW",
+        ":OM",
+        ":SV",
+        ":Seq",
+        ":Support",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+        "@llvm-project//mlir:TranslateLib",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "FIRRTLAnalysis",
+    srcs = ["lib/Analysis/FIRRTLInstanceInfo.cpp"],
+    hdrs = ["include/circt/Analysis/FIRRTLInstanceInfo.h"],
+    includes = ["include"],
+    deps = [":FIRRTL"] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "ImportFIRFile",
+    srcs = glob(
+        [
+            "lib/Dialect/FIRRTL/Import/*.cpp",
+            "lib/Dialect/FIRRTL/Import/*.h",
+        ],
+        allow_empty = True,
+    ),
+    textual_hdrs = ["lib/Dialect/FIRRTL/Import/FIRTokenKinds.def"],
+    deps = [
+        ":FIRRTL",
+        ":FIRRTLTransforms",
+        ":Support",
+        "@llvm-project//mlir:TranslateLib",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "FIRRTLTransforms",
+    srcs = glob(
+        [
+            "lib/Dialect/FIRRTL/Transforms/*.cpp",
+            "lib/Dialect/FIRRTL/Transforms/*.h",
+        ],
+        allow_empty = True,
+    ),
+    deps = [
+        ":Debug",
+        ":Emit",
+        ":FIRRTL",
+        ":FIRRTLAnalysis",
+        ":FIRRTLTransformsIncGen",
+        ":HW",
+        ":OM",
+        ":SV",
+        ":Seq",
+        ":Sim",
+        ":Support",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+#-------------------------------------------------------------------------------
+# Analysis and generic transforms
+#-------------------------------------------------------------------------------
+
+cc_library(
+    name = "DebugAnalysis",
+    srcs = [
+        "lib/Analysis/DebugAnalysis.cpp",
+        "lib/Analysis/DebugInfo.cpp",
+    ],
+    hdrs = [
+        "include/circt/Analysis/DebugAnalysis.h",
+        "include/circt/Analysis/DebugInfo.h",
+    ],
+    includes = ["include"],
+    deps = [
+        ":Comb",
+        ":Debug",
+        ":HW",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "OpCountAnalysis",
+    srcs = ["lib/Analysis/OpCountAnalysis.cpp"],
+    hdrs = ["include/circt/Analysis/OpCountAnalysis.h"],
+    includes = ["include"],
+    deps = [":Support"] + MLIR_DIALECT_DEPS,
+)
+
+gentbl_cc_library(
+    name = "TransformsIncGen",
+    tbl_outs = {"include/circt/Transforms/Passes.h.inc": [
+        "-gen-pass-decls",
+        "-name",
+        "CIRCTTransforms",
+    ]},
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "include/circt/Transforms/Passes.td",
+    deps = [":CIRCTTdFiles"],
+)
+
+cc_library(
+    name = "Transforms",
+    srcs = glob(
+        [
+            "lib/Transforms/*.cpp",
+            "lib/Transforms/*.h",
+        ],
+        allow_empty = True,
+    ),
+    hdrs = glob(["include/circt/Transforms/*.h"]),
+    includes = ["include"],
+    deps = [
+        ":Comb",
+        ":HW",
+        ":OpCountAnalysis",
+        ":Seq",
+        ":TransformsIncGen",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:ControlFlowDialect",
+        "@llvm-project//mlir:ControlFlowTransforms",
+        "@llvm-project//mlir:DialectUtils",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:LLVMCommonConversion",
+        "@llvm-project//mlir:MemRefDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+#-------------------------------------------------------------------------------
+# Per-dialect transforms
+#-------------------------------------------------------------------------------
+
+cc_library(
+    name = "HWTransforms",
+    srcs = glob([
+        "lib/Dialect/HW/Transforms/*.cpp",
+        "lib/Dialect/HW/Transforms/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":Comb",
+        ":HW",
+        ":HWTransformsIncGen",
+        ":SV",
+        ":Seq",
+        ":Support",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "OMTransforms",
+    srcs = glob([
+        "lib/Dialect/OM/Transforms/*.cpp",
+        "lib/Dialect/OM/Transforms/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":HW",
+        ":OM",
+        ":OMTransformsIncGen",
+        ":Support",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "SVTransforms",
+    srcs = glob([
+        "lib/Dialect/SV/Transforms/*.cpp",
+        "lib/Dialect/SV/Transforms/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":Comb",
+        ":Emit",
+        ":HW",
+        ":SV",
+        ":SVTransformsIncGen",
+        ":Seq",
+        ":Support",
+        ":Verif",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "SeqTransforms",
+    srcs = glob([
+        "lib/Dialect/Seq/Transforms/*.cpp",
+        "lib/Dialect/Seq/Transforms/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":Comb",
+        ":Emit",
+        ":HW",
+        ":SV",
+        ":Seq",
+        ":SeqTransformsIncGen",
+        ":Support",
+        ":Verif",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "VerifTransforms",
+    srcs = glob([
+        "lib/Dialect/Verif/Transforms/*.cpp",
+        "lib/Dialect/Verif/Transforms/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":HW",
+        ":LTL",
+        ":SV",
+        ":Support",
+        ":Verif",
+        ":VerifTransformsIncGen",
+        "@llvm-project//mlir:Analysis",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+#-------------------------------------------------------------------------------
+# Conversions
+#-------------------------------------------------------------------------------
+
+# Every conversion's public header, in one target.
+#
+# These are declarations only -- a pass constructor and a registration hook per
+# conversion -- and they include each other freely: LTLToCore.cpp includes
+# HWToSV.h for a declaration it never calls. CMake never notices, because its
+# include paths are global. Owning them individually here means a header with no
+# target, three times over; owning them together says what is actually true,
+# which is that include/circt/Conversion is one interface.
+cc_library(
+    name = "ConversionHeaders",
+    hdrs = [
+        "include/circt/Conversion/ExportVerilog.h",
+        "include/circt/Conversion/FIRRTLToHW.h",
+        "include/circt/Conversion/HWToBTOR2.h",
+        "include/circt/Conversion/HWToSV.h",
+        "include/circt/Conversion/LTLToCore.h",
+        "include/circt/Conversion/Passes.h",
+        "include/circt/Conversion/SVLoweringUtils.h",
+        "include/circt/Conversion/SeqToSV.h",
+        "include/circt/Conversion/SimToSV.h",
+        "include/circt/Conversion/VerifToSV.h",
+    ],
+    includes = ["include"],
+    deps = [":ConversionPassIncGen"],
+)
+
+gentbl_cc_library(
+    name = "ConversionPassIncGen",
+    tbl_outs = {"include/circt/Conversion/Passes.h.inc": [
+        "-gen-pass-decls",
+        "-name",
+        "CIRCTConversion",
+    ]},
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "include/circt/Conversion/Passes.td",
+    deps = [":CIRCTTdFiles"],
+)
+
+cc_library(
+    name = "ExportVerilog",
+    srcs = glob([
+        "lib/Conversion/ExportVerilog/*.cpp",
+        "lib/Conversion/ExportVerilog/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":Comb",
+        ":ConversionHeaders",
+        ":Debug",
+        ":Emit",
+        ":HW",
+        ":HWTransformsIncGen",
+        ":LTL",
+        ":OM",
+        ":SV",
+        ":Support",
+        ":Verif",
+        "@llvm-project//mlir:CallOpInterfaces",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "SVLoweringUtils",
+    srcs = glob([
+        "lib/Conversion/Utils/*.cpp",
+        "lib/Conversion/Utils/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":ConversionHeaders",
+        ":Emit",
+        ":HW",
+        ":SV",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "FIRRTLToHW",
+    srcs = glob([
+        "lib/Conversion/FIRRTLToHW/*.cpp",
+        "lib/Conversion/FIRRTLToHW/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":Comb",
+        ":ConversionHeaders",
+        ":Emit",
+        ":FIRRTL",
+        ":HW",
+        ":LTL",
+        ":SV",
+        ":SVLoweringUtils",
+        ":Seq",
+        ":Sim",
+        ":Verif",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "HWToBTOR2",
+    srcs = glob([
+        "lib/Conversion/HWToBTOR2/*.cpp",
+        "lib/Conversion/HWToBTOR2/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":Comb",
+        ":ConversionHeaders",
+        ":HW",
+        ":HWTransformsIncGen",
+        ":SV",
+        ":Seq",
+        ":Verif",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "LTLToCore",
+    srcs = glob([
+        "lib/Conversion/LTLToCore/*.cpp",
+        "lib/Conversion/LTLToCore/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":Comb",
+        ":ConversionHeaders",
+        ":HW",
+        ":LTL",
+        ":SV",
+        ":Seq",
+        ":Verif",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:LLVMDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "SeqToSV",
+    srcs = glob([
+        "lib/Conversion/SeqToSV/*.cpp",
+        "lib/Conversion/SeqToSV/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":ConversionHeaders",
+        ":Emit",
+        ":SV",
+        ":SVLoweringUtils",
+        ":Seq",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "SimToSV",
+    srcs = glob([
+        "lib/Conversion/SimToSV/*.cpp",
+        "lib/Conversion/SimToSV/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":ConversionHeaders",
+        ":Emit",
+        ":SVLoweringUtils",
+        ":Seq",
+        ":Sim",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_library(
+    name = "VerifToSV",
+    srcs = glob([
+        "lib/Conversion/VerifToSV/*.cpp",
+        "lib/Conversion/VerifToSV/*.h",
+    ], allow_empty = True),
+    deps = [
+        ":ConversionHeaders",
+        ":SV",
+        ":Verif",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+#-------------------------------------------------------------------------------
+# Targets and the driver
+#-------------------------------------------------------------------------------
+
+cc_library(
+    name = "TargetDebugInfo",
+    srcs = [
+        "lib/Target/DebugInfo/DumpDebugInfo.cpp",
+        "lib/Target/DebugInfo/EmitHGLDD.cpp",
+        "lib/Target/DebugInfo/TranslateRegistration.cpp",
+    ],
+    hdrs = ["include/circt/Target/DebugInfo.h"],
+    includes = ["include"],
+    deps = [
+        ":Comb",
+        ":Debug",
+        ":DebugAnalysis",
+        ":Emit",
+        ":HW",
+        ":OM",
+        ":SV",
+        ":Seq",
+        ":Support",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//mlir:TranslateLib",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+# The pipeline firtool runs, as a library. This is the seam loom will sit
+# against: the passes it would insert are the ones this file schedules.
+#
+# CMake calls this CIRCTFirtool and the binary firtool, which is fine for CMake
+# and not for Bazel on a Mac: each C++ target emits a module map named after it,
+# so "Firtool" and "firtool" are the same file on a case-insensitive filesystem
+# and the sandbox refuses to place the second one. The same hazard that made
+# YunSuan need a patch -- see //MODULE.bazel. Named for what it is instead.
+cc_library(
+    name = "FirtoolPipeline",
+    srcs = ["lib/Firtool/Firtool.cpp"],
+    hdrs = ["include/circt/Firtool/Firtool.h"],
+    includes = ["include"],
+    deps = [
+        ":ExportVerilog",
+        ":FIRRTLToHW",
+        ":FIRRTLTransforms",
+        ":HWToBTOR2",
+        ":HWTransforms",
+        ":LTLToCore",
+        ":OMTransforms",
+        ":SVTransforms",
+        ":SeqToSV",
+        ":SeqTransforms",
+        ":SimToSV",
+        ":Transforms",
+        ":VerifToSV",
+        ":VerifTransforms",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
+)
+
+cc_binary(
+    name = "firtool",
+    srcs = ["tools/firtool/firtool.cpp"],
+    deps = [
+        ":Comb",
+        ":Debug",
+        ":Emit",
+        ":ExportVerilog",
+        ":FIRRTL",
+        ":FIRRTLTransforms",
+        ":FirtoolPipeline",
+        ":HW",
+        ":HWTransforms",
+        ":ImportFIRFile",
+        ":LTL",
+        ":OM",
+        ":OMTransforms",
+        ":SV",
+        ":SVTransforms",
+        ":Seq",
+        ":Sim",
+        ":Support",
+        ":TargetDebugInfo",
+        ":Transforms",
+        ":Verif",
+        ":VerifTransforms",
+        "@llvm-project//mlir:BytecodeReader",
+        "@llvm-project//mlir:BytecodeWriter",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:MlirOptLib",
+        "@llvm-project//mlir:Parser",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ] + MLIR_DIALECT_DEPS,
 )

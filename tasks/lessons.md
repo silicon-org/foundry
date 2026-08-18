@@ -43,3 +43,23 @@ more time than it should have.
   every MLIR `cc_library` lists `":FooIncGen"` alongside `":IR"`. Its `**kwargs`
   reach four different rules including a `filegroup`, so only universally
   accepted attributes (`visibility`, `tags`, `testonly`) may be passed through.
+
+- CIRCT's `circt/Conversion/Passes.h` is a hard umbrella: it includes every
+  conversion, each of which includes its dialect's headers and their generated
+  .inc files. Including it needs tablegen for all thirty-two dialects even
+  though firtool links thirteen libraries. Narrowing it means narrowing
+  `Passes.td` in the same patch, because the generated registration block calls
+  `createX()` for every def in the table -- and the keep set has to come from
+  the `GEN_PASS_DEF_*` each library defines, not from what the headers declare.
+  ExportVerilog implements three passes its own header never mentions.
+
+- Removing includes removes what they dragged in behind them. Firtool.cpp uses
+  `llvm::ManagedStatic` and firtool.cpp uses `llvm::sys::SmartMutex` without
+  including either; both only ever compiled because a conversion header up the
+  chain included them.
+
+- A C++ target's module map is named after the target, so on macOS a
+  `cc_library` and a `cc_binary` whose names differ only in case collide in the
+  sandbox: "Could not copy inputs into sandbox: firtool.cppmap (File exists)".
+  CMake's CIRCTFirtool/firtool pair is exactly that. Same hazard as the YunSuan
+  patch in //MODULE.bazel.

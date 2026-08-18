@@ -320,6 +320,83 @@ llvm_configure(name = "llvm-project")
 http_archive(
     name = "circt",
     build_file = "//third_party/circt:circt.BUILD.bazel",
+    # Narrows CIRCT's conversion umbrella to the conversions this build has.
+    #
+    # circt/Conversion/Passes.h includes every conversion CIRCT ships, each of
+    # which includes its dialect's headers, which include that dialect's
+    # generated .inc files. Including it therefore needs tablegen for all
+    # thirty-two dialects even though firtool links thirteen libraries. CMake
+    # never notices, because it builds all of CIRCT regardless.
+    #
+    # Both halves have to move together. The header's include list is what pulls
+    # in absent dialects; Passes.td is what the generated registration block is
+    # built from, and that block calls createX() for every def it finds. Narrow
+    # one without the other and the result is either missing headers or
+    # registrations calling functions nobody declared.
+    #
+    # Nothing is lost. firtool constructs ten conversion passes and every one is
+    # kept; it registers passes individually rather than through any umbrella,
+    # and says why at tools/firtool/firtool.cpp:878 -- "Don't use
+    # registerTransformsPasses, pulls in too much". This is that judgement one
+    # level up.
+    patch_cmds = ["""python3 - <<'NARROW'
+import re, pathlib
+
+# The conversions firtool actually reaches, and nothing else.
+# Derived from the GEN_PASS_DEF_* each conversion in the closure defines,
+# rather than from what the headers declare: ExportVerilog implements three
+# passes -- PrepareForEmission, LegalizeAnonEnums, TestApplyLoweringOption --
+# that its own header says nothing about.
+keep = {
+    "ConvertHWToBTOR2", "ExportSplitVerilog", "ExportVerilog",
+    "LegalizeAnonEnums", "LowerFIRRTLToHW", "LowerFirMem", "LowerLTLToCore",
+    "LowerSeqToSV", "LowerSimToSV", "LowerVerifToSV", "PrepareForEmission",
+    "TestApplyLoweringOption",
+}
+headers = {
+    "ExportVerilog", "FIRRTLToHW", "HWToBTOR2", "HWToSV", "LTLToCore",
+    "SeqToSV", "SimToSV", "VerifToSV",
+}
+
+# The header: drop includes of conversions we do not build. Passes.h.inc stays --
+# the header defines GEN_PASS_REGISTRATION and relies on that include to consume
+# it, and a leaked macro makes the *next* pass header in the translation unit
+# emit its registrations twice, surfacing as a redefinition nowhere near here.
+h = pathlib.Path("include/circt/Conversion/Passes.h")
+h.write_text("".join(
+    line for line in h.read_text().splitlines(True)
+    if not re.match(r'#include "circt/Conversion/', line)
+    or "Passes.h.inc" in line
+    or any(re.search(r'/%s\\.h"' % k, line) for k in headers)
+))
+
+# The table: keep only the matching defs. Each is a top-level block that ends
+# with a closing brace in column zero.
+td = pathlib.Path("include/circt/Conversion/Passes.td")
+out, skipping = [], False
+for line in td.read_text().splitlines(True):
+    m = re.match(r"def ([A-Za-z0-9_]+)\\s*:", line)
+    if m:
+        skipping = m.group(1) not in keep
+    if not skipping:
+        out.append(line)
+    elif line.startswith("}"):
+        skipping = False
+td.write_text("".join(out))
+
+# Two headers the umbrella used to drag in behind it. Both files use what they
+# never included -- llvm::ManagedStatic and llvm::sys::SmartMutex -- which only
+# ever worked because some conversion header up the chain included them.
+for path, anchor, added in (
+    ("lib/Firtool/Firtool.cpp", "llvm/Support/FileSystem.h", "llvm/Support/ManagedStatic.h"),
+    ("tools/firtool/firtool.cpp", "llvm/Support/InitLLVM.h", "llvm/Support/Mutex.h"),
+):
+    f = pathlib.Path(path)
+    inc = '#include "%s"' % anchor
+    text = f.read_text()
+    assert inc in text, path
+    f.write_text(text.replace(inc, inc + chr(10) + '#include "%s"' % added, 1))
+NARROW"""],
     sha256 = "06f46a2b6542979d1b5d30e560fdef513662237dd851c45e8f0772a2369687e6",
     strip_prefix = "circt-firtool-1.149.0",
     url = "https://github.com/llvm/circt/archive/refs/tags/firtool-1.149.0.tar.gz",

@@ -71,15 +71,29 @@ variable "control_plane_count" {
   }
 }
 
-# ccx13 is 2 dedicated cores and 8 GB. Dedicated rather than shared not because
-# a control plane needs guaranteed cores, but because Hetzner's shared tiers
-# (cx23, cx33, cx43) were unbuyable when this was written -- they sell out and
-# come back within minutes, which is fine for a hobby VM and useless for
-# something a cluster's existence depends on.
+# Shared rather than dedicated, and that is a quota decision rather than a
+# performance one.
+#
+# Hetzner meters dedicated (ccx) cores against an account limit that starts
+# small -- ours is 8, which the ccx33 worker consumes entirely. Three ccx13
+# control planes would need six more and the apply fails halfway, having already
+# built the worker. Shared (cx) instances count against a different limit, so
+# putting the control planes there sidesteps the collision instead of shrinking
+# the machine that does the actual work.
+#
+# 2 cores and 4 GB is enough because these run only etcd, the API server,
+# controller-manager, scheduler, Cilium and the CCM: allowSchedulingOnControlPlanes
+# is false, so every workload -- Flux, Buildbarn, ARC -- lands on the worker.
+#
+# The better fix is a quota increase from Hetzner support, at which point this
+# can go back to ccx13 for guaranteed cores under etcd. Until then, note that cx
+# stock genuinely flaps: cx23 moved between fsn1 and hel1 three times in one
+# afternoon, so an apply can fail for availability rather than for anything
+# wrong here.
 variable "control_plane_type" {
-  description = "Server type for control planes. Dedicated (ccx) because the shared tiers are rarely in stock."
+  description = "Server type for control planes. Shared (cx), because dedicated cores are quota-limited."
   type        = string
-  default     = "ccx13"
+  default     = "cx23"
 }
 
 variable "worker_count" {

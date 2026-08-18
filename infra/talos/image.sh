@@ -85,7 +85,14 @@ fi
 # label carries a prefix. Thirty-two hex characters is not a collision anyone
 # will meet; the full ID is in the description.
 label_id="${schematic_id:0:32}"
-selector="talos.schematic==${label_id},talos.version==${talos_version}"
+
+# The build server type is part of the snapshot's identity, not just of how it
+# was made. A Hetzner snapshot inherits the disk size of the machine it came
+# from and cannot shrink, so two images from the same schematic are genuinely
+# different artifacts if they were built on different instances -- and without
+# this, changing SERVER_TYPE would silently reuse the old one and reproduce the
+# failure it was changed to fix.
+selector="talos.schematic==${label_id},talos.version==${talos_version},talos.buildtype==${server_type}"
 
 existing="$("$hcloud" image list --type snapshot --selector "$selector" -o noheader -o columns=id || true)"
 existing="$(tr -d '[:space:]' <<<"$existing")"
@@ -113,7 +120,7 @@ echo >&2 "No snapshot for this schematic yet; building one on ${server_type} in 
   --compression xz \
   --location "$location" \
   --description "talos ${talos_version} ${schematic_id}" \
-  --labels "talos.schematic=${label_id},talos.version=${talos_version}" >&2
+  --labels "talos.schematic=${label_id},talos.version=${talos_version},talos.buildtype=${server_type}" >&2
 
 # The uploader does not print the ID in a form worth parsing, so ask again by
 # the labels we just set. This also proves the labels landed, which is what

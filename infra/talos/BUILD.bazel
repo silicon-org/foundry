@@ -26,12 +26,19 @@ TALOS_VERSION = "v1.13.8"
 # which is that Hetzner says "unsupported" when a type is simply out of stock
 # there. That cost an afternoon.
 #
-# ccx13 for the same reason it carries the control planes: the dedicated line is
-# the only one reliably purchasable. If this cannot be had, neither can the
-# cluster, so the failure arrives somewhere that makes sense.
+# The server type must be the SMALLEST one any node in the cluster uses, which
+# is a rule about disks rather than about cores. A Hetzner snapshot inherits the
+# disk size of the machine it was taken from and cannot shrink, so an image
+# built on a big instance is unusable on a smaller one -- reported at apply time
+# as "image disk is bigger than server type disk", which describes the symptom
+# without hinting that the cause is where the snapshot was made.
+#
+# cx23 has a 40 GB disk against ccx13's 80 and ccx33's 240, so building here
+# produces an image every node can boot. Raise this only in step with the
+# smallest node type, never independently.
 LOCATION = "fsn1"
 
-SERVER_TYPE = "ccx13"
+SERVER_TYPE = "cx23"
 
 # bazel run //infra/talos:up
 workspace_command(

@@ -48,6 +48,25 @@ jobs:
        github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: foundry-hetzner-amd64
 
+    # Build events go to the portal, which is the only way a CI build is
+    # inspectable after the fact: this log says what failed, the portal says
+    # which action, on which worker, and what it had already cached. Failing to
+    # deliver them cannot fail the build -- see --bes_upload_mode in //.bazelrc.
+    #
+    # On every Bazel command in this job rather than just the long one, because
+    # the portal groups invocations into a Build by the run they came from. One
+    # instrumented command is a Build of one, which is a grouping that groups
+    # nothing; three make the run inspectable as the single thing it is.
+    #
+    # The results URL is deliberately a localhost one. The portal is not exposed
+    # outside the cluster, so the link is useless from a browser here and exact
+    # for anyone running `bazel run //infra/platform/buildbarn:tunnel-hetzner`,
+    # which is who reads it.
+    env:
+      BES: >-
+        --bes_backend=grpc://bb-portal.bb-portal.svc.cluster.local:8082
+        --bes_results_url=http://localhost:8081/bes/
+
     # Its own group, so this can never hold up the job below. Sharing one group
     # once meant a cluster job waiting on runners that no longer existed
     # cancelled five consecutive runs behind it, and CI produced no signal while
@@ -80,36 +99,24 @@ jobs:
       # unreachable cluster reading as a broken commit.
       - name: Cache reachable
         run: |
-          bazel build --config=ci \
+          bazel build --config=ci $BES \
             --remote_cache=grpc://frontend-rw.buildbarn.svc.cluster.local:8980 \
             //infra/platform/buildbarn:cache_probe
 
       # Everything: manifests rendered, pinned tools resolved and run, Verilator
       # built from source, the design verilated and its test executed -- all on
       # cluster workers, and all decided by Bazel rather than by a list here.
-      #
-      # Build events go to the portal, which is the only way a CI build is
-      # inspectable after the fact: this log says what failed, the portal says
-      # which action, on which worker, and what it had already cached. Failing to
-      # deliver them cannot fail the build -- see --bes_upload_mode in //.bazelrc.
-      #
-      # The results URL is deliberately a localhost one. The portal is not exposed
-      # outside the cluster, so the link is useless from a browser here and exact
-      # for anyone running `bazel run //infra/platform/buildbarn:tunnel-hetzner`,
-      # which is who reads it.
       - name: Everything
         run: |
-          bazel test --config=ci --config=hetzner \
+          bazel test --config=ci --config=hetzner $BES \
             --remote_executor=grpc://frontend-rw.buildbarn.svc.cluster.local:8980 \
             --experimental_remote_downloader=grpc://remote-asset.buildbarn.svc.cluster.local:8985 \
-            --bes_backend=grpc://bb-portal.bb-portal.svc.cluster.local:8082 \
-            --bes_results_url=http://localhost:8081/bes/ \
             //...
 
       # --redact: findings must never be echoed into a public build log.
       # Not a Bazel target because it reads git history rather than the tree.
       - name: Secret scan
-        run: bazel run --config=ci //tools:secret-scan -- git --redact --no-banner
+        run: bazel run --config=ci $BES //tools:secret-scan -- git --redact --no-banner
 
   # Can the pinned toolchain still be obtained from the internet?
   #

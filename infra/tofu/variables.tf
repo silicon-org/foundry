@@ -27,31 +27,29 @@ variable "hcloud_token" {
   sensitive   = true
 }
 
-# Hetzner scopes some resources to a datacenter (servers, primary IPs) and
-# others to the location containing it (load balancers). Only the datacenter is
-# configured, and the location is derived from it, so the two cannot be set to
-# disagree -- a mismatch otherwise surfaces at apply time as a load balancer
-# that cannot see its own targets.
+# Hetzner removed datacenter-scoped placement on 2026-07-01; everything is
+# scoped to a location now.
 #
-# The datacenter is named outright rather than derived from a location, because
-# no rule connects them: fsn1 has dc14, nbg1 has dc3, hel1 has dc2.
-variable "datacenter" {
-  description = "Hetzner datacenter. European sites only: fsn1, nbg1, hel1."
+# That is a simplification worth noting rather than quietly absorbing: this file
+# previously carried a datacenter variable with the location derived from it,
+# because servers were datacenter-scoped while load balancers and primary IPs
+# were not, and the two could be set to disagree. There is no longer anything to
+# disagree about.
+#
+#   https://docs.hetzner.cloud/changelog#2026-07-01-removing-datacenters
+variable "location" {
+  description = "Hetzner location. European sites only: fsn1, nbg1, hel1."
   type        = string
-  default     = "fsn1-dc14"
+  default     = "fsn1"
 
   # EU only. Not a technical constraint -- the dedicated line is sold in Ashburn,
   # Hillsboro and Singapore too -- but the US sites price the shared tiers at
   # roughly three times the European rate, and there is no reason to build in
   # another jurisdiction for a cluster whose users are here.
   validation {
-    condition     = can(regex("^(fsn1|nbg1|hel1)-dc[0-9]+$", var.datacenter))
-    error_message = "Use a European datacenter: fsn1, nbg1 or hel1."
+    condition     = contains(["fsn1", "nbg1", "hel1"], var.location)
+    error_message = "Use a European location: fsn1, nbg1 or hel1."
   }
-}
-
-locals {
-  location = split("-", var.datacenter)[0]
 }
 
 variable "talos_snapshot_id" {

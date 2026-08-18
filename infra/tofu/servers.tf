@@ -22,7 +22,7 @@ resource "hcloud_primary_ip" "control_plane" {
 
   name        = "foundry-cp-${count.index + 1}"
   type        = "ipv4"
-  location    = local.location
+  location    = var.location
   auto_delete = false
 }
 
@@ -31,7 +31,7 @@ resource "hcloud_primary_ip" "worker" {
 
   name        = "foundry-worker-${count.index + 1}"
   type        = "ipv4"
-  location    = local.location
+  location    = var.location
   auto_delete = false
 }
 
@@ -49,7 +49,7 @@ resource "hcloud_server" "control_plane" {
   name               = "foundry-cp-${count.index + 1}"
   server_type        = var.control_plane_type
   image              = var.talos_snapshot_id
-  datacenter         = var.datacenter
+  location           = var.location
   placement_group_id = hcloud_placement_group.control_plane.id
   firewall_ids       = [hcloud_firewall.nodes.id]
 
@@ -95,7 +95,7 @@ resource "hcloud_server" "worker" {
   name         = "foundry-worker-${count.index + 1}"
   server_type  = var.worker_type
   image        = var.talos_snapshot_id
-  datacenter   = var.datacenter
+  location     = var.location
   firewall_ids = [hcloud_firewall.nodes.id]
 
   labels = {

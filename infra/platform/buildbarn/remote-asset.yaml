@@ -1,0 +1,41 @@
+# Serves the Remote Asset API, so external downloads happen once per cluster
+# instead of once per runner.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: remote-asset
+  namespace: buildbarn
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: remote-asset
+  template:
+    metadata:
+      labels:
+        app: remote-asset
+    spec:
+      containers:
+        - name: remote-asset
+          image: ghcr.io/buildbarn/bb-remote-asset@sha256:0e4aabddd7750938299174818607b4efec2390cf0c2e8fd37ee2e9d1e548a4e3
+          args: [/config/remote-asset.jsonnet]
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: config, mountPath: /config, readOnly: true}
+      volumes:
+        - name: config
+          configMap:
+            name: buildbarn-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: remote-asset
+  namespace: buildbarn
+spec:
+  selector:
+    app: remote-asset
+  ports:
+    - {name: grpc, port: 8985, targetPort: 8985}

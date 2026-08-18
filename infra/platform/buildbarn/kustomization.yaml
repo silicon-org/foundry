@@ -8,6 +8,8 @@ resources:
   - frontend-ro.yaml
   - scheduler.yaml
   - worker.yaml
+  - remote-asset.yaml
+  - networkpolicy.yaml
 configMapGenerator:
   - name: buildbarn-config
     files:
@@ -18,6 +20,7 @@ configMapGenerator:
       - config/storage.jsonnet
       - config/scheduler.jsonnet
       - config/worker.jsonnet
+      - config/remote-asset.jsonnet
       - config/runner.jsonnet
 # The generated ConfigMap keeps its content hash in the name, so editing any
 # jsonnet file produces a new name, which rewrites the Deployments that mount

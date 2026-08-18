@@ -44,5 +44,18 @@ build:hetzner --jobs=50
 # resolves. See //third_party/libatomic for why that is sound.
 build --@bazel_tools//tools/cpp:link_extra_libs=//third_party/libatomic:atomic
 
+# Downloads go through the cluster's asset service rather than out to the
+# internet from every client. Remote execution moves actions but not repository
+# rules, so without this each runner re-fetches the whole external graph -- and
+# the hermetic toolchain made that graph large.
+#
+# The endpoint is a port-forward locally and a service name in CI, so it is
+# passed on the command line like the executor.
+#
+# --experimental_remote_downloader_local_fallback is deliberately NOT set. With
+# it, an unreachable or unauthorised asset service silently becomes a direct
+# download, which is exactly the behaviour the runner allow-list is meant to
+# prevent; better that the build fails and says so.
+
 # Developer-local overrides; never committed.
 try-import %workspace%/.bazelrc.user

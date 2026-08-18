@@ -1,0 +1,77 @@
+# Egress policy for the asset service, and the reason it exists is worth stating
+# plainly: without it, this component silently undoes the runner allow-list.
+#
+# bb-remote-asset fetches whatever URI a client asks for. Its configuration has
+# no allow-list -- HttpFetcherConfiguration carries HTTP client options and
+# nothing else -- so a runner that is forbidden from reaching the internet can
+# simply ask this service to reach it instead, and get the bytes back through
+# the CAS. Every rule in ../arc/networkpolicy.yaml would still be in force and
+# would no longer be worth anything.
+#
+# So the allow-list moves to where the fetching actually happens. This is the
+# better place for it: one service, one list, rather than the same list repeated
+# in every namespace that might want to download something.
+#
+# Only this deployment is selected. The other Buildbarn components talk to each
+# other and to nothing else, and giving storage or the scheduler an internet
+# route would be inventing an exposure that does not currently exist.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: remote-asset
+  namespace: buildbarn
+spec:
+  endpointSelector:
+    matchLabels:
+      app: remote-asset
+
+  # Stated rather than inferred. Cilium only enforces a direction a policy
+  # mentions, so an egress-only policy leaves ingress wide open.
+  enableDefaultDeny:
+    ingress: false
+    egress: true
+
+  egress:
+    # DNS, and only the cluster's resolver. The L7 rules are also what make
+    # toFQDNs work at all: Cilium's DNS proxy learns which addresses a name
+    # resolved to.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+          rules:
+            dns:
+              - matchPattern: "*"
+
+    # Storage, for the blobs it fetches and the mappings it records.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: buildbarn
+            app: storage
+      toPorts:
+        - ports:
+            - {port: "8981", protocol: TCP}
+
+    # Where build dependencies may be fetched from. This is the same list the
+    # runners carry, and for the same reason -- each entry should be argued for,
+    # because an allow-list that accumulates without scrutiny is an allow-all
+    # with extra steps.
+    #
+    # Re-derive rather than trusting this comment; see the note in
+    # ../arc/networkpolicy.yaml for how.
+    - toFQDNs:
+        - matchName: bcr.bazel.build
+        - matchName: releases.bazel.build
+        - matchName: gitlab.arm.com
+        - matchName: mirror.bazel.build
+        - matchName: mirrors.kernel.org
+        - matchName: gitlabcommunity-eu1-eu-west-1-prod-packages.s3.eu-west-1.amazonaws.com
+        - matchName: github.com
+        - matchPattern: "**.githubusercontent.com"
+      toPorts:
+        - ports:
+            - {port: "443", protocol: TCP}

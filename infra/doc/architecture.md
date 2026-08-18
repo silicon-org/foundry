@@ -48,8 +48,11 @@ than an application, so there is no additional UI or API server to secure, and
 its interface is git and nothing else — which matches the discipline the rest of
 the repository enforces.
 
-**cert-manager** for TLS, **SOPS + age** for secrets, **Kyverno** for admission
-control, and etcd encryption-at-rest.
+**SOPS + age** for secrets and etcd encryption-at-rest. **cert-manager** for
+TLS, once something needs a certificate. **Kyverno** is not deployed: the
+policies it was intended for are already enforced by the Pod Security Standards
+`restricted` label, and an admission controller that repeats an existing check
+is motion rather than defence in depth.
 
 ## CI and build
 
@@ -66,7 +69,11 @@ socket. **rules_oci** for container images, not the deprecated rules_docker.
 
 **Tailscale** carries the entire management and internal plane: kubectl,
 talosctl, Grafana, and cache access for remote developers. Outbound-only, no
-public management ports. Cloudflare Zero Trust is deliberately not used; it
+public management ports. It runs as a Talos *system extension* on each node
+rather than as an in-cluster subnet router, because it has to work when the
+cluster does not — a pod cannot rescue the cluster it runs in. Not yet
+configured: the extension is present in the image and idle, and access is
+currently the break-glass firewall rule instead. Cloudflare Zero Trust is deliberately not used; it
 would only earn its place if something here were public-facing.
 
 **kube-prometheus-stack** (Prometheus, Grafana, Alertmanager) with **Loki** for
@@ -103,10 +110,14 @@ acceptance criteria, not aspirations, and each is a testable claim.
    an egress allow-list only: DNS, GitHub, the read-only Buildbarn frontend, and
    the dependency registries builds actually need. Pod Security Standards
    `restricted`. Rootless builds.
-3. **Cache-poisoning prevention.** Untrusted builds cannot write the Action
-   Cache. Enforced by separate read-only and read-write frontends divided at the
-   network layer, not by configuration alone — a flag is one typo away from being
-   wrong, and a route is not.
+3. **Cache-poisoning prevention.** Two frontends exist and the read-only one
+   refuses Action Cache writes. **The network half of this is not in place**: the
+   runner policy currently allows both, because a namespace-level rule cannot
+   tell a push from a pull request, so no build is presently restricted to the
+   read-only endpoint. This is the one invariant on this list that is an
+   intention rather than a fact, and it is recorded that way deliberately — the
+   reasoning and the conditions that should end it are in
+   `platform/arc/networkpolicy.yaml`.
 4. **Zero inbound management ports.** All administrative access over Tailscale.
 5. **Secrets encrypted.** SOPS + age in git; etcd encryption-at-rest enabled.
 6. **Break-glass documented.** A declarative Talos configuration permitting API
@@ -123,12 +134,19 @@ infra/
   tofu/           Hetzner provisioning, private network, firewall
   talos/          talhelper: base machine config plus environment overlays
   platform/       everything Flux reconciles into the cluster
-    cilium/  cert-manager/  kyverno/  secrets/
-    tailscale/  monitoring/  buildbarn/  arc/
+    cilium/  hcloud/  buildbarn/  arc/  secrets/
+    cert-manager/  kyverno/  tailscale/  monitoring/   (not yet deployed)
+    clusters/     which components each cluster runs
 ```
 
-Environments differ by a small Talos configuration overlay over one base, never
-by a fork.
+`clusters/` is how one set of components serves more than one cluster:
+`clusters/local/` and `clusters/hetzner/` each select the components they want
+and patch the handful of values that genuinely differ. A second cluster is a
+sibling directory, never a branch and never a fork of the components.
+
+Environments differ by a small Talos configuration overlay over one base, and by
+a small kustomize overlay over one set of manifests. Both are overlays for the
+same reason: a fork drifts and nobody notices until the two behave differently.
 
 ## Hardware
 

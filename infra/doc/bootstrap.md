@@ -140,7 +140,7 @@ rebuild it (actions/actions-runner-controller#4595). Delete the object and force
 Helm to recreate it:
 
 ```
-kubectl -n arc-runners delete autoscalingrunnerset foundry-arm64
+kubectl -n arc-runners delete autoscalingrunnerset foundry-local-arm64
 flux reconcile helmrelease foundry -n arc-runners --force
 ```
 

@@ -56,10 +56,16 @@ report cannot drift apart, because both are generated from that one dict.
 
 ## Platforms
 
-The lockfile carries `macos`/`linux` × `arm64`/`x86_64`. We *deploy* arm64 only
-(dev machines are Apple Silicon, cluster nodes are Hetzner CAX), but the lockfile
-is machine-maintained and pruning it would mean fighting the updater on every
-bump — for a saving of a few dozen lines of JSON.
+The lockfile carries `macos`/`linux` × `arm64`/`x86_64`, and all four now earn
+their place: developer machines are Apple Silicon, the local cluster is arm64,
+and the Hetzner cluster is x86 — because Hetzner's arm64 line was out of stock
+everywhere when it was built.
+
+That is worth noting as a small vindication of not pruning. Keeping every
+platform was originally justified only by the lockfile being machine-maintained,
+where trimming it would mean fighting the updater on every bump for a saving of
+a few dozen lines of JSON. Then the cluster changed architecture and every
+entry was needed after all.
 
 ## Updating versions
 

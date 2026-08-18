@@ -34,9 +34,24 @@ diffing two near-identical files and hoping.
 
 Bazel's `--noremote_upload_local_results` is a convenience, not the control. The
 control is that `frontend-ro` refuses the write regardless of what the client
-asks for. The second control — which lands with the runner network policy — is
-that `frontend-rw` is not reachable from the namespace untrusted builds run in.
-A flag is one typo from being wrong; a route that does not exist is not.
+asks for.
+
+**The second control is not currently in place, and this is the honest state of
+it.** The intent was that `frontend-rw` would be unreachable from the namespace
+untrusted builds run in — a route that does not exist being stronger than a flag
+that is one typo from wrong. That is not what the runner network policy does: it
+allows both frontends, because a namespace-level policy cannot distinguish a
+push from a pull request, and enforcing the distinction would need a second
+scale set in its own namespace. The reasoning, and the conditions that should
+end the arrangement, are written next to the rule in
+`../arc/networkpolicy.yaml`.
+
+So today `frontend-ro` is deployed, correct, and unused: every build on these
+runners talks to `frontend-rw`. The split is real in configuration and proven by
+the probe below, but it is not currently doing any work. Keeping it deployed is
+deliberate — retrofitting a security boundary after clients depend on the
+permissive endpoint is how these things never get done — but it should not be
+mistaken for an active defence.
 
 ## Verifying the split
 
@@ -106,7 +121,8 @@ kubectl -n buildbarn port-forward svc/frontend-rw 8980:8980 &
 bazel build --config=remote --remote_executor=grpc://localhost:8980 //...
 ```
 
-`--config=remote` adds `--extra_execution_platforms=//platforms:linux_arm64`,
+`--config=remote` adds `--extra_execution_platforms=//platforms:linux_arm64`
+(and `--config=hetzner` its amd64 equivalent, for the cloud cluster),
 whose `exec_properties` must match what the worker advertises in
 `config/worker.jsonnet` **exactly**. Two things about that matching are worth
 knowing, because both fail far from their cause:

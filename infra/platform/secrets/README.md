@@ -57,6 +57,21 @@ Name the file `*.sops.yaml` and `.sops.yaml` takes care of the rest — you do n
 pass recipients on the command line, so you cannot accidentally encrypt to the
 wrong key.
 
+**Check that it actually encrypted.** The default rule sets `encrypted_regex`
+to `^(data|stringData)$`, which are Kubernetes Secret fields. A file shaped
+differently — Talos cluster secrets, for one — matches nothing, and sops then
+exits 0 having written it out in the clear. Nothing warns you. That is why
+`.sops.yaml` carries a separate rule for `talsecret.sops.yaml` that encrypts
+everything, and why any new secret that is not a Kubernetes manifest needs its
+own rule.
+
+`encrypted_regex` is an allow-list whose failure mode is silence, so the check
+is to read the output rather than to trust the exit code:
+
+```
+grep -c 'ENC\[' FILE.sops.yaml      # every value should be one
+```
+
 Never write the plaintext to disk first. Build the manifest and pipe it straight
 into `sops`:
 
@@ -171,4 +186,10 @@ Cleaning history afterwards is fine, but it is tidying, not remediation.
 - The age private key never enters this repository.
 - Secrets are encrypted straight from their source, never via a temporary file.
 - Every secret is scoped as narrowly as the tool allows. A token that can do one
-  thing to one repository is a much smaller problem when it goes wrong.
+  thing to one repository is a much smaller problem when it goes wrong. Hetzner
+  is the exception worth knowing: its project tokens are not scoped per resource
+  type, so "manage volumes" and "delete servers" are one permission, and the
+  containment is a dedicated project rather than a narrow token.
+- Verify what a secret contains, not just that a file exists. A keychain read
+  appends a newline, and a 65-character API token is rejected as malformed by
+  whatever consumes it — after deploy, in a crash loop, a long way from here.

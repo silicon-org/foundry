@@ -1,8 +1,15 @@
 # OpenTofu
 
-Provisioning for the Hetzner cluster: private network, firewall, three arm64
-control planes, a build worker, and the load balancer that gives three control
-planes one address.
+Provisioning for the Hetzner cluster: private network, firewall, three control
+planes, a build worker, and the load balancer that gives three control planes
+one address.
+
+x86, not arm64. The intent was Hetzner's cheap CAX line, and every CAX type was
+out of stock in every location when this was built; see
+`../doc/architecture.md`. Control planes are shared `cx` instances and the
+worker is a dedicated `ccx`, which is a quota decision rather than a
+performance one — dedicated cores are metered against a small account limit that
+one build worker consumes entirely.
 
 ```
 bazel run //infra/tofu:init

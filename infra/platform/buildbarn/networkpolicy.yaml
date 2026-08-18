@@ -78,6 +78,20 @@ spec:
         - matchName: github.com
         - matchPattern: "**.github.com"
         - matchPattern: "**.githubusercontent.com"
+
+        # Where the pinned CLI toolchain comes from. Derived from the lockfile
+        # rather than discovered one failure at a time:
+        #
+        #   python3 -c "import json;d=json.load(open('tools/multitool.lock.json'));\
+        #     print({b['url'].split('/')[2] for k,v in d.items() if k!='\$schema' \
+        #     for b in v['binaries']})"
+        #
+        # These arrived when CI moved to `bazel test //...`, which pulls
+        # //tools:versions and with it every pinned CLI. Before that the tools
+        # were only fetched by a workflow that deliberately does not use this
+        # service.
+        - matchName: dl.k8s.io
+        - matchName: get.helm.sh
       toPorts:
         - ports:
             - {port: "443", protocol: TCP}

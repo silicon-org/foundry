@@ -2,6 +2,17 @@
 # remember recipients on the command line -- and nobody can quietly encrypt a
 # secret to the wrong key.
 creation_rules:
+  # Talos cluster secrets, which are not Kubernetes manifests and have no
+  # `data` field -- so the rule below would match nothing and write the file
+  # out in the clear. That failure is silent: sops exits 0 and produces a
+  # perfectly readable file containing the cluster's CA keys.
+  #
+  # This rule comes first because sops uses the first match, and it encrypts
+  # everything rather than a named subset. Nothing here needs to stay legible
+  # to kustomize; talhelper is the only reader.
+  - path_regex: talsecret\.sops\.ya?ml$
+    age: age1n8ujfcvu9c02jksjd8xfn8fcadqsjww5m42jcyknwekxj6h33e9s9x2cxj
+
   - path_regex: \.sops\.ya?ml$
     # Only the payload is encrypted. apiVersion, kind, metadata and the key
     # *names* stay readable, which is what lets kustomize and Flux handle these

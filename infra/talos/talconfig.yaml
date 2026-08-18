@@ -36,6 +36,12 @@ patches:
   - "@patches/base.yaml"
   - "@patches/hetzner.yaml"
 
+# Applied only to control planes, because Talos refuses a cluster.etcd block on
+# a worker rather than ignoring it.
+controlPlane:
+  patches:
+    - "@patches/hetzner-controlplane.yaml"
+
 nodes:
   - hostname: foundry-cp-1
     ipAddress: 10.0.1.11

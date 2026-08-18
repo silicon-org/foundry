@@ -1,0 +1,16 @@
+# Control-plane-only settings for Hetzner.
+#
+# Separate from hetzner.yaml because Talos rejects a cluster.etcd block on a
+# worker outright -- "etcd config is only allowed on control plane machines" --
+# rather than ignoring it. Which is the right behaviour: silently accepting
+# configuration that cannot apply is how a setting comes to be believed in
+# without ever taking effect.
+cluster:
+  etcd:
+    # Same reasoning as machine.kubelet.nodeIP in hetzner.yaml, and it matters
+    # more here. etcd peers address each other by advertised address, so an etcd
+    # that advertised a Tailscale address would put cluster consensus on the
+    # VPN -- and a tailnet outage would stop being an access problem and become
+    # a quorum problem.
+    advertisedSubnets:
+      - 10.0.0.0/16

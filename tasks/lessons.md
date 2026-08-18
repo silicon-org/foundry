@@ -24,3 +24,22 @@ more time than it should have.
   Only three tablegen rules in the whole closure need the custom `circt-tblgen`
   binary, and one of them lives in `lib/Dialect/FIRRTL/CMakeLists.txt` rather
   than under `include/`, which is easy to miss when surveying only `include/`.
+
+- The `-fno-rtti` / `-fno-exceptions` that CIRCT and LLVM are famous for is a
+  CMake artifact, not a property of the code. `HandleLLVMOptions.cmake` injects
+  it when `LLVM_ENABLE_RTTI=OFF`; the Bazel overlay sets no such flag anywhere --
+  `llvm_copts` is `["$(STACK_FRAME_UNLIMITED)"]` and nothing else -- so LLVM and
+  MLIR compile here with whatever the toolchain defaults to, which is RTTI and
+  exceptions on. Build CIRCT the same way and slang's requirements stop
+  conflicting.
+
+  This does *not* retract the ABI argument for plugins against a **released**
+  firtool: that binary really is built `-fno-rtti` against libstdc++, and a
+  plugin must still match it. The two statements are about different binaries.
+
+- `gentbl_cc_library`'s `deps` are TableGen dependencies, not C++ ones, and the
+  generated `.inc` files land in `textual_hdrs`. A consumer therefore depends on
+  both the IncGen target and the real C++ libraries, separately -- which is why
+  every MLIR `cc_library` lists `":FooIncGen"` alongside `":IR"`. Its `**kwargs`
+  reach four different rules including a `filegroup`, so only universally
+  accepted attributes (`visibility`, `tags`, `testonly`) may be passed through.

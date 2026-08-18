@@ -7,6 +7,8 @@ hardware/
   ip/           third-party IP, integrated but not vendored
     common_cells/
     xiangshan/   a generator rather than RTL; see below
+  soc/          our own designs
+    xs_cluster/  a XiangShan core and its L2, wrapped for integration
 ```
 
 ## How third-party IP is integrated
@@ -44,7 +46,8 @@ bazel build //hardware/ip/xiangshan:xsnoctop_verilog
 ```
 
 The result is 139 MB of SystemVerilog holding one core, its L2, its IMSIC and a
-CHI port, and from there it is source like anything written by hand.
+CHI port, and from there it is source like any other: `//hardware/soc/xs_cluster`
+instantiates it from a wrapper written by hand.
 
 Three consequences worth knowing before relying on it:
 
@@ -58,6 +61,18 @@ Three consequences worth knowing before relying on it:
   a case-insensitive filesystem one overwrites the other and a Bundle silently
   disappears. The patch moves one into its own file so the two can be compiled by
   two targets; see `ip/xiangshan/yunsuan_case_collision.patch`.
+
+## Linting
+
+```
+bazel build --config=lint //hardware/...
+```
+
+Verilator's `--lint-only` over every design that declares a top module, run as an
+aspect so it applies to designs by virtue of being designs. For generated RTL this
+is the check that carries the weight: nothing else here would catch a mistyped
+port name or a wrong width in a hand-written wrapper around 1868 generated
+modules.
 
 ## Simulation
 

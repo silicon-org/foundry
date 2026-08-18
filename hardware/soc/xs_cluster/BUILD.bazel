@@ -1,0 +1,22 @@
+# The XiangShan cluster: one core, its L2, and a CHI port.
+#
+# The first of the two block types the system is made of; Spatz clusters are the
+# other. Both will hang off the same interconnect, which is why this exists as its
+# own module rather than as part of a top level -- there will be N of these.
+
+load("@rules_verilog//verilog:defs.bzl", "verilog_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# top_module is what makes this lintable. The generated RTL underneath declares
+# none, which is correct -- it is a library of modules, not a design -- and means
+# the lint aspect passes over it and checks it here instead, elaborated, with the
+# wrapper's connections in place. That is the check that matters: a mistyped port
+# name or a wrong width in xs_cluster.sv is caught, and nothing else in this
+# repository would catch it.
+verilog_library(
+    name = "xs_cluster",
+    srcs = ["xs_cluster.sv"],
+    top_module = "xs_cluster",
+    deps = ["//hardware/ip/xiangshan:xsnoctop"],
+)

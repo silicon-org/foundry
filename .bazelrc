@@ -39,6 +39,18 @@ build:hetzner --host_platform=//platforms:linux_amd64
 build:hetzner --platforms=//platforms:linux_amd64
 build:hetzner --jobs=50
 
+# Verilator's lint pass over every design that declares a top module:
+#
+#   bazel build --config=lint //hardware/...
+#
+# An aspect rather than a target, so that a design is checked because it is a
+# design and not because somebody remembered to write a rule for it. Libraries
+# without a top module -- parameterised cells, generated collections of modules --
+# cannot be elaborated in isolation and are skipped, which is why the design that
+# instantiates them is where the check lands.
+build:lint --aspects=@rules_verilator//verilator:defs.bzl%verilator_lint_aspect
+build:lint --output_groups=verilator_lint_checks
+
 # Developer shorthands: platform, endpoints and build UI in one flag, so none
 # of it has to be remembered or retyped.
 #

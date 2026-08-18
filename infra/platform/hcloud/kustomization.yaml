@@ -5,3 +5,12 @@ resources:
   - token.sops.yaml
   - ccm.yaml
   - csi.yaml
+configMapGenerator:
+  - name: hcloud-ccm-values
+    namespace: kube-system
+    files:
+      - values.yaml
+generatorOptions:
+  # HelmRelease.spec.valuesFrom is not rewritten by kustomize's name reference
+  # tracking, so a hashed name would dangle. Same reason as Cilium.
+  disableNameSuffixHash: true

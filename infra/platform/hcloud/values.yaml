@@ -1,0 +1,37 @@
+# Cloud controller manager values, consumed twice from this one file: by
+# `//infra/platform/hcloud:bootstrap` for the one-time install that lets the
+# cluster schedule anything at all, and by the Flux HelmRelease that owns it
+# from then on. Two copies would drift, and the drift would show up as a cluster
+# that behaves differently depending on how it was built.
+env:
+  HCLOUD_TOKEN:
+    valueFrom:
+      secretKeyRef:
+        name: hcloud
+        key: token
+
+networking:
+  # Which private network the nodes are on, so node addresses are populated from
+  # it rather than from the public interface. Matches hcloud_network.cluster in
+  # //infra/tofu, and the same split the Talos patch enforces for kubelet and
+  # etcd: the private network carries the cluster, Tailscale carries only
+  # administration.
+  enabled: true
+  clusterCIDR: 10.244.0.0/16
+  network:
+    valueFrom:
+      secretKeyRef:
+        name: hcloud
+        key: network
+
+# This has to run before the cluster is usable, so it must tolerate the very
+# taint it exists to remove, and it must be schedulable on control planes --
+# which, on a fresh cluster, are the only nodes there are.
+tolerations:
+  - key: node.cloudprovider.kubernetes.io/uninitialized
+    value: "true"
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/control-plane
+    effect: NoSchedule
+  - key: node.kubernetes.io/not-ready
+    effect: NoSchedule

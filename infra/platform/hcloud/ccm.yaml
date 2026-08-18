@@ -13,35 +13,18 @@ spec:
         kind: HelmRepository
         name: hcloud
         namespace: flux-system
-  values:
-    # The secret is committed encrypted; see token.sops.yaml.
-    env:
-      HCLOUD_TOKEN:
-        valueFrom:
-          secretKeyRef:
-            name: hcloud
-            key: token
-
-    networking:
-      # Tells the CCM which private network the nodes are on, so it can populate
-      # node addresses from it rather than from the public interface. Matches
-      # hcloud_network.cluster in //infra/tofu.
-      enabled: true
-      clusterCIDR: 10.244.0.0/16
-      network:
-        valueFrom:
-          secretKeyRef:
-            name: hcloud
-            key: network
-
-    # The CCM has to run before the cluster is usable -- until it removes the
-    # uninitialized taint, nothing else schedules -- so it must tolerate the
-    # very taint it exists to clear, and run on control planes.
-    tolerations:
-      - key: node.cloudprovider.kubernetes.io/uninitialized
-        value: "true"
-        effect: NoSchedule
-      - key: node-role.kubernetes.io/control-plane
-        effect: NoSchedule
-      - key: node.kubernetes.io/not-ready
-        effect: NoSchedule
+  # Values come from the ConfigMap generated out of values.yaml, so the release
+  # Flux manages and the one //infra/platform/hcloud:bootstrap installs are
+  # rendered from the same source.
+  valuesFrom:
+    - kind: ConfigMap
+      name: hcloud-ccm-values
+      valuesKey: values.yaml
+  install:
+    # The bootstrap install already created this release; adopting it rather
+    # than colliding with it is what makes the handover to GitOps a non-event.
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3

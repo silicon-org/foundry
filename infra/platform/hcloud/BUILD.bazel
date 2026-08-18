@@ -1,0 +1,46 @@
+load("//tools:workspace_command.bzl", "workspace_command")
+
+# The second cycle that GitOps cannot break on its own.
+#
+# With cluster.externalCloudProvider enabled, the kubelet taints every node
+# node.cloudprovider.kubernetes.io/uninitialized:NoSchedule and leaves it there
+# until a cloud controller manager clears it. Flux's controllers do not tolerate
+# that taint, so they cannot be scheduled, so they cannot deploy the controller
+# that would clear it. Nothing about that resolves itself with time.
+#
+# Cilium escapes the same trap only because a CNI DaemonSet tolerates every
+# taint by design. This one needs breaking by hand, once, exactly as Cilium
+# does -- same chart, same values.yaml, so Flux's first reconcile is an
+# ordinary upgrade rather than a fight over ownership.
+#
+#   bazel run //infra/platform/hcloud:bootstrap
+#
+# The `hcloud` secret has to exist first; see infra/doc/bootstrap.md. It is the
+# same secret Flux later manages from token.sops.yaml, created by hand only
+# because nothing can decrypt it yet.
+workspace_command(
+    name = "bootstrap",
+    args = [
+        "upgrade",
+        "--install",
+        "hcloud-cloud-controller-manager",
+        "hcloud-cloud-controller-manager",
+        "--repo",
+        "https://charts.hetzner.cloud",
+        "--version",
+        "1.35.0",
+        "--namespace",
+        "kube-system",
+        "--values",
+        "values.yaml",
+        "--wait",
+    ],
+    tool = "@multitool//tools/helm",
+    workdir = "infra/platform/hcloud",
+)
+
+filegroup(
+    name = "manifests",
+    srcs = glob(["*.yaml"]),
+    visibility = ["//infra/platform:__pkg__"],
+)

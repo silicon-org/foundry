@@ -26,5 +26,6 @@ sh_test(
         "@multitool//tools/kubectl",
         "//infra/platform/buildbarn:manifests",
         "//infra/platform/cilium:manifests",
+        "//infra/platform/hcloud:manifests",
     ] + glob(["**/*.yaml"]),
 )

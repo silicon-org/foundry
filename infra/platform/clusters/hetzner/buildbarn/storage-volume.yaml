@@ -19,8 +19,12 @@ kind: PersistentVolume
 metadata:
   name: buildbarn-storage
 spec:
+  # Kept equal to the claim's request. Expansion is driven by the claim -- the
+  # CSI resizer grows the Hetzner volume, then resize2fs grows the filesystem --
+  # and it writes the new size back here. Leaving a smaller number in git would
+  # have Flux trying to shrink a field Kubernetes refuses to shrink, forever.
   capacity:
-    storage: 16Gi
+    storage: 64Gi
   accessModes: [ReadWriteOnce]
   persistentVolumeReclaimPolicy: Retain
   storageClassName: hcloud-volumes

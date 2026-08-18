@@ -1,6 +1,20 @@
 # Holds the blobs. Only the frontends talk to it; it has no opinion about who
 # is allowed to do what, because that decision belongs at the edge where the
 # caller's trust level is known.
+# Sized for a cloud cluster, because this claim only exists on one: the local
+# overlay deletes it and mounts an emptyDir, since that cluster is destroyed on
+# purpose and a cache persisted onto a node about to be deleted buys nothing.
+#
+# 64 GiB is chosen against a measurement rather than a feeling. One cold build of
+# //hardware/... evicted its own inputs at 16 GiB -- the hermetic LLVM toolchain,
+# Verilator, a JDK, the jars and a 139 MB generated top do not fit -- and what
+# that costs is not a slow build but "Lost inputs no longer available remotely"
+# partway through one.
+#
+# Growing this is the first half of a change; //infra/platform/buildbarn/config
+# holds the second. Buildbarn's block files are sparse, so a cache configured
+# larger than its volume does not fail at startup -- it fails weeks later with
+# ENOSPC, once the file has grown into space that was never there.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -10,7 +24,7 @@ spec:
   accessModes: [ReadWriteOnce]
   resources:
     requests:
-      storage: 16Gi
+      storage: 64Gi
 ---
 apiVersion: v1
 kind: Service

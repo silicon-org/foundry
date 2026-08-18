@@ -105,6 +105,28 @@ spec:
             - port: "8985"
               protocol: TCP
 
+    # The portal's build event endpoint, so a CI build is inspectable after it
+    # ends. Without it the log here says what failed and nothing says which
+    # action, on which worker, or what was already cached.
+    #
+    # Narrower than it looks, and worth saying why it is acceptable at all. This
+    # is a second namespace a runner can reach, which is exactly the direction
+    # the comment above wants to travel in less of -- but the traffic is one way
+    # and append only: a client pushes events describing its own build and can
+    # read nothing back. That is a different thing from the Action Cache, where a
+    # write changes what later builds trust.
+    #
+    # Port 8082 only. The portal's web interface on 8081 is for people, reached
+    # through a port-forward, and a runner has no business with it.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: bb-portal
+            app: bb-portal
+      toPorts:
+        - ports:
+            - port: "8082"
+              protocol: TCP
+
     # GitHub, for the runner protocol itself and for fetching actions.
     # broker.actions.githubusercontent.com is the long-poll endpoint that makes
     # inbound ports unnecessary.

@@ -87,11 +87,23 @@ jobs:
       # Everything: manifests rendered, pinned tools resolved and run, Verilator
       # built from source, the design verilated and its test executed -- all on
       # cluster workers, and all decided by Bazel rather than by a list here.
+      #
+      # Build events go to the portal, which is the only way a CI build is
+      # inspectable after the fact: this log says what failed, the portal says
+      # which action, on which worker, and what it had already cached. Failing to
+      # deliver them cannot fail the build -- see --bes_upload_mode in //.bazelrc.
+      #
+      # The results URL is deliberately a localhost one. The portal is not exposed
+      # outside the cluster, so the link is useless from a browser here and exact
+      # for anyone running `bazel run //infra/platform/buildbarn:tunnel-hetzner`,
+      # which is who reads it.
       - name: Everything
         run: |
           bazel test --config=ci --config=hetzner \
             --remote_executor=grpc://frontend-rw.buildbarn.svc.cluster.local:8980 \
             --experimental_remote_downloader=grpc://remote-asset.buildbarn.svc.cluster.local:8985 \
+            --bes_backend=grpc://bb-portal.bb-portal.svc.cluster.local:8082 \
+            --bes_results_url=http://localhost:8081/bes/ \
             //...
 
       # --redact: findings must never be echoed into a public build log.

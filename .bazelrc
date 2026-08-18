@@ -96,6 +96,20 @@ build:hetzner-dev --experimental_remote_downloader=grpc://localhost:8991
 build:hetzner-dev --bes_backend=grpc://localhost:8082
 build:hetzner-dev --bes_results_url=http://localhost:8081/bes/
 
+# A dashboard must not be able to fail a build. By default Bazel waits for the
+# build event upload and exits 38 if it cannot deliver, so an unreachable portal
+# -- restarted, redeployed, or simply not tunnelled -- turns every build red for
+# a reason that has nothing to do with the code. Measured, not assumed: exit 38
+# blocking, exit 0 fully_async, against a backend that refuses connections.
+#
+# The cost is that a very short invocation can exit before its upload finishes
+# and land incomplete in the portal. Build history is worth less than knowing
+# that a red build means a real failure.
+#
+# Global rather than per config: harmless when no BES backend is set, and it
+# would otherwise have to be repeated for every place that sets one.
+build --bes_upload_mode=fully_async
+
 # An LLVM toolchain has no libatomic, but Verilator and rules_verilator both
 # pass -latomic on Linux. This links an empty one into every binary so the flag
 # resolves. See //third_party/libatomic for why that is sound.

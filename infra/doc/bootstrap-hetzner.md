@@ -213,24 +213,7 @@ git. Flux adopts the two Helm releases installed above: same names, same
 namespaces, same values, so its first reconcile is an upgrade rather than a
 fight over ownership.
 
-## 8. Tell CI the cluster exists
-
-```
-gh variable set CLUSTER_UP --body true
-```
-
-The `cluster` job in `.github/workflows/ci.yml` is gated on this, and the
-reason is worth knowing rather than rediscovering. A job addressed to
-self-hosted runners that do not exist does not fail -- it queues, for up to a
-day. The first time this cluster was torn down, that queued job held the
-workflow's concurrency group, five consecutive pushes were cancelled behind it,
-and CI produced no signal at all while appearing broken rather than blocked.
-
-Each job now has its own concurrency group, so a stuck cluster job can no longer
-block the GitHub-hosted one. This variable is the other half: it keeps the job
-from being queued in the first place.
-
-## 9. Close the door
+## 8. Close the door
 
 ```
 bazel run //infra/tofu:apply -- \
@@ -267,13 +250,12 @@ completes a build and damages itself doing so is not one you can leave alone.
 ## Tearing down
 
 ```
-gh variable set CLUSTER_UP --body false
 bazel run //infra/tofu:apply -- -var="talos_snapshot_id=<ID>" -destroy
 ```
 
-The variable first, and before the destroy rather than after: a push landing in
-the window between the two would queue a job against runners that are already
-going away.
+CI's `cluster` job will fail while the cluster is gone, which is intended: the
+cluster being unavailable is a fact worth seeing rather than a condition to skip
+past. It cannot block anything else -- each job has its own concurrency group.
 
 Servers, network, load balancer and primary IPs go. Two things deliberately do
 not, because tofu never knew about them:

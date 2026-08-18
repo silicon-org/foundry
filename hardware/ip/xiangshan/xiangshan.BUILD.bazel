@@ -1,0 +1,65 @@
+# Bazel view of OpenXiangShan/XiangShan. Overlaid onto the fetched archive by the
+# http_archive in //MODULE.bazel.
+#
+# This file describes upstream: its module graph, its sources, its entry point.
+# What we ask the generator *for* -- which configuration, how many cores, which
+# CHI issue -- belongs to us and lives in //hardware/ip/xiangshan/BUILD.bazel
+# instead, so that upstream's description does not carry our decisions.
+
+load(
+    "@foundry//hardware/ip/xiangshan:chisel.bzl",
+    "chisel_library",
+    "macro_library",
+)
+load("@rules_scala//scala:scala.bzl", "scala_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+# The CSR field definitions: each one is a macro that computes a field's width
+# from its bit range while the core is being compiled.
+macro_library(
+    name = "macros",
+    srcs = glob(["macros/src/**/*.scala"]),
+)
+
+chisel_library(
+    name = "xiangshan",
+    srcs = glob(["src/main/scala/**/*.scala"]),
+    # Espresso tables, the YAML configuration schemas, and the two files
+    # //MODULE.bazel writes in: the version string that ends up in the device
+    # tree and the commit hash that ends up in a read-only CSR. Elaboration
+    # reads all of them off the classpath, so a missing one is a crash rather
+    # than a missing feature.
+    resource_strip_prefix = "src/main/resources",
+    resources = glob(["src/main/resources/**"]),
+    deps = [
+        ":macros",
+        "@chisel_aia//:chisel_aia",
+        "@chisel_iopmp//:chisel_iopmp",
+        "@difftest//:difftest",
+        "@rocket_chip//:rocket_chip",
+        "@utility//:utility",
+        "@xs_maven//:io_circe_circe_generic_extras_2_13",
+        "@xs_maven//:io_circe_circe_yaml_2_13",
+        "@xs_maven//:org_scalatest_scalatest_2_13",
+        "@xscache//:xscache",
+        "@yunsuan//:yunsuan",
+    ],
+)
+
+# The generator itself: once the Scala is compiled, producing RTL is running a
+# JVM program with arguments.
+#
+# The heap and stack sizes are upstream's, from build.mill. Neither is
+# decoration: elaborating a full XiangShan builds a graph in the tens of
+# gigabytes, and diplomacy's parameter negotiation recurses deeply enough that
+# the default 1 MB stack overflows well before it finishes.
+scala_binary(
+    name = "generator",
+    jvm_flags = [
+        "-Xmx40G",
+        "-Xss256m",
+    ],
+    main_class = "top.TopMain",
+    deps = [":xiangshan"],
+)

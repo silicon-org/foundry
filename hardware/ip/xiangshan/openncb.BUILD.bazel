@@ -1,0 +1,16 @@
+# Bazel view of OpenXiangShan/OpenNCB. Overlaid onto the fetched archive by the
+# http_archive in //MODULE.bazel.
+#
+# The CHI-to-AXI bridge the cache hierarchy uses for uncached and MMIO traffic.
+# Upstream reaches it through XSCache/OpenNCB; here it is its own archive because
+# that is what a submodule is.
+
+load("@foundry//hardware/ip/xiangshan:chisel.bzl", "chisel_library")
+
+package(default_visibility = ["//visibility:public"])
+
+chisel_library(
+    name = "openncb",
+    srcs = glob(["src/main/scala/**/*.scala"]),
+    deps = ["@rocket_chip//:rocket_chip"],
+)

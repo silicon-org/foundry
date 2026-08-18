@@ -86,6 +86,26 @@ Two do not ship on GitHub releases and must be bumped by hand in
 
 After any bump, `bazel run //tools:versions` is the check that it worked.
 
+## Build tools, which are a different thing
+
+`espresso/` and `firtool/` are not part of the mechanism above. They are not CLIs
+anybody types; they are compilers that build actions invoke, so they belong in the
+build graph rather than on `PATH`, and they are fetched by `http_archive` in
+`//MODULE.bazel` with the BUILD file that describes them living here.
+
+| Tool | Where it comes from | Why |
+|---|---|---|
+| `espresso` | built from source, pinned commit | Logic minimiser Chisel folds decoder tables with. Thirty C files, so building it costs nothing and works on every platform the toolchain targets. |
+| `firtool` | CIRCT release binary, pinned version | Compiles the FIRRTL a Chisel generator emits into SystemVerilog. Pinned to the version Chisel records in `etc/circt.json`, because that is the pairing upstream tests. |
+
+They live under `//tools` and not beside the IP that needs them for the same
+reason the C compiler does not live beside a C file: nothing they produce ends up
+in a design.
+
+`firtool` has no linux/arm64 build, so Chisel elaboration runs locally on a Mac or
+remotely on the x86 cluster, but not on the arm64 one. `espresso` is built from
+source precisely so it does not add a second such constraint.
+
 ## What is deliberately not pinned here
 
 **`tailscale`.** Tailscale publishes no CLI binaries on GitHub releases; Linux

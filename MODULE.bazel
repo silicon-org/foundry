@@ -70,6 +70,227 @@ http_archive(
     url = "https://github.com/pulp-platform/common_cells/archive/refs/tags/v2.0.0-beta.3.tar.gz",
 )
 
+# XiangShan. What is pinned here is the *generator*, not RTL: the SystemVerilog
+# is a build output of this graph like any object file.
+#
+# Chisel is a Scala library, so generating XiangShan is compiling Scala and
+# running a JVM program. That is why this is rules_scala plus pinned jars rather
+# than an attempt to make mill hermetic -- mill is upstream's build tool, not
+# part of the design. //hardware/ip/xiangshan mirrors the module graph in
+# upstream's build.mill; the jars below mirror its ivyDeps.
+bazel_dep(name = "rules_scala", version = "7.2.6")
+bazel_dep(name = "rules_jvm_external", version = "7.1")
+
+# 2.13.18 where upstream's build.mill says 2.13.17. rules_scala carries compiler
+# jar hashes for a fixed set of versions and 2.13.17 is not among them, so the
+# alternative is pinning three more jars by hand to gain one patch release.
+# Chisel publishes its compiler plugin for every 2.13.x, so nothing else moves.
+scala_config = use_extension("@rules_scala//scala/extensions:config.bzl", "scala_config")
+scala_config.settings(scala_version = "2.13.18")
+
+scala_deps = use_extension("@rules_scala//scala/extensions:deps.bzl", "scala_deps")
+scala_deps.scala()
+
+# Ahead of the toolchain rules_scala registers itself, because upstream's sources
+# expect a transitive compile classpath. See //hardware/ip/xiangshan:BUILD.bazel.
+register_toolchains("//hardware/ip/xiangshan:transitive_classpath")
+
+# Chisel and the few libraries build.mill asks for, resolved once into a lock
+# file. Unpinned this would be a coursier download at build time that no review
+# ever sees; `REPIN=1 bazel run @xs_maven//:pin` is how it moves.
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    name = "xs_maven",
+    artifacts = [
+        "org.chipsalliance:chisel_2.13:7.13.0",
+        "org.chipsalliance:chisel-plugin_2.13.18:7.13.0",
+        "com.lihaoyi:sourcecode_2.13:0.4.4",
+        "com.lihaoyi:mainargs_2.13:0.7.7",
+        "org.json4s:json4s-jackson_2.13:4.0.7",
+        "org.scala-lang:scala-reflect:2.13.18",
+        "io.circe:circe-yaml_2.13:0.16.1",
+        "io.circe:circe-generic-extras_2.13:0.14.4",
+        # Not for testing. A handful of files under upstream's src/main hold
+        # scalatest specs next to the hardware they check, so the core does not
+        # compile without it.
+        "org.scalatest:scalatest_2.13:3.2.19",
+    ],
+    lock_file = "//hardware/ip/xiangshan:maven_install.json",
+)
+use_repo(maven, "xs_maven")
+
+# The generator's Scala sources. Upstream keeps them in eight submodules of
+# XiangShan plus two nested ones, and a submodule is a commit, so each becomes
+# its own archive pinned at exactly the commit the XiangShan tree names. That
+# also leaves out `ready-to-run`, a gigabyte of simulator binaries that a
+# recursive clone would drag in and that RTL generation never reads.
+#
+# All ten are at the commits recorded by XiangShan a7fc87df on the kunminghu-v3
+# branch. There is no release to track: upstream's newest tag predates this
+# source layout by two years.
+http_archive(
+    name = "xiangshan",
+    build_file = "//hardware/ip/xiangshan:xiangshan.BUILD.bazel",
+    # Two of the resources mill produces by shelling out to git during the
+    # build, and that elaboration reads back: the version string that lands in
+    # the device tree, and the commit that lands in a CSR. Writing them here
+    # from the pin above is what makes generation reproducible -- mill's
+    # versions carry the builder's username, hostname and a timestamp.
+    patch_cmds = [
+        "printf 'KunminghuV3-a7fc87df' > src/main/resources/publishVersion",
+        "printf 'SHA=a7fc87df1e82211eb47f3c74a8c93cd9d425572b\\ndirty=0\\n' > src/main/resources/gitStatus",
+    ],
+    sha256 = "935e9dfec81e5b1e8974c060a59bf0a5e7309cf3dba9233b7f5ae3676ac13d20",
+    strip_prefix = "XiangShan-a7fc87df1e82211eb47f3c74a8c93cd9d425572b",
+    url = "https://github.com/OpenXiangShan/XiangShan/archive/a7fc87df1e82211eb47f3c74a8c93cd9d425572b.tar.gz",
+)
+
+# Diplomacy, TileLink and the parameter system everything below is built on.
+http_archive(
+    name = "rocket_chip",
+    build_file = "//hardware/ip/xiangshan:rocket_chip.BUILD.bazel",
+    sha256 = "5fb0c53c5773e0c653b69906a2e1a8a36bd8149df139ad4d097dd6d7c47451a0",
+    strip_prefix = "rocket-chip-a2df1a42399cfe2b343eeb5293796268dc2bc211",
+    url = "https://github.com/OpenXiangShan/rocket-chip/archive/a2df1a42399cfe2b343eeb5293796268dc2bc211.tar.gz",
+)
+
+# rocket-chip's own two submodules: the config/parameter library and the
+# floating-point units.
+http_archive(
+    name = "cde",
+    build_file = "//hardware/ip/xiangshan:cde.BUILD.bazel",
+    sha256 = "d941c3260549fdad178a90b0138ea3d23acf13f16440dab3c0b31014e4c62101",
+    strip_prefix = "cde-52768c97a27b254c0cc0ac9401feb55b29e18c28",
+    url = "https://github.com/chipsalliance/cde/archive/52768c97a27b254c0cc0ac9401feb55b29e18c28.tar.gz",
+)
+
+http_archive(
+    name = "hardfloat",
+    build_file = "//hardware/ip/xiangshan:hardfloat.BUILD.bazel",
+    sha256 = "7d2fa9d9b938dbf44ac9c4d92171dae4491e2d7ee0bbfb1bafb402825bfd2552",
+    strip_prefix = "berkeley-hardfloat-d93aa570806013dea479a92ba9bb33d1f2d4f69f",
+    url = "https://github.com/ucb-bar/berkeley-hardfloat/archive/d93aa570806013dea479a92ba9bb33d1f2d4f69f.tar.gz",
+)
+
+# Shared XiangShan utility library: SRAM wrappers, pipeline helpers, the
+# performance counters.
+http_archive(
+    name = "utility",
+    build_file = "//hardware/ip/xiangshan:utility.BUILD.bazel",
+    sha256 = "b4cc3a0a550bb3bc94dd65d1f9658b5026748d3cdc824bf00ce95f536ce157e4",
+    strip_prefix = "Utility-36db2c1ed4b0bbbfd1d05dd24364df1a263956e6",
+    url = "https://github.com/OpenXiangShan/Utility/archive/36db2c1ed4b0bbbfd1d05dd24364df1a263956e6.tar.gz",
+)
+
+# The cache hierarchy, and the CHI-to-AXI bridge it uses for uncached traffic.
+# This is where the L2 that ships inside XSNoCTop comes from.
+http_archive(
+    name = "xscache",
+    build_file = "//hardware/ip/xiangshan:xscache.BUILD.bazel",
+    sha256 = "0aa41f9ed4f14f4e4aea3bafc80b6d42478ab5579d47872ca72740d580b810d2",
+    strip_prefix = "XSCache-535c7b743fe4b18f8532068f92ac086118cf1ba8",
+    url = "https://github.com/OpenXiangShan/XSCache/archive/535c7b743fe4b18f8532068f92ac086118cf1ba8.tar.gz",
+)
+
+http_archive(
+    name = "openncb",
+    build_file = "//hardware/ip/xiangshan:openncb.BUILD.bazel",
+    sha256 = "3658825a9c8e535abff14a402bb5114954d71420a7804c5293f3a2a198bfffe9",
+    strip_prefix = "OpenNCB-9a83eb7e6c0e36e0d6b72642ff93641ec65819cf",
+    url = "https://github.com/OpenXiangShan/OpenNCB/archive/9a83eb7e6c0e36e0d6b72642ff93641ec65819cf.tar.gz",
+)
+
+# The vector and floating-point execution units.
+http_archive(
+    name = "yunsuan",
+    build_file = "//hardware/ip/xiangshan:yunsuan.BUILD.bazel",
+    # Moves one class into its own file so that the design can be compiled on a
+    # case-insensitive filesystem at all. The patch explains itself; see also the
+    # target split in yunsuan.BUILD.bazel, which is the other half of the fix.
+    patch_args = ["-p1"],
+    patches = ["//hardware/ip/xiangshan:yunsuan_case_collision.patch"],
+    sha256 = "47fb4883ea041dda54fcfcfc25389ddf10f63e2509781ea14948f666c696c4be",
+    strip_prefix = "YunSuan-de6dcbf4ad8a4ebe200472ce72f2fd59259667e4",
+    url = "https://github.com/OpenXiangShan/YunSuan/archive/de6dcbf4ad8a4ebe200472ce72f2fd59259667e4.tar.gz",
+)
+
+# The AIA interrupt controller and the IOPMP.
+http_archive(
+    name = "chisel_aia",
+    build_file = "//hardware/ip/xiangshan:chisel_aia.BUILD.bazel",
+    sha256 = "da45228fce4523b10e1e9f7470c9fcd0f11e780c1be254d0af1515d9a59b9e55",
+    strip_prefix = "ChiselAIA-6069486347893a7e46973917d47d91606fb9b94a",
+    url = "https://github.com/OpenXiangShan/ChiselAIA/archive/6069486347893a7e46973917d47d91606fb9b94a.tar.gz",
+)
+
+http_archive(
+    name = "chisel_iopmp",
+    build_file = "//hardware/ip/xiangshan:chisel_iopmp.BUILD.bazel",
+    sha256 = "31726e57d760f2aa30d0877fd551d68b547a30a4b356b09b2d3ef3f96c63c080",
+    strip_prefix = "ChiselIOPMP-639bd341abd59c0adefc54207ba3389310576633",
+    url = "https://github.com/OpenXiangShan/ChiselIOPMP/archive/639bd341abd59c0adefc54207ba3389310576633.tar.gz",
+)
+
+# Difftest. XiangShan's top module depends on it unconditionally even when
+# difftest itself is switched off, so it is a build dependency rather than a
+# verification choice.
+http_archive(
+    name = "difftest",
+    build_file = "//hardware/ip/xiangshan:difftest.BUILD.bazel",
+    sha256 = "3e3d53cb8eb3e5c9d3fc15539c42ca9de4ace76af7a249221280e76b242b8e1c",
+    strip_prefix = "difftest-bd5a0273c375cf1c38b3f5ca10e347e095a7aef1",
+    url = "https://github.com/OpenXiangShan/difftest/archive/bd5a0273c375cf1c38b3f5ca10e347e095a7aef1.tar.gz",
+)
+
+# firtool, the CIRCT compiler that turns the FIRRTL the generator emits into
+# SystemVerilog. Version 1.149.0 is not a choice: Chisel 7.13.0 records exactly
+# that version in etc/circt.json and its own tests run against it.
+#
+# `firrtl-bin` rather than `circt-full`, which is the same binary plus a
+# gigabyte of static libraries for linking against CIRCT.
+#
+# Note what is missing: CIRCT publishes no linux/arm64 binary. RTL generation
+# therefore runs locally on a Mac or remotely on the x86 cluster, but not on the
+# arm64 one without building CIRCT from source.
+http_archive(
+    name = "firtool_linux_x64",
+    build_file = "//tools/firtool:firtool.BUILD.bazel",
+    sha256 = "3b32374cf3fe364698d02439766b95ec085072f57d68f90e6b83212b7afdf54c",
+    strip_prefix = "firtool-1.149.0",
+    url = "https://github.com/llvm/circt/releases/download/firtool-1.149.0/firrtl-bin-linux-x64.tar.gz",
+)
+
+http_archive(
+    name = "firtool_macos_arm64",
+    build_file = "//tools/firtool:firtool.BUILD.bazel",
+    sha256 = "74e6bf66bf7f99f7e733f84730bee64d6838b9c59e1c70381de3d163935f70d6",
+    strip_prefix = "firtool-1.149.0",
+    url = "https://github.com/llvm/circt/releases/download/firtool-1.149.0/firrtl-bin-macos-arm64.tar.gz",
+)
+
+# espresso, the logic minimiser Chisel folds decoder tables with. XiangShan asks
+# for it by name -- EspressoMinimizer, not the pure-Scala fallback -- so without
+# it elaboration stops partway with EspressoNotFoundException.
+#
+# Upstream ships a copy inside its resources and puts that directory on PATH. That
+# copy is an x86-64 ELF binary, which is no use on a Mac and on no PATH at all
+# once the resources are inside a jar.
+#
+# Built from source rather than downloaded, for the same reason Verilator is:
+# thirty C files and no configure step cost nothing to compile, the compiler is
+# the hermetic one, and it then works on every platform the toolchain targets --
+# including linux/arm64, for which no binary is published.
+#
+# Pinned to a commit because the newest tag, v2.4, predates a restructuring of the
+# source tree: at that tag espresso.h includes a port.h the tag does not ship.
+http_archive(
+    name = "espresso",
+    build_file = "//tools/espresso:espresso.BUILD.bazel",
+    sha256 = "666697ade8d385764de3e1a47ccb6778542e7de833f9e64fff5b54bd886a3072",
+    strip_prefix = "espresso-0288253ca9459539d341bb1ada10406a74efc721",
+    url = "https://github.com/chipsalliance/espresso/archive/0288253ca9459539d341bb1ada10406a74efc721.tar.gz",
+)
+
 # Pinned CLI toolchain. See //tools for the tool list and update workflow.
 bazel_dep(name = "rules_multitool", version = "1.11.1", dev_dependency = True)
 bazel_dep(name = "bazel_env.bzl", version = "0.8.0", dev_dependency = True)

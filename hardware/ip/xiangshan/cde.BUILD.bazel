@@ -1,0 +1,14 @@
+# Bazel view of chipsalliance/cde, a submodule of rocket-chip. Overlaid onto the
+# fetched archive by the http_archive in //MODULE.bazel.
+#
+# The parameter system: `Parameters`, `Config`, `Field`. No Chisel, which is why
+# this is a plain scala_library and the only one here that is.
+
+load("@rules_scala//scala:scala.bzl", "scala_library")
+
+package(default_visibility = ["//visibility:public"])
+
+scala_library(
+    name = "cde",
+    srcs = glob(["cde/src/**/*.scala"]),
+)

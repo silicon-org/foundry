@@ -1,0 +1,42 @@
+# Bazel view of chipsalliance/espresso. Overlaid onto the fetched archive by the
+# http_archive in //MODULE.bazel.
+#
+# Berkeley's two-level logic minimiser, still what Chisel shells out to when a
+# decoder table has to become gates. Upstream builds it with CMake; the CMake file
+# adds thirty C files to one executable and sets the C standard, which is nearly
+# all this has to say too.
+
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Split into a library and a main only because the headers include each other by
+# bare name -- `#include "port.h"` -- and `includes` reaches the compiler only
+# through a cc_library's hdrs. CMake resolves those for free by compiling from the
+# source directory; Bazel compiles from the execroot.
+cc_library(
+    name = "sources",
+    srcs = glob(
+        ["espresso/*.c"],
+        exclude = ["espresso/main.c"],
+    ),
+    hdrs = glob(["espresso/*.h"]),
+    # C99 is upstream's C_STANDARD. 1980s C compiled by a 2020s clang produces a
+    # wall of warnings that say nothing about this build, so they are off rather
+    # than scrolling past whenever the fetch is cold.
+    copts = [
+        "-std=c99",
+        "-w",
+    ],
+    includes = ["espresso"],
+)
+
+cc_binary(
+    name = "espresso",
+    srcs = ["espresso/main.c"],
+    copts = [
+        "-std=c99",
+        "-w",
+    ],
+    deps = [":sources"],
+)

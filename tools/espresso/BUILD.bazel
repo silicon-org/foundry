@@ -1,0 +1,15 @@
+# espresso, one of the two build tools a Chisel design needs on top of a JVM.
+#
+# Only the BUILD file that turns the fetched sources into a binary lives here; the
+# sources are pinned by the http_archive in //MODULE.bazel. Kept in //tools rather
+# than beside XiangShan because it is not IP -- nothing it produces ends up in a
+# design, any more than the C compiler does.
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["espresso.BUILD.bazel"])
+
+alias(
+    name = "espresso",
+    actual = "@espresso//:espresso",
+)

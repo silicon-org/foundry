@@ -1,0 +1,16 @@
+# Bazel view of OpenXiangShan/Utility. Overlaid onto the fetched archive by the
+# http_archive in //MODULE.bazel.
+#
+# The shared library the core, the caches and the interrupt controllers all pull
+# from: SRAM wrappers, pipeline and queue helpers, performance counters, the
+# reset generator.
+
+load("@foundry//hardware/ip/xiangshan:chisel.bzl", "chisel_library")
+
+package(default_visibility = ["//visibility:public"])
+
+chisel_library(
+    name = "utility",
+    srcs = glob(["src/main/scala/**/*.scala"]),
+    deps = ["@rocket_chip//:rocket_chip"],
+)

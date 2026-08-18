@@ -1,0 +1,17 @@
+# Bazel view of OpenXiangShan/ChiselIOPMP. Overlaid onto the fetched archive by
+# the http_archive in //MODULE.bazel.
+#
+# The IOPMP, which checks accesses made by devices rather than by harts.
+
+load("@foundry//hardware/ip/xiangshan:chisel.bzl", "chisel_library")
+
+package(default_visibility = ["//visibility:public"])
+
+chisel_library(
+    name = "chisel_iopmp",
+    srcs = glob(["src/main/scala/**/*.scala"]),
+    deps = [
+        "@rocket_chip//:rocket_chip",
+        "@utility//:utility",
+    ],
+)

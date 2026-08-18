@@ -1,0 +1,22 @@
+# Bazel view of OpenXiangShan/XSCache. Overlaid onto the fetched archive by the
+# http_archive in //MODULE.bazel.
+#
+# CoupledL2 and the CHI definitions. This is the L2 that ships inside XSNoCTop
+# and the source of the CHI port that leaves it, so it is the module that decides
+# what the rest of the system has to speak.
+
+load("@foundry//hardware/ip/xiangshan:chisel.bzl", "chisel_library")
+
+package(default_visibility = ["//visibility:public"])
+
+chisel_library(
+    name = "xscache",
+    srcs = glob(["src/main/scala/**/*.scala"]),
+    resource_strip_prefix = "src/main/resources",
+    resources = glob(["src/main/resources/**"]),
+    deps = [
+        "@openncb//:openncb",
+        "@rocket_chip//:rocket_chip",
+        "@utility//:utility",
+    ],
+)

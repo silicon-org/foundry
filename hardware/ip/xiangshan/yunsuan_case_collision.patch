@@ -1,0 +1,116 @@
+Move `class VIAluOpcode` into its own file.
+
+Its class file and `object VialuOpcode`'s mirror class differ only in case, so
+one scalac invocation writing both into one output directory loses one of them on
+a case-insensitive filesystem -- and what surfaces two modules later is `value :=
+is not a member of VIAluOpcode` while compiling the core, with no hint that a
+Bundle went missing. Separate files can be compiled by separate Bazel targets,
+which is what //hardware/ip/xiangshan/yunsuan.BUILD.bazel then does; separate
+targets write separate jars, and jar entries are case-sensitive everywhere.
+
+The code is unchanged. Worth upstreaming, so that nobody else spends an evening
+on it.
+
+diff --git a/src/main/scala/yunsuan/encoding/Opcode/VIAluOpcodeBundle.scala b/src/main/scala/yunsuan/encoding/Opcode/VIAluOpcodeBundle.scala
+new file mode 100644
+index 0000000..0891ba5
+--- /dev/null
++++ b/src/main/scala/yunsuan/encoding/Opcode/VIAluOpcodeBundle.scala
+@@ -0,0 +1,45 @@
++package yunsuan.encoding.Opcode
++
++import chisel3._
++
++class VIAluOpcode extends Bundle {
++  val op = UInt(6.W)
++  def isAdd: Bool = !op(3) & !op(2) & !op(1) & !op(0) // op === VialuOpcode.vadd
++  def isSub: Bool = op(4)
++  def isVmsbc: Bool = op(4) & !op(3) &  op(2) & !op(1) & !op(0)
++  def isBitLogic:   Bool = !op(4) & !op(3)
++  def isShiftLogic: Bool = !op(4) &  op(3)
++  def isLeftShiftLogic:  Bool = isShiftLogic & !op(2) & !op(1)
++  def isMaxMinLogic: Bool = op(3)
++  def isSatLogic: Bool = !op(2) & op(1) & !op(0)
++  def isAvgLogic: Bool = !op(2) & op(1) &  op(0)
++
++  def isVand : Bool = isBitLogic & !op(2) & !op(1) &  op(0)
++  def isVnand: Bool = isBitLogic & !op(2) &  op(1) & !op(0)
++  def isVandn: Bool = isBitLogic & !op(2) &  op(1) &  op(0)
++  def isVxor : Bool = isBitLogic &  op(2) & !op(1) & !op(0)
++  def isVor  : Bool = isBitLogic &  op(2) & !op(1) &  op(0)
++  def isVnor : Bool = isBitLogic &  op(2) &  op(1) & !op(0)
++  def isVorn : Bool = isBitLogic &  op(2) &  op(1) &  op(0)
++  def isVxnor: Bool = isBitLogic & !op(2) & !op(1) & !op(0)
++
++  def isCmpEqLt: Bool = op(2) & !op(1) & op(0)
++  def isCmpNeLeGt: Bool = op(2) & op(1)
++  def isCmpEq: Bool = !isSub & isCmpEqLt
++  def isCmpLt: Bool =  isSub & isCmpEqLt
++  def isCmpNe: Bool = !isSub & isCmpNeLeGt & !op(0)
++  def isCmpLe: Bool =  isSub & isCmpNeLeGt & !op(0)
++  def isCmpGt: Bool =  isSub & isCmpNeLeGt &  op(0)
++
++  def isMax: Bool = isMaxMinLogic & op(0)
++
++  def isScalVro: Bool = op(0)
++  def isNotVro: Bool = op(2) ^ op(1)
++  def isZvbbOthers: Bool = isSub
++  def isVcpop:  Bool = !op(1) & !op(0)
++  def isVbrev:  Bool = !op(1) &  op(0)
++  def isVbrev8: Bool =  op(1) & !op(0)
++  def isVrev8:  Bool =  op(1) &  op(0)
++  def isCountZero: Bool = op(2)
++  def isCtz: Bool =  op(0)
++}
+diff --git a/src/main/scala/yunsuan/encoding/Opcode/VialuOpcode.scala b/src/main/scala/yunsuan/encoding/Opcode/VialuOpcode.scala
+index 3a1dee3..46f3d92 100644
+--- a/src/main/scala/yunsuan/encoding/Opcode/VialuOpcode.scala
++++ b/src/main/scala/yunsuan/encoding/Opcode/VialuOpcode.scala
+@@ -16,47 +16,6 @@ object FixedPointConst {
+   def signedMin: UInt = "h80".U(8.W)
+ }
+ 
+-class VIAluOpcode extends Bundle {
+-  val op = UInt(6.W)
+-  def isAdd: Bool = !op(3) & !op(2) & !op(1) & !op(0) // op === VialuOpcode.vadd
+-  def isSub: Bool = op(4)
+-  def isVmsbc: Bool = op(4) & !op(3) &  op(2) & !op(1) & !op(0)
+-  def isBitLogic:   Bool = !op(4) & !op(3)
+-  def isShiftLogic: Bool = !op(4) &  op(3)
+-  def isLeftShiftLogic:  Bool = isShiftLogic & !op(2) & !op(1)
+-  def isMaxMinLogic: Bool = op(3)
+-  def isSatLogic: Bool = !op(2) & op(1) & !op(0)
+-  def isAvgLogic: Bool = !op(2) & op(1) &  op(0)
+-
+-  def isVand : Bool = isBitLogic & !op(2) & !op(1) &  op(0)
+-  def isVnand: Bool = isBitLogic & !op(2) &  op(1) & !op(0)
+-  def isVandn: Bool = isBitLogic & !op(2) &  op(1) &  op(0)
+-  def isVxor : Bool = isBitLogic &  op(2) & !op(1) & !op(0)
+-  def isVor  : Bool = isBitLogic &  op(2) & !op(1) &  op(0)
+-  def isVnor : Bool = isBitLogic &  op(2) &  op(1) & !op(0)
+-  def isVorn : Bool = isBitLogic &  op(2) &  op(1) &  op(0)
+-  def isVxnor: Bool = isBitLogic & !op(2) & !op(1) & !op(0)
+-
+-  def isCmpEqLt: Bool = op(2) & !op(1) & op(0)
+-  def isCmpNeLeGt: Bool = op(2) & op(1)
+-  def isCmpEq: Bool = !isSub & isCmpEqLt
+-  def isCmpLt: Bool =  isSub & isCmpEqLt
+-  def isCmpNe: Bool = !isSub & isCmpNeLeGt & !op(0)
+-  def isCmpLe: Bool =  isSub & isCmpNeLeGt & !op(0)
+-  def isCmpGt: Bool =  isSub & isCmpNeLeGt &  op(0)
+-
+-  def isMax: Bool = isMaxMinLogic & op(0)
+-
+-  def isScalVro: Bool = op(0)
+-  def isNotVro: Bool = op(2) ^ op(1)
+-  def isZvbbOthers: Bool = isSub
+-  def isVcpop:  Bool = !op(1) & !op(0)
+-  def isVbrev:  Bool = !op(1) &  op(0)
+-  def isVbrev8: Bool =  op(1) & !op(0)
+-  def isVrev8:  Bool =  op(1) &  op(0)
+-  def isCountZero: Bool = op(2)
+-  def isCtz: Bool =  op(0)
+-}
+ 
+ object VialuOpcode {
+   def width = 6

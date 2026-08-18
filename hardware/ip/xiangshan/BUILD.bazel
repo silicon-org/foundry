@@ -1,0 +1,84 @@
+# Integration point for OpenXiangShan/XiangShan.
+#
+# The sources are not vendored here. The generator's Scala is fetched by the
+# http_archives in //MODULE.bazel, pinned by sha256, and this package supplies
+# the BUILD files that turn them into Bazel targets. Unlike the rest of
+# //hardware/ip, what is fetched is a program rather than RTL: the SystemVerilog
+# below is built here, from a pinned generator, by an action in this graph.
+#
+# The configuration is ours and lives in this file. Upstream's overlays describe
+# only what upstream is.
+
+load("@rules_scala//scala:scala_toolchain.bzl", "scala_toolchain")
+load("@rules_verilog//verilog:defs.bzl", "verilog_library")
+load(":defs.bzl", "xiangshan_verilog")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob([
+    "*.BUILD.bazel",
+    "*.patch",
+]) + ["chisel.bzl"])
+
+# rules_scala defaults to putting only a target's direct dependencies on the
+# compile classpath. sbt and mill, which upstream builds with, put the whole
+# transitive closure there -- and upstream's sources rely on it: difftest imports
+# json4s, which reaches it only through Chisel.
+#
+# So this is not laziness about listing dependencies. Strict deps on someone
+# else's module graph means maintaining a dependency list for code we do not own,
+# rediscovered by compiler error every time upstream moves. Registered in
+# //MODULE.bazel, and it applies to every Scala target here, of which XiangShan
+# is all of them.
+scala_toolchain(
+    name = "transitive_classpath_impl",
+    dependency_mode = "transitive",
+    strict_deps_mode = "off",
+)
+
+toolchain(
+    name = "transitive_classpath",
+    toolchain = ":transitive_classpath_impl",
+    toolchain_type = "@rules_scala//scala:toolchain_type",
+)
+
+alias(
+    name = "generator",
+    actual = "@xiangshan//:generator",
+)
+
+# One XiangShan core with its own L2, talking CHI.
+#
+# XSNoCTop rather than XSTop: XSTop is upstream's whole SoC, down to its L3,
+# CLINT and debug module, and a system built from several of these plus Spatz
+# clusters wants the composable unit, not someone else's integration. What comes
+# out is core + L2 + IMSIC with a CHI port, which is exactly the boundary a
+# shared interconnect attaches to.
+#
+# firtool's options are upstream's release settings, and each one earns its
+# place. locationInfoStyle=none keeps Scala line numbers out of the RTL, so the
+# output changes only when the design does. disallowLocalVariables and
+# disallowPortDeclSharing keep the SystemVerilog inside the subset synthesis
+# tools accept. Specialising layers to `disable` drops the verification-only
+# layer, which is what would otherwise reach into the design with hierarchical
+# references that no synthesis flow can follow.
+xiangshan_verilog(
+    name = "xsnoctop_verilog",
+    config = "XSNoCTopConfig",
+    firtool_opts = [
+        "-O=release",
+        "--disable-annotation-unknown",
+        "--lowering-options=explicitBitcast,disallowLocalVariables,disallowPortDeclSharing,locationInfoStyle=none",
+        "--default-layer-specialization=disable",
+        "--ignore-read-enable-mem",
+    ],
+    # One file, and named XSTop.sv even in this configuration: upstream gives the
+    # NoC top the same desiredName as the SoC top, which is also why its Makefile
+    # says XSTop for both. The module inside is XSNoCTop's.
+    outs = ["XSTop.sv"],
+)
+
+verilog_library(
+    name = "xsnoctop",
+    srcs = [":xsnoctop_verilog"],
+)

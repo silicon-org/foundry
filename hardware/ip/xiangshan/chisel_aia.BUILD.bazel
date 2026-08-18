@@ -1,0 +1,19 @@
+# Bazel view of OpenXiangShan/ChiselAIA. Overlaid onto the fetched archive by the
+# http_archive in //MODULE.bazel.
+#
+# RISC-V AIA: the IMSIC that receives message-signalled interrupts and the APLIC
+# behind it. XSNoCTop exposes the IMSIC bus, so this is on the path even for a
+# single core.
+
+load("@foundry//hardware/ip/xiangshan:chisel.bzl", "chisel_library")
+
+package(default_visibility = ["//visibility:public"])
+
+chisel_library(
+    name = "chisel_aia",
+    srcs = glob(["src/main/scala/**/*.scala"]),
+    deps = [
+        "@rocket_chip//:rocket_chip",
+        "@utility//:utility",
+    ],
+)

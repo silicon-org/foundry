@@ -6,6 +6,7 @@ Designs, and the third-party IP they build on.
 hardware/
   ip/           third-party IP, integrated but not vendored
     common_cells/
+    xiangshan/   a generator rather than RTL; see below
 ```
 
 ## How third-party IP is integrated
@@ -22,6 +23,41 @@ label, so the integration is visible in the label.
 
 Only what is actually used gets a target. Adding a cell should be a decision
 someone made, not a side effect of a glob.
+
+## When the IP is a generator
+
+XiangShan is written in Chisel, so upstream ships no RTL at all — what it
+publishes is a Scala program that prints SystemVerilog. Pinning generated RTL
+would mean pinning somebody's build output and taking on faith that it came from
+the commit it claims to; so what is pinned is the generator, and the RTL is
+produced by an action in this graph like any object file.
+
+Chisel is a library, not a build system. mill is what upstream drives it with,
+and mill is not part of the design — so `//hardware/ip/xiangshan` reproduces the
+module graph from upstream's `build.mill` as `scala_library` targets and never
+runs mill. Every jar comes from a lock file, the Scala compiler is pinned by
+rules_scala, and `firtool` — the CIRCT binary Chisel emits SystemVerilog through
+— is pinned at the version Chisel's own `etc/circt.json` names.
+
+```
+bazel build //hardware/ip/xiangshan:xsnoctop_verilog
+```
+
+The result is 139 MB of SystemVerilog holding one core, its L2, its IMSIC and a
+CHI port, and from there it is source like anything written by hand.
+
+Three consequences worth knowing before relying on it:
+
+- Generation is one JVM action that elaborates the whole design — minutes and tens
+  of gigabytes of heap, not seconds. It caches like anything else, so it happens
+  when the pin moves or the configuration changes.
+- CIRCT publishes no linux/arm64 `firtool`, so generation runs on a Mac or on the
+  x86 cluster, but not on the arm64 one until somebody builds CIRCT from source.
+- One file in YunSuan is patched, and has to be. It declares `class VIAluOpcode`
+  and `object VialuOpcode` together, whose class files differ only in case, so on
+  a case-insensitive filesystem one overwrites the other and a Bundle silently
+  disappears. The patch moves one into its own file so the two can be compiled by
+  two targets; see `ip/xiangshan/yunsuan_case_collision.patch`.
 
 ## Simulation
 

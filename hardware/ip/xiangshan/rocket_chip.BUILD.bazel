@@ -1,0 +1,39 @@
+# Bazel view of OpenXiangShan/rocket-chip. Overlaid onto the fetched archive by
+# the http_archive in //MODULE.bazel.
+#
+# XiangShan does not use rocket-chip's cores. It uses its diplomacy graph, its
+# TileLink implementation, its device models and its parameter plumbing, which is
+# why this sits underneath everything else here.
+
+load(
+    "@foundry//hardware/ip/xiangshan:chisel.bzl",
+    "chisel_library",
+    "macro_library",
+)
+
+package(default_visibility = ["//visibility:public"])
+
+# `ValName`, which is how diplomacy learns what a node was called in the Scala
+# source. Expanded by nearly everything downstream.
+macro_library(
+    name = "macros",
+    srcs = glob(["macros/src/**/*.scala"]),
+)
+
+chisel_library(
+    name = "rocket_chip",
+    srcs = glob(["src/main/scala/**/*.scala"]),
+    # Verilog blackbox bodies -- plusarg_reader, EICG_wrapper, the clock
+    # dividers -- and the DTS templates. Elaboration reads these off the
+    # classpath and copies them next to the generated RTL, so they have to be in
+    # the jar rather than merely on disk.
+    resource_strip_prefix = "src/main/resources",
+    resources = glob(["src/main/resources/**"]),
+    deps = [
+        ":macros",
+        "@cde//:cde",
+        "@hardfloat//:hardfloat",
+        "@xs_maven//:com_lihaoyi_mainargs_2_13",
+        "@xs_maven//:org_json4s_json4s_jackson_2_13",
+    ],
+)

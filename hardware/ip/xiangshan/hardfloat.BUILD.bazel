@@ -1,0 +1,14 @@
+# Bazel view of ucb-bar/berkeley-hardfloat, a submodule of rocket-chip. Overlaid
+# onto the fetched archive by the http_archive in //MODULE.bazel.
+#
+# The IEEE-754 units rocket-chip's FPU is assembled from. The doubled path is
+# upstream's: the repository holds a `hardfloat/` directory.
+
+load("@foundry//hardware/ip/xiangshan:chisel.bzl", "chisel_library")
+
+package(default_visibility = ["//visibility:public"])
+
+chisel_library(
+    name = "hardfloat",
+    srcs = glob(["hardfloat/src/main/scala/**/*.scala"]),
+)

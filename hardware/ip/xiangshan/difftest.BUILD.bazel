@@ -1,0 +1,16 @@
+# Bazel view of OpenXiangShan/difftest. Overlaid onto the fetched archive by the
+# http_archive in //MODULE.bazel.
+#
+# Difftest is XiangShan's co-simulation harness, and it is compiled in even when
+# difftest is switched off: the top module calls into `DifftestModule` and
+# `Gateway` unconditionally and lets them elaborate to nothing. Only the Chisel
+# half is built here; the C++ half is for running a simulator, which this is not.
+
+load("@foundry//hardware/ip/xiangshan:chisel.bzl", "chisel_library")
+
+package(default_visibility = ["//visibility:public"])
+
+chisel_library(
+    name = "difftest",
+    srcs = glob(["src/main/scala/**/*.scala"]),
+)

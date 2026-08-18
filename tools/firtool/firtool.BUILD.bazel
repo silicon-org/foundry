@@ -1,0 +1,11 @@
+# Bazel view of a CIRCT `firrtl-bin` release. Overlaid onto both the Linux and
+# the macOS archive by the http_archives in //MODULE.bazel -- they differ only in
+# which machine the binary runs on, so they share this file.
+#
+# Only firtool is exported. The release also ships circt-opt, circt-verilog and
+# friends; nothing here compiles them in from the outside, and a target nobody
+# uses is a target nobody checks.
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["bin/firtool"])

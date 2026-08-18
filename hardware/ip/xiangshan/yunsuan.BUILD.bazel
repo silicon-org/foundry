@@ -1,0 +1,38 @@
+# Bazel view of OpenXiangShan/YunSuan. Overlaid onto the fetched archive by the
+# http_archive in //MODULE.bazel.
+#
+# The vector and floating-point execution units. Depends on nothing but Chisel,
+# which is unusual here and makes it a useful first target to compile when
+# something in this integration breaks.
+
+load("@foundry//hardware/ip/xiangshan:chisel.bzl", "chisel_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Split out so that YunSuan builds on a Mac at all.
+#
+# `class VIAluOpcode` and `object VialuOpcode` produce class files whose names
+# differ only in case, and one scalac invocation writes both into one output
+# directory -- so on a case-insensitive filesystem the second overwrites the
+# first and a Bundle silently ceases to exist. Two targets means two output
+# directories and two jars, and jar entries are case-sensitive everywhere.
+#
+# //MODULE.bazel patches the class into its own file, because Scala has no way to
+# compile one file into two targets. Neither half is interesting on its own; if
+# upstream takes the patch, both of these collapse back into one target.
+chisel_library(
+    name = "vialu_opcode_bundle",
+    srcs = ["src/main/scala/yunsuan/encoding/Opcode/VIAluOpcodeBundle.scala"],
+)
+
+chisel_library(
+    name = "yunsuan",
+    srcs = glob(
+        ["src/main/scala/**/*.scala"],
+        exclude = ["src/main/scala/yunsuan/encoding/Opcode/VIAluOpcodeBundle.scala"],
+    ),
+    # Truth tables the units are generated from, read during elaboration.
+    resource_strip_prefix = "src/main/resources",
+    resources = glob(["src/main/resources/**"]),
+    deps = [":vialu_opcode_bundle"],
+)

@@ -226,6 +226,21 @@ testable claim, so test it rather than assuming it.
 Until Tailscale is configured there is no other way in, so do this only once
 something else can reach the cluster.
 
+## Re-trigger anything that queued while it was gone
+
+Runs that were queued before this cluster existed will not start on it, and
+waiting will not help. GitHub assigns a job to a scale set *session*, and the
+session that was addressed died with the previous cluster -- the new listener
+reports `"assigned job"=0` while the run sits there looking like a slow pickup.
+
+Cancel them and dispatch again:
+
+```
+gh run list --workflow=CI --limit 10
+gh run cancel <id>          # for anything queued from before the rebuild
+gh workflow run CI --ref main
+```
+
 ## Checking it worked
 
 ```

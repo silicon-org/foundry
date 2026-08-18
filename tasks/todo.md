@@ -61,15 +61,22 @@ are answered by building CIRCT in this graph with this toolchain.
 - [x] `@circt//:firtool` builds and works: emits correct SystemVerilog for a
       trivial adder and reports `CIRCT firtool-1.149.0`
 - [ ] lit tests for every dialect touched
-- [ ] **Gate:** firtool builds on all three platforms, lit tests green
+- [x] **Gate:** firtool builds on all three platforms -- darwin/arm64 runs and
+      emits correct SystemVerilog, linux/arm64 is an ARM aarch64 ELF (930
+      actions), linux/amd64 an x86-64 ELF (1192 actions)
+- [ ] lit tests -- not yet wired up
 
 ## M4 — Cut over, delete the prebuilt
 
-- [ ] Diff XiangShan RTL prebuilt-vs-source (one-time migration evidence)
-- [ ] Point `//tools/firtool:firtool` at the source build
-- [ ] Delete both firtool http_archives, `firtool.BUILD.bazel`, the select
-- [ ] Rewrite the now-false arm64 comments
-- [ ] **Gate:** `bazel build --config=remote //hardware/...` on arm64
+- [x] Compared prebuilt vs source firtool. On identical FIRRTL both emit
+      byte-identical SystemVerilog (`ea16f033...`), at the same speed, and the
+      source build is deterministic across runs. The RTL difference first seen
+      end-to-end was Chisel elaboration varying, not firtool -- see lessons.md.
+- [x] Point `//tools/firtool:firtool` at the source build
+- [x] Delete both firtool http_archives, `firtool.BUILD.bazel`, the select
+- [x] Rewrite the now-false arm64 comments
+- [ ] **Gate:** `bazel build --config=remote //hardware/...` on arm64 -- needs
+      the cluster port-forward running, so not yet exercised.
 
 ## M5 — slang and circt-verilog
 

@@ -53,10 +53,13 @@ are answered by building CIRCT in this graph with this toolchain.
 
 ## M3 — firtool
 
-- [ ] Remaining dialects in the firtool closure, derived from `LINK_LIBS`
-- [ ] ExportVerilog, ImportFIRFile, per-dialect Transforms, Support,
-      Target/DebugInfo, Firtool pipeline library
-- [ ] `//third_party/circt:firtool`
+- [x] Remaining dialects in the firtool closure, derived from `LINK_LIBS`.
+      11 dialects, 33 libraries, ~230 sources.
+- [x] ExportVerilog, ImportFIRFile, per-dialect Transforms, Support,
+      Target/DebugInfo, the pipeline library (`:FirtoolPipeline` -- CMake's name
+      collides with the binary on a case-insensitive filesystem)
+- [x] `@circt//:firtool` builds and works: emits correct SystemVerilog for a
+      trivial adder and reports `CIRCT firtool-1.149.0`
 - [ ] lit tests for every dialect touched
 - [ ] **Gate:** firtool builds on all three platforms, lit tests green
 

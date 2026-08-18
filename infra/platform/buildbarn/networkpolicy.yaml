@@ -111,6 +111,21 @@ spec:
         # busybox, fetched by rules_coreutils for //tools:bazel_env. Linux only,
         # which is why it went unnoticed until CI ran on an x86 cluster.
         - matchName: snapshot-cloudflare.debian.org
+
+        # Chisel and the jars XiangShan's generator is compiled against. Derived
+        # from the lock file, which records the repository each artifact was
+        # resolved from:
+        #
+        #   python3 -c "import json;print(list(json.load(open( \
+        #     'hardware/ip/xiangshan/maven_install.json'))['repositories']))"
+        #
+        # One host today, and the lock file is where a second would appear.
+        #
+        # This one hid behind a warm cache: a developer's machine has the jars in
+        # its repository cache from before remote execution was configured, so
+        # nothing asks the asset service for them. CI starts empty and asks for
+        # every one, which is the case that matters and the case nobody runs.
+        - matchName: repo1.maven.org
       toPorts:
         - ports:
             - {port: "443", protocol: TCP}

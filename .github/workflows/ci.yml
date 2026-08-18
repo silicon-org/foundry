@@ -4,9 +4,8 @@ name: CI
 # from people we have no reason to trust. Two rules follow, and neither is
 # negotiable:
 #
-#   1. This workflow runs on GitHub-hosted runners only. Once the self-hosted
-#      cluster exists it takes over the `push` job on trusted branches; fork PRs
-#      stay here, on hardware GitHub owns and isolates.
+#   1. Fork pull requests run on GitHub-hosted runners only, on hardware GitHub
+#      owns and isolates. The `cluster` job below never sees them.
 #   2. Nothing here gets a secret. There is nothing worth stealing in this
 #      workflow, which is the property that makes it safe to run on a fork's
 #      code.
@@ -31,8 +30,13 @@ env:
   # preinstall this month.
   BAZELISK_VERSION: "1.29.0"
 
+# Per job, not per workflow. One group for both would mean a cluster job waiting
+# on runners that do not exist holds the group, every later run queues behind it,
+# and each new push cancels the previous pending one -- so the GitHub-hosted job,
+# which needs nothing from us and would have passed, never gets to run either.
+# That is exactly what happened the first time the cluster was torn down.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-build-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -71,7 +75,11 @@ jobs:
         run: bazel run --config=ci //tools:secret-scan -- git --redact --no-banner
 
   # Runs on our own hardware, against our own cache.
-  self-hosted:
+  cluster:
+    # Its own concurrency group, so it can never block the job above.
+    concurrency:
+      group: ${{ github.workflow }}-cluster-${{ github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     # The gate that makes self-hosted CI on a public repository survivable.
     # A fork's pull request never reaches this job, so it never reaches our
     # cluster. Fork contributors are served by the GitHub-hosted job above.
@@ -79,10 +87,24 @@ jobs:
     # workflow_dispatch is included because triggering it requires write access,
     # the same bar as pushing a branch here. Without it, the manual trigger
     # cannot exercise the one path that depends on cluster state.
+    # Two conditions, for two different reasons.
+    #
+    # The trigger gate is the security one: a fork's pull request never reaches
+    # this job, so it never reaches our cluster. Fork contributors are served by
+    # the job above. workflow_dispatch is included because triggering it needs
+    # write access, the same bar as pushing a branch here.
+    #
+    # CLUSTER_UP is the availability one. The cluster is torn down between work
+    # sessions, and a job addressed to runners that do not exist does not fail --
+    # it queues for a day. Set the variable when the cluster is up:
+    #
+    #   gh variable set CLUSTER_UP --body true      # and false on teardown
     if: >-
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+      vars.CLUSTER_UP == 'true' && (
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' ||
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
     runs-on: foundry-hetzner-amd64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -94,10 +116,12 @@ jobs:
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
 
-      # Every self-hosted build both reads and writes, so iterating on a pull
-      # request reuses the previous push's work. See the runner network policy
-      # for why that is acceptable here, and what would change it.
-      - name: Cache probe
+      # A few seconds against the cache before spending minutes on a real build.
+      # It answers a different question from the step below -- "can this runner
+      # reach the cache at all" rather than "does the code build" -- and keeping
+      # them separate is what stops an unreachable cluster looking like a broken
+      # commit.
+      - name: Cache reachable
         run: |
           bazel build --config=ci \
             --remote_cache=grpc://frontend-rw.buildbarn.svc.cluster.local:8980 \

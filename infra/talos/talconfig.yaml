@@ -29,6 +29,24 @@ endpoint: https://10.0.1.5:6443
 # are exactly the kind that saturate one.
 allowSchedulingOnControlPlanes: false
 
+# The API server's certificate has to cover the addresses people actually reach
+# it on, and the endpoint above is not one of them from outside the cluster.
+#
+# Without these, break-glass is only half a mechanism: opening the firewall to
+# an administrator's address gets TCP through, and then kubectl fails TLS
+# verification because the certificate names only the private endpoint and the
+# node addresses. talosctl is unaffected -- it has its own CA -- which is
+# exactly why the gap survives casual testing.
+#
+# These are Hetzner-assigned rather than chosen, so unlike everything else in
+# this file they have to be copied from `tofu output control_plane_public_ipv4`.
+# They are attached to primary IPs, so they survive rebuilding the servers; they
+# do not survive destroying the primary IPs themselves.
+additionalApiServerCertSans:
+  - 2.28.8.220
+  - 178.105.1.30
+  - 178.104.185.153
+
 cniConfig:
   name: none
 

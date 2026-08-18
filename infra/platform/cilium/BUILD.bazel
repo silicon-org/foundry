@@ -31,6 +31,39 @@ workspace_command(
     workdir = "infra/platform/cilium",
 )
 
+# The same install, for a cluster where Talos does not start kube-proxy.
+#
+# The base values leave kubeProxyReplacement off, which is correct only where
+# something else is providing it. On Hetzner nothing is, so bootstrapping with
+# the base file alone produces a cluster with no service networking at all --
+# and it looks healthy, because Cilium comes up fine and simply is not doing
+# that job. Passing both files here mirrors what Flux does with two valuesFrom
+# entries, so the handover stays a non-event.
+#
+#   bazel run //infra/platform/cilium:bootstrap-hetzner
+workspace_command(
+    name = "bootstrap-hetzner",
+    args = [
+        "upgrade",
+        "--install",
+        "cilium",
+        "cilium",
+        "--repo",
+        "https://helm.cilium.io",
+        "--version",
+        "1.20.0",
+        "--namespace",
+        "kube-system",
+        "--values",
+        "values.yaml",
+        "--values",
+        "../clusters/hetzner/cilium/values-hetzner.yaml",
+        "--wait",
+    ],
+    tool = "@multitool//tools/helm",
+    workdir = "infra/platform/cilium",
+)
+
 filegroup(
     name = "manifests",
     srcs = glob(["*.yaml"]),

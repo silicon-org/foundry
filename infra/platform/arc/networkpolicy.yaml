@@ -85,6 +85,26 @@ spec:
             - port: "8980"
               protocol: TCP
 
+    # The asset service, which is how a build fetches external repositories
+    # without reaching the internet itself. Without this rule the allow-list
+    # below still lets a runner download directly, so nothing looks broken until
+    # a build actually uses --experimental_remote_downloader -- and then it
+    # fails as "UNAVAILABLE: io exception" from a repository rule, naming
+    # neither the service nor the policy.
+    #
+    # This is also what lets the FQDN list below shrink eventually: once every
+    # download goes through the asset service, a runner needs no route to
+    # bcr.bazel.build or gitlab.arm.com at all, only to GitHub for the runner
+    # protocol itself.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: buildbarn
+            app: remote-asset
+      toPorts:
+        - ports:
+            - port: "8985"
+              protocol: TCP
+
     # GitHub, for the runner protocol itself and for fetching actions.
     # broker.actions.githubusercontent.com is the long-poll endpoint that makes
     # inbound ports unnecessary.

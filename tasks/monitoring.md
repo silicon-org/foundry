@@ -504,12 +504,17 @@ list rather than prose.
 
 ## Review — what the implementation changed about the plan
 
-Everything that can be built without a running stack is built and tested;
-`bazel test //infra/...` passes, including a new `promtool_test`. The eleven
-boxes still open are all gates that need the stack deployed, plus M7's two-week
-measurement and M8's deliberate deferrals.
+Built, deployed and verified against the live Hetzner cluster. 56 scrape
+targets up; the only ones down are the three Talos control-plane jobs, which
+need the M2 machine-config apply.
 
-Eleven things turned out differently from the plan. Each was found by checking
+Five of the sixteen findings below were only reachable by deploying. That is
+worth stating plainly, because the local checks were thorough and passed: a
+first install is a state no dry run against an already-working cluster can
+reproduce, and four of the five failures were invisible until something real
+tried to reconcile.
+
+Sixteen things turned out differently from the plan. Each was found by checking
 against the live cluster or the actual chart rather than against the
 documentation, and each would have been a silent failure.
 
@@ -587,6 +592,52 @@ documentation, and each would have been a silent failure.
     `dependsOn` and `wait: true` between them. Same shape as the Cilium trap one
     level up: something that installs an API has to finish before the thing that
     uses it starts.
+
+12. **`namespace:` in a kustomization overrides what the object declares.**
+    The two HelmRepositories say `flux-system`, like every other one in this
+    repository; the transformer moved them into `monitoring` and left the
+    `sourceRef` inside each HelmRelease pointing at flux-system, which kustomize
+    does not know to rewrite. It renders, it applies, and then the chart pull
+    fails. Dropped the transformer; every resource states its own namespace and
+    the generators say so per entry, which is what cilium/ already did.
+
+13. **The Buildbarn worker could not roll.** Adding a metrics port was the first
+    edit to that Deployment since it was written, and `RollingUpdate` with
+    `maxUnavailable: 25%` on one replica rounds down to zero -- so Kubernetes
+    tried to start a second 5-CPU worker on an 8-CPU node. Pending forever,
+    Deployment `Failed`, buildbarn Kustomization unhealthy, bb-portal dragged
+    down through `dependsOn`, and builds working fine the whole time on the old
+    pod. Latent since the worker was deployed. `Recreate` now. Switching an
+    existing Deployment also needs a one-off patch to drop the defaulted
+    `rollingUpdate` block, which server-side apply preserves and `Recreate`
+    forbids.
+
+14. **The network policy forgot CoreDNS's metrics port.** The kube-dns rule
+    allowed 53 and nothing else; metrics are on 9153, a different port on the
+    same pods -- which is exactly why it was easy to miss in a rule that already
+    names them. Two down targets. Hubble then attributed the drops to
+    `source="monitoring"`, which is the first thing the new metrics were used
+    for and a good sign they work.
+
+15. **The Flux alerts could never have fired.** They were written against
+    `gotk_reconcile_condition` and `gotk_suspend_status`. Neither exists in Flux
+    2.9 -- they existed once, which is why they read as plausible. promtool
+    accepted them, Prometheus loaded them, and they would have looked like
+    coverage indefinitely. The replacement is kube-state-metrics reading the
+    Flux CRs and emitting `gotk_resource_info`, adapted from
+    fluxcd/flux2-monitoring-example but *without* its `collectors: []` and
+    `--custom-resource-state-only=true`, which would have removed `kube_pod_*`,
+    `kube_node_*` and `kube_persistentvolumeclaim_*` -- most of what the capacity
+    rules and the shipped dashboards are built on. This also un-blanks the two
+    vendored Flux dashboards, which read the same metric.
+
+16. **A `group_left()` join is not safe across a kube-state-metrics rollout.**
+    For a few seconds two KSM pods export the same series, the join `on
+    (namespace, pod)` cannot tell them apart, and the vector match becomes
+    many-to-many. It errored, which is how it was noticed; the quieter outcome
+    would have been a plain `sum` over both replicas doubling the total and
+    reporting 240% memory overcommit on a healthy node. Every operand is now
+    collapsed with `max by (...)` before being joined.
 
 Smaller deviations worth recording:
 

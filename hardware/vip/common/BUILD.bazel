@@ -21,4 +21,47 @@ cc_library(
     name = "sim_main",
     srcs = ["sim_main.cc"],
     hdrs = ["sim_main.h"],
+    deps = [":test_control"],
+)
+
+# The backing store every agent shares, and the watchpoints that turn a write
+# into a test's verdict.
+cc_library(
+    name = "memory",
+    srcs = ["memory.cc"],
+    hdrs = ["memory.h"],
+)
+
+cc_library(
+    name = "logging",
+    srcs = ["logging.cc"],
+    hdrs = ["logging.h"],
+    deps = ["@spdlog"],
+)
+
+# How a C++ model ends a SystemVerilog simulation, and the DPI declaration a
+# testbench needs to poll it.
+cc_library(
+    name = "test_control",
+    srcs = ["test_control.cc"],
+    hdrs = ["test_control.h"],
+    deps = [":logging"],
+)
+
+# The memory a testbench sets up, and how it knows it is finished. The whole of
+# a test's setup crosses here, so that the test is the SystemVerilog.
+cc_library(
+    name = "vip_dpi",
+    srcs = ["vip_dpi.cc"],
+    hdrs = ["vip_dpi.h"],
+    deps = [
+        ":logging",
+        ":memory",
+        ":test_control",
+    ],
+)
+
+filegroup(
+    name = "vip_dpi_svh",
+    srcs = ["vip_dpi.svh"],
 )

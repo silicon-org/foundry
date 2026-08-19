@@ -7,6 +7,17 @@ cc_test(
     deps = ["//hardware/vip/chi:chi_flit"],
 )
 
+# The protocol model, with no RTL in the build at all.
+cc_test(
+    name = "chi_home_node_test",
+    size = "small",
+    srcs = ["chi_home_node_test.cc"],
+    deps = [
+        "//hardware/vip/chi:chi_home_node",
+        "//hardware/vip/common:memory",
+    ],
+)
+
 # The link layer, against its own mirror image, with no design in the build.
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
@@ -15,6 +26,7 @@ load("@rules_verilog//verilog:defs.bzl", "verilog_library")
 verilog_library(
     name = "chi_link_loopback_tb",
     srcs = ["chi_link_loopback_tb.sv"],
+    hdrs = ["//hardware/vip/common:vip_dpi_svh"],
     top_module = "chi_link_loopback_tb",
     deps = ["//hardware/vip/chi/rtl:chi_link"],
 )
@@ -50,6 +62,7 @@ cc_binary(
     deps = [
         ":chi_link_loopback_verilated",
         "//hardware/vip/common:sim_main",
+        "//hardware/vip/common:vip_dpi",
     ],
 )
 
@@ -63,6 +76,7 @@ cc_binary(
     deps = [
         ":chi_link_loopback_verilated",
         "//hardware/vip/common:sim_main",
+        "//hardware/vip/common:vip_dpi",
     ],
 ) for case in [
     "bringup",
@@ -87,4 +101,49 @@ cc_binary(
 ) for case, expected in [
     ("rogue_overrun", "flit arrived with the buffer full"),
     ("rogue_before_run", "flit arrived with no L-Credit outstanding"),
+]]
+
+# The whole agent -- link, DPI boundary, C++ home node and the memory behind it
+# -- with no design in the build. The seam the two tests either side of it
+# cannot reach.
+verilog_library(
+    name = "chi_hn_agent_tb",
+    srcs = ["chi_hn_agent_tb.sv"],
+    hdrs = [
+        "//hardware/vip/chi:chi_hn_dpi_svh",
+        "//hardware/vip/common:vip_dpi_svh",
+    ],
+    top_module = "chi_hn_agent_tb",
+    deps = ["//hardware/vip/chi/rtl:chi_hn_agent"],
+)
+
+verilator_cc_library(
+    name = "chi_hn_agent_verilated",
+    module = ":chi_hn_agent_tb",
+    timing = True,
+    vopts = [
+        "-Wall",
+        "-Wno-fatal",
+        "-Wno-UNUSEDPARAM",
+        "-Wno-SYNCASYNCNET",
+        "--assert",
+        "--timescale",
+        "1ns/1ps",
+    ],
+)
+
+[cc_test(
+    name = "chi_hn_agent_{}_test".format(case),
+    size = "small",
+    srcs = ["chi_hn_agent_tb.cc"],
+    args = ["+case={}".format(case)],
+    deps = [
+        ":chi_hn_agent_verilated",
+        "//hardware/vip/chi:chi_hn_dpi",
+        "//hardware/vip/common:sim_main",
+        "//hardware/vip/common:vip_dpi",
+    ],
+) for case in [
+    "read_line",
+    "write_word",
 ]]

@@ -5,8 +5,15 @@ load("@rules_verilog//verilog:defs.bzl", "verilog_library")
 verilog_library(
     name = "xs_cluster_tb",
     srcs = ["xs_cluster_tb.sv"],
+    hdrs = [
+        "//hardware/vip/chi:chi_hn_dpi_svh",
+        "//hardware/vip/common:vip_dpi_svh",
+    ],
     top_module = "xs_cluster_tb",
-    deps = ["//hardware/soc/xs_cluster"],
+    deps = [
+        "//hardware/soc/xs_cluster",
+        "//hardware/vip/chi/rtl:chi_hn_agent",
+    ],
 )
 
 # The expensive one. 139 MB of generated SystemVerilog across 1868 modules, and
@@ -50,6 +57,8 @@ cc_test(
     tags = ["exclusive"],
     deps = [
         ":xs_cluster_verilated",
+        "//hardware/vip/chi:chi_hn_dpi",
         "//hardware/vip/common:sim_main",
+        "//hardware/vip/common:vip_dpi",
     ],
 )

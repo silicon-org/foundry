@@ -74,6 +74,33 @@ module xs_cluster (
   output chi_pkg::chi_rn_link_tx_t chi_tx_o,
   input  chi_pkg::chi_rn_link_rx_t chi_rx_i,
 
+  // The trace-encoder interface, as the RISC-V efficient-trace specification
+  // defines it: up to three retirement groups per cycle, and the cause and
+  // privilege of a trap when one is taken.
+  //
+  // Brought out rather than tied off, because it is the only window into what
+  // the core is doing that does not involve a waveform. A testbench watching
+  // these can say "trapped at 0x8000_0008 with cause 2" instead of "stopped",
+  // and that difference is most of a bring-up.
+  //
+  // trace_enable_i is the encoder telling the core to produce them;
+  // trace_stall_i is the encoder telling it to hold off. A system with no
+  // encoder ties the first low and the second low too.
+  input  logic          trace_enable_i,
+  input  logic          trace_stall_i,
+  // Three groups, packed: group i occupies bit i of _valid and _ilastsize, and
+  // the i'th slice of the others.
+  output logic [2:0]    trace_valid_o,
+  output logic [149:0]  trace_iaddr_o,
+  output logic [11:0]   trace_itype_o,
+  output logic [23:0]   trace_iretire_o,
+  output logic [2:0]    trace_ilastsize_o,
+  // The trap, when itype says one was taken.
+  output logic [63:0]   trace_cause_o,
+  output logic [49:0]   trace_tval_o,
+  output logic [2:0]    trace_priv_o,
+  output logic [63:0]   trace_mstatus_o,
+
   // The IMSIC's configuration port: a 32-bit AXI4 slave through which the system
   // writes message-signalled interrupts to this hart. Narrow and low-traffic,
   // which is why it is AXI and not CHI.
@@ -258,20 +285,17 @@ module xs_cluster (
     .io_dft_reset_mode      (1'b0),
     .io_dft_reset_scan_mode (1'b0),
 
-    // The trace encoder is not part of this system yet. Its inputs are tied off
-    // and its outputs deliberately left unconnected, rather than brought out to
-    // ports that nothing would read.
-    .io_traceCoreInterface_fromEncoder_enable (1'b0),
-    .io_traceCoreInterface_fromEncoder_stall  (1'b0),
-    .io_traceCoreInterface_toEncoder_cause    (),
-    .io_traceCoreInterface_toEncoder_tval     (),
-    .io_traceCoreInterface_toEncoder_priv     (),
-    .io_traceCoreInterface_toEncoder_mstatus  (),
-    .io_traceCoreInterface_toEncoder_valid    (),
-    .io_traceCoreInterface_toEncoder_iaddr    (),
-    .io_traceCoreInterface_toEncoder_itype    (),
-    .io_traceCoreInterface_toEncoder_iretire  (),
-    .io_traceCoreInterface_toEncoder_ilastsize()
+    .io_traceCoreInterface_fromEncoder_enable (trace_enable_i),
+    .io_traceCoreInterface_fromEncoder_stall  (trace_stall_i),
+    .io_traceCoreInterface_toEncoder_cause    (trace_cause_o),
+    .io_traceCoreInterface_toEncoder_tval     (trace_tval_o),
+    .io_traceCoreInterface_toEncoder_priv     (trace_priv_o),
+    .io_traceCoreInterface_toEncoder_mstatus  (trace_mstatus_o),
+    .io_traceCoreInterface_toEncoder_valid    (trace_valid_o),
+    .io_traceCoreInterface_toEncoder_iaddr    (trace_iaddr_o),
+    .io_traceCoreInterface_toEncoder_itype    (trace_itype_o),
+    .io_traceCoreInterface_toEncoder_iretire  (trace_iretire_o),
+    .io_traceCoreInterface_toEncoder_ilastsize(trace_ilastsize_o)
   );
 
 endmodule

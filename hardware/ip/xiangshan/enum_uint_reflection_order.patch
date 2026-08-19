@@ -1,0 +1,39 @@
+Sort an enum's members by name before generating hardware from them.
+
+`EnumUInt` discovers its members with `Class.getDeclaredMethods`, which the JDK
+documents as returning them "not sorted and ... not in any particular order" --
+and which really does vary between runs. `validate()` keeps whatever order it
+was handed, and `assertLegal` emits one comparison per value in that order:
+
+    VecInit(this.values.map(_ === that)).asUInt.orR
+
+So a reordering renames the FIRRTL nodes around it, and everything downstream
+inherits new names: elaborating XiangShan twice produced 139 MB of
+SystemVerilog differing in 216 wire names, with no design change behind it.
+Nine elaborations here produced six distinct outputs; five with this patch
+produced one. The cost is not cosmetic -- a generated artifact that changes for
+no reason cannot be cached, and cannot be diffed when something real does
+change.
+
+Sorting is safe because the order was never meaningful. `values` is consumed by
+`assertLegal`, which reduces it with `orR`; by `getValidSeq`, which pairs each
+value with its name and is read by name; and by `validate`'s own checks, which
+are order-independent. Nothing indexes it positionally. `getValuesString`, ten
+lines above, already sorts before printing, so the file itself treats the
+reflection order as arbitrary.
+
+Worth upstreaming: every consumer of this class has the same problem, and none
+of them can see it from where they sit.
+
+diff --git a/src/main/scala/utils/EnumUInt.scala b/src/main/scala/utils/EnumUInt.scala
+--- a/src/main/scala/utils/EnumUInt.scala
++++ b/src/main/scala/utils/EnumUInt.scala
+@@ -113,7 +113,7 @@
+         method.getReturnType == classOf[UInt] && // return UInt
+         method.getParameterTypes.isEmpty         // no parameters
+       }
+-    val methods = methodsAll.filter(_.getName()(0).isUpper) // UpperCamelCase
++    val methods = methodsAll.filter(_.getName()(0).isUpper).sortBy(_.getName) // UpperCamelCase
+     this.names = methods.map(_.getName).toSeq
+     this.values = methods.map(_.invoke(this).asInstanceOf[UInt]).toSeq
+     this.litValues = this.values.map(_.litValue)

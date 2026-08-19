@@ -150,17 +150,15 @@ http_archive(
     patch_cmds = [
         "printf 'KunminghuV3-a7fc87df' > src/main/resources/publishVersion",
         "printf 'SHA=a7fc87df1e82211eb47f3c74a8c93cd9d425572b\\ndirty=0\\n' > src/main/resources/gitStatus",
-        # Makes elaboration reproducible. utils/EnumUInt.scala enumerates an
-        # enum's members with Class.getDeclaredMethods, which the JDK documents
-        # as returning them "not sorted and ... not in any particular order" --
-        # and it does vary between runs. validate() keeps that order, and
-        # assertLegal emits one comparison per value in it, so a reordering
-        # renames FIRRTL nodes and changes all 139 MB of emitted SystemVerilog
-        # for no design reason. Sorting by name costs nothing: the sequence is
-        # consumed by name or reduced with orR, never indexed by position, and
-        # the file already sorts for its own error messages a few lines above.
-        """python3 -c "import pathlib; p = pathlib.Path('src/main/scala/utils/EnumUInt.scala'); a = 'val methods = methodsAll.filter(_.getName()(0).isUpper)'; t = p.read_text(); assert t.count(a) == 1; p.write_text(t.replace(a, a + '.sortBy(_.getName)'))" """,
     ],
+    # Makes elaboration reproducible. The patch explains itself; the short of it
+    # is that EnumUInt discovers its members by reflection, in an order the JDK
+    # does not define, and generates hardware in that order -- so the same design
+    # elaborated twice produced 139 MB of SystemVerilog with different wire
+    # names. Nine elaborations gave six distinct outputs before it; five gave
+    # one after.
+    patch_args = ["-p1"],
+    patches = ["//hardware/ip/xiangshan:enum_uint_reflection_order.patch"],
     sha256 = "935e9dfec81e5b1e8974c060a59bf0a5e7309cf3dba9233b7f5ae3676ac13d20",
     strip_prefix = "XiangShan-a7fc87df1e82211eb47f3c74a8c93cd9d425572b",
     url = "https://github.com/OpenXiangShan/XiangShan/archive/a7fc87df1e82211eb47f3c74a8c93cd9d425572b.tar.gz",

@@ -11,6 +11,15 @@ configMapGenerator:
 generatorOptions:
   # The HelmRelease refers to this ConfigMap by name, and kustomize's name
   # reference rewriting does not understand HelmRelease.spec.valuesFrom. A
-  # hashed name would silently dangle, so the name stays stable; helm-controller
-  # watches the ConfigMap and upgrades on change regardless.
+  # hashed name would silently dangle, so the name stays stable.
+  #
+  # What that costs, measured rather than assumed: helm-controller does not
+  # watch this ConfigMap. It notices a change on its next periodic reconcile,
+  # which is `interval` away -- an hour, here. So a values change lands in the
+  # cluster as an updated ConfigMap immediately and as an actual Helm upgrade
+  # up to an hour later, with the HelmRelease reporting Ready the whole time
+  # because its last upgrade did succeed. It is only stale.
+  #
+  # `flux reconcile helmrelease cilium -n kube-system` is the way to not wait.
+  # Worth knowing before concluding that a values change did nothing.
   disableNameSuffixHash: true

@@ -1,6 +1,19 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: monitoring
+
+# No top-level `namespace:` here, deliberately, and it is not an omission.
+#
+# That transformer rewrites the namespace of *every* namespaced resource,
+# overriding what the object itself declares -- including the HelmRepositories
+# below, which belong in flux-system alongside every other one in this
+# repository. It moved them into `monitoring` while leaving the `sourceRef`
+# inside each HelmRelease pointing at flux-system, which kustomize does not know
+# to rewrite. The result reconciles cleanly and then fails at the chart pull:
+#
+#   HelmRepository.source.toolkit.fluxcd.io "prometheus-community" not found
+#
+# Every resource here states its own namespace instead, and the generated
+# ConfigMaps say so per generator -- the same shape as cilium/.
 resources:
   - namespace.yaml
   - priorityclass.yaml
@@ -18,12 +31,15 @@ resources:
 # this one. See observe/kustomization.yaml.
 configMapGenerator:
   - name: kube-prometheus-stack-values
+    namespace: monitoring
     files:
       - values-kube-prometheus-stack.yaml
   - name: loki-values
+    namespace: monitoring
     files:
       - values-loki.yaml
   - name: alloy-values
+    namespace: monitoring
     files:
       - values-alloy.yaml
   # Dashboards are files, not clicks. The Grafana sidecar picks up any ConfigMap
@@ -36,6 +52,7 @@ configMapGenerator:
   # all of them would sit at half the limit and fail on the day someone adds
   # another. The split also keeps `kubectl describe` on a dashboard readable.
   - name: grafana-dashboards-foundry
+    namespace: monitoring
     files:
       - dashboards/buildbarn.json
       - dashboards/arc.json
@@ -50,24 +67,28 @@ configMapGenerator:
   # -f` (the fix is `--server-side`). Splitting keeps that limit a property of
   # one known-large file instead of something the next dashboard trips over.
   - name: grafana-dashboards-cilium-agent
+    namespace: monitoring
     files:
       - dashboards/cilium-agent.json
     options:
       labels:
         grafana_dashboard: "1"
   - name: grafana-dashboards-cilium-operator
+    namespace: monitoring
     files:
       - dashboards/cilium-operator.json
     options:
       labels:
         grafana_dashboard: "1"
   - name: grafana-dashboards-hubble
+    namespace: monitoring
     files:
       - dashboards/hubble.json
     options:
       labels:
         grafana_dashboard: "1"
   - name: grafana-dashboards-flux
+    namespace: monitoring
     files:
       - dashboards/flux-cluster.json
       - dashboards/flux-control-plane.json
@@ -77,5 +98,11 @@ configMapGenerator:
 generatorOptions:
   # Same reason as cilium/: HelmRelease.spec.valuesFrom is not a field kustomize
   # rewrites name references in, so a hashed name would dangle silently.
-  # helm-controller watches the ConfigMap and upgrades on change regardless.
+  #
+  # And the same caveat, which is worth repeating because it is not obvious:
+  # helm-controller does not watch these ConfigMaps. A change to one of the
+  # values files lands as an updated ConfigMap at once and as a Helm upgrade at
+  # the HelmRelease's next reconcile -- an hour, at the intervals set here --
+  # with the release reporting Ready throughout, because it is stale rather than
+  # broken. `flux reconcile helmrelease <name> -n monitoring` skips the wait.
   disableNameSuffixHash: true

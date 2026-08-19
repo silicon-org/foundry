@@ -192,3 +192,19 @@ more time than it should have.
 - Verilating XiangShan with `--timing`: 676 s and 8187 actions the first time,
   ~130 s for a Verilator-only change afterwards. The model runs 1000 cycles in
   12 s. `--output-split 20000` is what keeps the C++ compiles parallel.
+
+- A XiangShan cluster's first CHI request comes about 1040 cycles after reset,
+  and that is CoupledL2 walking its directory to clear it rather than anything
+  being wrong. A bring-up testbench needs a timeout well past that or it will
+  conclude the link is dead.
+
+- `mnstatus.NMIE` resets to zero in XiangShan's generated RTL, and Smrnmi makes
+  any trap taken while it is zero a critical error rather than a trap. So
+  `critical_error_o` early in a bring-up says "the core trapped", not "the core
+  hit a hardware fault", and the interesting question is which trap.
+
+- Test the seam, not just the two things either side of it. The link had a test
+  with no protocol and the protocol had a test with no link, and the bug hunt
+  that followed would have been an hour shorter if something had covered the
+  DPI boundary between them. The agent test that fills that gap took twenty
+  minutes to write and immediately ruled out half the hypotheses.

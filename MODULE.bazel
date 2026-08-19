@@ -50,6 +50,17 @@ bazel_dep(name = "rules_verilog", version = "1.4.2")
 
 register_toolchains("@rules_verilator//verilator:verilator_toolchain")
 
+# Logging for the verification agents. A protocol model produces a flit-by-flit
+# narrative and it is worth reading rather than grepping: spdlog gives each agent
+# a named logger and a level, so a failing run can be re-run at trace without
+# recompiling anything.
+#
+# From the registry rather than an http_archive, because it is there and it
+# brings fmt with it. That is the same reason rules_verilator and rules_scala
+# come from the registry: a dependency someone else already packaged is not a
+# dependency worth packaging again.
+bazel_dep(name = "spdlog", version = "1.17.0")
+
 # Third-party IP is pinned by hash rather than vendored into this history. The
 # BUILD file that makes it a Bazel target lives with us, in
 # //hardware/ip/common_cells, because it is our integration and not upstream's.

@@ -1,0 +1,8 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "memory_test",
+    size = "small",
+    srcs = ["memory_test.cc"],
+    deps = ["//hardware/vip/common:memory"],
+)

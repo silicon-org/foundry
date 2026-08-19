@@ -10,6 +10,8 @@
 //
 // One model, several tests: `+case=` picks which. See BUILD.bazel.
 
+`include "vip_dpi.svh"
+
 module chi_link_loopback_tb #(
   // A half period rather than a period, because `time` is an integer type and
   // `ClkPeriod / 2` is integer division: at a coarse enough time precision it
@@ -673,6 +675,7 @@ module chi_link_loopback_tb #(
     endcase
 
     repeat (4) @(posedge clk);
+    vip_test_pass($sformatf("case %s ran to its end", test_case));
     $finish;
   end
 

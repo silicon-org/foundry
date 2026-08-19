@@ -22,6 +22,8 @@ failure.
 |---|---|
 | `patches/base.yaml` | Settings identical in every environment. |
 | `patches/local.yaml` | Docker-specific overrides. |
+| `patches/hetzner.yaml` | Hetzner overrides, all machines. |
+| `patches/hetzner-controlplane.yaml` | Hetzner overrides Talos rejects on a worker. |
 
 Talos' Docker provisioner generates machine configs itself, so
 [talhelper](https://github.com/budimanjojo/talhelper) — which generates configs
@@ -54,6 +56,50 @@ Note that this is also why `patches/base.yaml` does *not* set
 `encryption-provider-config` itself: Talos already manages that flag and its
 config file path, and overriding it points the API server at a file that does
 not exist.
+
+## What the control plane exposes, and to whom
+
+Three settings here exist only so that monitoring has something to scrape, and
+they are worth knowing about because they open ports rather than close them.
+
+- `cluster.controllerManager.extraArgs.bind-address` and the same for
+  `scheduler`, in `patches/hetzner-controlplane.yaml`. Both bind to `127.0.0.1`
+  by default, which means their metrics endpoint exists and is reachable by
+  nothing — so the scrape jobs kube-prometheus-stack ships for them are targets
+  that are permanently down. A target expected to be down is worse than no
+  target: people learn to scroll past it.
+- `cluster.etcd.extraArgs.listen-metrics-urls`, in
+  `patches/hetzner-controlplane.yaml`. This is etcd's *dedicated* metrics
+  listener, serving `/metrics` and `/health` and nothing else, which is what
+  makes an unauthenticated listener acceptable. The alternative is mounting etcd
+  client certificates into Prometheus — handing a scrape job the credentials to
+  read every secret in the cluster in order to draw a graph.
+
+What keeps 10257, 10259 and 2381 off the internet is the Hetzner firewall in
+`infra/tofu`, which is an allow-list. Verify that against the applied firewall
+rather than against this paragraph — "should already be closed" is the phrasing
+that precedes an exposure. The kubelet's 10250 is the easy control: it listens
+on every interface, so if it is unreachable from outside, so are these.
+
+```
+nc -z -w5 <control-plane-public-ip> 10250   # expect: refused/filtered
+```
+
+One thing Prometheus cannot discover for itself: Talos runs etcd as a Talos
+service rather than a static pod, so there is no Pod object in `kube-system` to
+select and the chart's Service would have no endpoints whatever the machine
+config said. The three control-plane addresses are therefore named explicitly in
+`infra/platform/monitoring/values-kube-prometheus-stack.yaml`. That is the one
+place a change to `control_plane_count` has to be mirrored by hand.
+
+Talos itself exports no Prometheus endpoint, and that is not an oversight to fix
+later. Node-level signal comes from node-exporter; Talos-level signal comes from
+`talosctl`.
+
+Applying any of this is `bazel run //infra/talos:genconfig` followed by a
+rolling `talosctl apply-config`, one node at a time. It touches the control
+plane, so it is the one monitoring change where a mistake costs more than a
+dashboard.
 
 ## Also owned here
 

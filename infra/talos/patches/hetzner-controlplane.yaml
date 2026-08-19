@@ -4,8 +4,37 @@
 # worker outright -- "etcd config is only allowed on control plane machines" --
 # rather than ignoring it. Which is the right behaviour: silently accepting
 # configuration that cannot apply is how a setting comes to be believed in
-# without ever taking effect.
+# without ever taking effect. Everything else here is control-plane-only for the
+# same reason: a worker has no etcd, no controller manager and no scheduler.
 cluster:
+  # Bind the control-plane components' metrics listeners to the node's addresses
+  # instead of loopback.
+  #
+  # Both default to 127.0.0.1, which means their /metrics endpoint exists and is
+  # reachable by nothing -- so kube-prometheus-stack's ServiceMonitors for them
+  # find a target that is permanently down. A down target that is expected to be
+  # down is worse than no target: people learn to scroll past it, and then they
+  # scroll past the next one too.
+  #
+  # Here rather than in hetzner.yaml for the same reason etcd is: these are
+  # control-plane-only settings, and a worker has no controller manager or
+  # scheduler to configure.
+  #
+  # This is not an exposure. 10257 and 10259 listen on the private network and
+  # the public one, and what keeps them off the internet is the Hetzner firewall
+  # in infra/tofu, which is an allow-list. Verify that against the applied
+  # firewall rather than against this comment -- "should already be closed" is
+  # the phrasing that precedes an exposure. The kubelet's 10250 is the easy
+  # check: it listens on every interface, so if it is filtered from outside,
+  # these are too.
+  controllerManager:
+    extraArgs:
+      bind-address: 0.0.0.0
+
+  scheduler:
+    extraArgs:
+      bind-address: 0.0.0.0
+
   etcd:
     # Same reasoning as machine.kubelet.nodeIP in hetzner.yaml, and it matters
     # more here. etcd peers address each other by advertised address, so an etcd
@@ -14,3 +43,23 @@ cluster:
     # a quorum problem.
     advertisedSubnets:
       - 10.0.0.0/16
+
+    # etcd's dedicated metrics listener, which is off until an address is given.
+    #
+    # Separate from the client port on purpose, and that separation is what
+    # makes an unauthenticated listener acceptable: this one serves /metrics and
+    # /health and nothing else. Scraping the client port instead would mean
+    # mounting etcd client certificates into Prometheus -- handing a scrape job
+    # the credentials to read every secret in the cluster in order to draw a
+    # graph.
+    #
+    # 0.0.0.0 rather than the private address because Talos templates no node
+    # address into this field. Same firewall reasoning as the two ports above.
+    #
+    # Prometheus cannot find these by selector -- Talos runs etcd as a Talos
+    # service, so there is no Pod object in kube-system to select. The three
+    # addresses are named explicitly in
+    # infra/platform/monitoring/values-kube-prometheus-stack.yaml, which is the
+    # one place a change to control_plane_count has to be mirrored by hand.
+    extraArgs:
+      listen-metrics-urls: http://0.0.0.0:2381

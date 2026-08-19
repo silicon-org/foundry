@@ -95,18 +95,43 @@ simulator-free C++ protocol model. See `//hardware/vip/README.md`.
 
 ## M4 — Verilate the cluster
 
-- [ ] `xs_cluster_tb.sv`: clock process, reset, DUT, IMSIC tied off, timeout
-- [ ] `verilator_cc_library(timing = True)`, `--output-split`, fst behind a flag
-- [ ] `//hardware/vip/common:sim_main.cc`, shared by every testbench here
-- [ ] **Gate:** `//hardware/soc/xs_cluster/tb:xs_cluster_tb` as a reset-only
-      smoke test, growing into the real one at M6. Record the wall clock.
+- [x] `xs_cluster_tb.sv`: clock process, reset, DUT, IMSIC tied off, mtime
+      counter, timeout
+- [x] `verilator_cc_library(timing = True)`, `--output-split 20000`,
+      `--timescale 1ns/1ps`
+- [x] `//hardware/vip/common:sim_main`, the `--timing` loop every testbench here
+      shares. Its deadlock detector found its own bug on the first run:
+      `gotFinish()` has to be tested immediately after `eval()`, because
+      `$finish` leaves nothing scheduled and the other order calls every
+      successful run a hang.
+- [x] **Gate passed.** 676 s and 8187 actions to build; the model runs 1000
+      cycles in 12 s. The cluster comes out of reset, raises
+      `tx_linkactivereq`, and `critical_error_o` stays low.
+- [x] One scare, and it was ours: `%Error-DIDNOTCONVERGE` from
+      `forever #(ClkPeriod / 2)`, where `time` is an integer type and the
+      division rounded to zero. `--timing` on 1868 generated modules is fine.
 
 ## M5 — The link layer, in SystemVerilog
 
-- [ ] `chi_link_hn.sv`, `chi_link_rn.sv`, `chi_checker.sv`
-- [ ] **Gate:** `chi_link_{bringup,credit,deactivate}_test` over a loopback with
-      no XiangShan, and `chi_link_checker_test` injecting one violation per
-      assertion
+- [x] `chi_link_tx_channel.sv` and `chi_link_rx_channel.sv`: one channel each
+      way, parameterised by flit width so one module serves all four channels.
+      Credits, the buffer they promise, `LCrdReturn` filtering, and the
+      invariants as `$fatal` assertions.
+- [x] `chi_link_activation_req.sv` / `_ack.sv`: the LINKACTIVE handshake, split
+      by role rather than parameterised by it.
+- [x] `chi_link_hn.sv` and `chi_link_rn.sv`: three channels each way, the two
+      handshakes, `syscoreq`/`syscoack`, the sactive pair.
+- [x] Deactivation returns unspent credits as `LCrdReturn` flits. Written
+      because the test for it hung: a receiver may not withdraw its
+      acknowledgement while it is still owed credits, so without this the link
+      reaches DEACTIVATE and stops there.
+- [x] **Gate passed.** Seven tests over one loopback model with no XiangShan in
+      the build: `bringup`, `transfer` (six flits, six channels, payloads
+      compared), `credit` (four flits on four credits, then a stall, then
+      resumption), `deactivate`, and two negative cases that drive the pins
+      directly and must trip a named assertion. `expect_failure.sh` takes the
+      expected message, because the first version of the overrun case passed on
+      an unrelated assertion in a different module.
 
 ## M6 — The DPI boundary and the home node
 

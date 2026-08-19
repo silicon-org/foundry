@@ -489,4 +489,24 @@ package chi_pkg;
                    chi_dat_rsvdc_t)
   `CHI_TYPEDEF_RN_LINK_ALL(chi, chi_req_t, chi_rsp_t, chi_dat_t, chi_snp_t)
 
+  // The same question per channel, typed. Callers reach for these rather than
+  // the generic one above, because a link layer holds a typed flit and would
+  // otherwise have to zero-extend an opcode to the widest channel's width to
+  // ask.
+  function automatic logic chi_req_is_lcrd_return(chi_req_opcode_e opcode);
+    return opcode == chi_req_opcode_e'('0);
+  endfunction
+
+  function automatic logic chi_rsp_is_lcrd_return(chi_rsp_opcode_e opcode);
+    return opcode == chi_rsp_opcode_e'('0);
+  endfunction
+
+  function automatic logic chi_dat_is_lcrd_return(chi_dat_opcode_e opcode);
+    return opcode == chi_dat_opcode_e'('0);
+  endfunction
+
+  function automatic logic chi_snp_is_lcrd_return(chi_snp_opcode_e opcode);
+    return opcode == chi_snp_opcode_e'('0);
+  endfunction
+
 endpackage : chi_pkg

@@ -59,6 +59,11 @@ spec:
             # Cloud overlays raise it to suit the node they actually have.
             - name: RUNNER_CONCURRENCY
               value: "1"
+          ports:
+            # The only port the worker exposes. It dials the scheduler rather
+            # than being dialled, so this exists purely so a PodMonitor can
+            # select it by name -- see infra/platform/monitoring/scrape/.
+            - {name: metrics, containerPort: 9980}
           resources:
             requests: {cpu: 100m, memory: 256Mi}
             limits: {memory: 1Gi}

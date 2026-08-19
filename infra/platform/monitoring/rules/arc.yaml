@@ -1,0 +1,67 @@
+# CI runners, and the one failure mode that is completely invisible today: a
+# job that GitHub has assigned to this scale set and that no runner ever picks
+# up. The workflow shows "queued", the cluster shows nothing at all.
+#
+# Metric names are the listener's, and exist only because of the `metrics:`
+# block in infra/platform/arc/controller.yaml. Note that ARC's own `namespace`
+# label -- the scale set's namespace, arc-runners -- arrives as
+# `exported_namespace`, because prometheus-operator claims `namespace` for the
+# namespace of the pod being scraped, which is arc-systems.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: arc
+  namespace: monitoring
+spec:
+  groups:
+    - name: arc
+      rules:
+        - alert: ARCJobsAssignedButNotRunning
+          # The failure the runner-image pin comment in
+          # infra/platform/arc/runner-scale-set.yaml describes: the listener
+          # accepts work, the pod cannot start, and the job sits queued. Ten
+          # minutes is generous -- a runner pod normally starts in well under
+          # one -- and it has to be, because a cold image pull on a busy node
+          # is legitimately slow.
+          expr: (gha_assigned_jobs - gha_running_jobs) > 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $value }} CI jobs assigned to {{ $labels.name }} with no runner running"
+            description: >-
+              GitHub has handed these jobs to this scale set and nothing has
+              picked them up. Look for pods stuck Pending in arc-runners: the
+              usual causes are no room on the node and an image that cannot be
+              pulled.
+
+        - alert: ARCAtMaxRunners
+          # Not a failure -- a capacity signal, and the one that says the
+          # maxRunners in runner-scale-set.yaml has become the constraint
+          # rather than a safety limit.
+          expr: gha_running_jobs >= gha_max_runners
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.name }} has been at its runner ceiling for 30 minutes"
+            description: >-
+              Every additional job queues behind these. Either raise maxRunners
+              or accept the wait; both are decisions rather than incidents.
+
+        - alert: ARCListenerDown
+          # No listener means no long-poll to GitHub, which means jobs are never
+          # even offered to this cluster. Nothing in GitHub's UI distinguishes
+          # that from "no runner is free".
+          expr: |
+            absent(gha_assigned_jobs)
+            or
+            up{namespace="arc-systems"} == 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "The ARC listener is not reporting"
+            description: >-
+              Self-hosted CI is offline. Jobs targeting these runners will
+              queue in GitHub until the workflow times out.

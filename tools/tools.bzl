@@ -24,6 +24,10 @@ TOOLS = {
     "helm": ["version", "--short"],
     "kubectl": ["version", "--client"],
     "multitool": [],
+    # Checks PrometheusRule expressions at commit time. The Prometheus operator
+    # does validate them, but it validates them in a controller log minutes
+    # after a push, attached to nothing. See //infra/platform:promtool_test.
+    "promtool": ["--version"],
     "sops": ["--version", "--disable-version-check"],
     "talhelper": ["--version"],
     "talosctl": ["version", "--client", "--short"],

@@ -77,11 +77,28 @@ currently the break-glass firewall rule instead. Cloudflare Zero Trust is delibe
 would only earn its place if something here were public-facing.
 
 **kube-prometheus-stack** (Prometheus, Grafana, Alertmanager) with **Loki** for
-logs, Cilium/Hubble for network flow metrics, and Buildbarn metrics for cache
-hit rate and remote-execution performance.
+logs, on the Hetzner cluster only — both want a PersistentVolume, and metric
+history on a cluster that `bazel run //infra/talos:down` deletes is history of
+nothing.
 
-Exactly one uptime check lives off-cluster. Self-hosted monitoring cannot page
-you when the box it runs on is the thing that died.
+Scraped: the Kubernetes control plane, every node, all six Buildbarn components,
+the ARC controller and listener, Cilium and Hubble, the Flux controllers and the
+Buildbarn portal. Logs from every pod on every node, shipped by Grafana Alloy,
+kept seven days. Dashboards and alert rules are committed as files; Grafana is
+stateless on purpose, so a dashboard edited in the browser is gone at the next
+restart and one edited in git is not.
+
+Two things are deliberately not done yet, and both are recorded rather than
+forgotten. **Alerts fire but go nowhere** — the rules are evaluated and
+validated at commit time by `//infra/platform:promtool_test`, and the
+Alertmanager route points at a null receiver until a destination is chosen.
+And **there is still no check outside this cluster**: self-hosted monitoring
+cannot page you when the box it runs on is the thing that died. The intended
+shape is a dead man's switch rather than a reachability probe — Alertmanager's
+always-firing Watchdog pings an external service, which alerts when the pings
+stop. That covers the cluster being down, but also Prometheus being down, and
+the whole stack having been quietly broken by a bad values change. It also needs
+nothing public-facing, which a reachability probe would.
 
 ## Non-goals
 
@@ -134,8 +151,8 @@ infra/
   tofu/           Hetzner provisioning, private network, firewall
   talos/          talhelper: base machine config plus environment overlays
   platform/       everything Flux reconciles into the cluster
-    cilium/  hcloud/  buildbarn/  arc/  secrets/
-    cert-manager/  kyverno/  tailscale/  monitoring/   (not yet deployed)
+    cilium/  hcloud/  buildbarn/  arc/  monitoring/  secrets/
+    cert-manager/  kyverno/  tailscale/                 (not yet deployed)
     clusters/     which components each cluster runs
 ```
 

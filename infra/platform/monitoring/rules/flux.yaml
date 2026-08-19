@@ -1,0 +1,41 @@
+# Everything in this repository is deployed by Flux, so a Kustomization that has
+# been failing to reconcile for an hour is a change that was committed,
+# reviewed, merged -- and never applied. Git shows it as done. Nothing else
+# does.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: flux
+  namespace: monitoring
+spec:
+  groups:
+    - name: flux
+      rules:
+        - alert: FluxReconciliationFailing
+          expr: |
+            max by (exported_namespace, name, kind) (
+              gotk_reconcile_condition{type="Ready",status="False"}
+            ) == 1
+          for: 30m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.kind }}/{{ $labels.name }} has not reconciled for 30 minutes"
+            description: >-
+              `flux get all -A` for the status, `flux logs --level=error` for
+              the reason. Until this clears, what is running does not match what
+              is in git.
+
+        - alert: FluxSuspended
+          # Suspending is a legitimate thing to do while debugging and an easy
+          # thing to forget. A day is long enough for the former and short
+          # enough to catch the latter.
+          expr: max by (exported_namespace, name, kind) (gotk_suspend_status) == 1
+          for: 24h
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.kind }}/{{ $labels.name }} has been suspended for a day"
+            description: >-
+              Resume it with `flux resume {{ $labels.kind | toLower }}
+              {{ $labels.name }}`, or delete it if it is not meant to come back.

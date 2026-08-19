@@ -1,0 +1,58 @@
+# The scrape half of the Cilium change. The other half -- the metrics ports and
+# the Services in front of them -- is in infra/platform/cilium/values.yaml, and
+# the reason for the split is written there: those values are also used by a
+# pre-Flux bootstrap install against a cluster with no Prometheus CRDs.
+#
+# All three of these Services are headless with `clusterIP: None`, so a
+# ServiceMonitor resolves them to one target per pod, which is what is wanted:
+# per-node agent metrics rather than whichever agent a virtual IP happened to
+# pick.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cilium-agent
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [kube-system]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cilium-agent
+  endpoints:
+    - port: metrics
+      path: /metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cilium-operator
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [kube-system]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cilium-operator
+  endpoints:
+    - port: metrics
+      path: /metrics
+---
+# Hubble is the one this cluster specifically needed. hubble_drop_total with a
+# namespace dimension is what turns "arc-runners is default-deny" from a claim
+# asserted by six paragraphs of comment into something with a number attached --
+# and it answers the inverted form too, where zero drops over a long window
+# means the policy is probably not applied at all.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: hubble
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [kube-system]
+  selector:
+    matchLabels:
+      k8s-app: hubble
+  endpoints:
+    - port: hubble-metrics
+      path: /metrics

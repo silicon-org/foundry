@@ -1,0 +1,25 @@
+# Flux publishes reconciliation metrics on a port named http-prom in every
+# controller, and ships no monitor of its own -- gotk-components.yaml contains
+# no ServiceMonitor, and the Services that do exist front the git and webhook
+# APIs rather than the metrics port.
+#
+# This is the one that closes the loop. Everything else in this repository is
+# deployed by Flux, so a Flux Kustomization that has been failing to reconcile
+# for a week is a change that was committed, reviewed, merged, and never
+# applied -- with git showing it as done.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: flux
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [flux-system]
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: flux
+  podTargetLabels:
+    - app.kubernetes.io/component
+  podMetricsEndpoints:
+    - port: http-prom
+      path: /metrics

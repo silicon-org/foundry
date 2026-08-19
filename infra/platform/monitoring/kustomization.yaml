@@ -1,0 +1,85 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+resources:
+  - namespace.yaml
+  - priorityclass.yaml
+  - helmrepository.yaml
+  - grafana-admin.sops.yaml
+  - kube-prometheus-stack.yaml
+  - loki.yaml
+  - alloy.yaml
+  - scrape/buildbarn.yaml
+  - scrape/arc.yaml
+  - scrape/cilium.yaml
+  - scrape/flux.yaml
+  - scrape/bb-portal.yaml
+  - rules/buildbarn.yaml
+  - rules/arc.yaml
+  - rules/cilium.yaml
+  - rules/capacity.yaml
+  - rules/flux.yaml
+  - networkpolicy.yaml
+configMapGenerator:
+  - name: kube-prometheus-stack-values
+    files:
+      - values-kube-prometheus-stack.yaml
+  - name: loki-values
+    files:
+      - values-loki.yaml
+  - name: alloy-values
+    files:
+      - values-alloy.yaml
+  # Dashboards are files, not clicks. The Grafana sidecar picks up any ConfigMap
+  # carrying this label, from any namespace, and writes its contents into the
+  # pod -- so a dashboard is reviewed as a diff and restored by a reconcile
+  # rather than remembered by a volume. See dashboards/README.md.
+  #
+  # Split by origin rather than gathered into one ConfigMap. Cilium's agent
+  # dashboard alone is 280KB and a ConfigMap caps at 1MB, so one object holding
+  # all of them would sit at half the limit and fail on the day someone adds
+  # another. The split also keeps `kubectl describe` on a dashboard readable.
+  - name: grafana-dashboards-foundry
+    files:
+      - dashboards/buildbarn.json
+      - dashboards/arc.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+  # One ConfigMap per vendored dashboard rather than one per project. Cilium's
+  # agent dashboard is 280KB on its own -- past the 262144-byte cap on the
+  # last-applied-configuration annotation that a client-side `kubectl apply`
+  # writes. Flux applies server-side and never sets that annotation, so this is
+  # fine through GitOps and fails loudly for a human reaching for `kubectl apply
+  # -f` (the fix is `--server-side`). Splitting keeps that limit a property of
+  # one known-large file instead of something the next dashboard trips over.
+  - name: grafana-dashboards-cilium-agent
+    files:
+      - dashboards/cilium-agent.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+  - name: grafana-dashboards-cilium-operator
+    files:
+      - dashboards/cilium-operator.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+  - name: grafana-dashboards-hubble
+    files:
+      - dashboards/hubble.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+  - name: grafana-dashboards-flux
+    files:
+      - dashboards/flux-cluster.json
+      - dashboards/flux-control-plane.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+generatorOptions:
+  # Same reason as cilium/: HelmRelease.spec.valuesFrom is not a field kustomize
+  # rewrites name references in, so a hashed name would dangle silently.
+  # helm-controller watches the ConfigMap and upgrades on change regardless.
+  disableNameSuffixHash: true

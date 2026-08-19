@@ -1,0 +1,207 @@
+# kube-prometheus-stack: Prometheus, Alertmanager, Grafana, node-exporter and
+# kube-state-metrics.
+#
+# Read the first block before changing anything else in this file. Most of what
+# follows is sizing; that block is the difference between a monitoring system
+# and a monitoring system that quietly ignores everything this repository asks
+# it to watch.
+
+# --- Adopt the monitors written by hand ------------------------------------
+#
+# Left at their defaults, these five make the operator adopt only objects
+# labelled with this Helm release. Every ServiceMonitor, PodMonitor and
+# PrometheusRule in this directory is then ignored -- not rejected, ignored.
+# Nothing logs an error, no object reports a status, Prometheus simply has no
+# such target, and the symptom is an empty graph that looks exactly like a
+# broken exporter.
+#
+# The namespace selectors are already `{}` upstream, which means every
+# namespace. These are the only knobs that need turning.
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+
+    # --- Retention: both bounds, never one ---------------------------------
+    #
+    # Time alone means one cardinality mistake fills the volume and Prometheus
+    # crash-loops on a full disk, which is a monitoring outage caused by
+    # monitoring. Size alone means a quiet fortnight silently keeps a year.
+    #
+    # 40GiB against a 50Gi claim leaves headroom for the write-ahead log and
+    # for compaction, which needs room for both the old and new blocks at once.
+    # Prometheus enforces retentionSize on persisted blocks, not on the WAL, so
+    # a claim sized exactly to the retention target still fills up.
+    retention: 15d
+    retentionSize: 40GiB
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: hcloud-volumes
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 50Gi
+
+    # Deliberately below the 30s the exporters are happiest at is not the trade
+    # here -- 30s is the chart default and is kept. A build action lasts
+    # minutes; nothing in this cluster changes fast enough to need finer, and
+    # halving the interval doubles the series volume for no new answer.
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+
+    # See priorityclass.yaml. The observer outranks the observed.
+    priorityClassName: monitoring
+
+    resources:
+      requests: {cpu: 200m, memory: 1Gi}
+      limits: {memory: 2Gi}
+
+# --- Alertmanager ----------------------------------------------------------
+#
+# The chart's default route already points every alert at a `null` receiver and
+# keeps a Watchdog route beside it, which is exactly the stub this deployment
+# wants, so no config block appears here. Wiring a real destination is an
+# `alertmanager.config` block plus one SOPS secret; see README.md.
+alertmanager:
+  alertmanagerSpec:
+    priorityClassName: monitoring
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {memory: 128Mi}
+    # No volume claim on purpose. What Alertmanager persists is silences and
+    # notification state, and the smallest volume Hetzner sells is 10Gi -- a
+    # disk two orders of magnitude larger than the thing on it, bought to avoid
+    # re-entering a silence after a restart.
+    storage: {}
+
+# --- Grafana ---------------------------------------------------------------
+grafana:
+  # Stateless, and it follows from this repository's existing rule that nothing
+  # is configured by hand. A dashboard edited in the UI is lost on the next pod
+  # restart -- which is the feature, because the alternative is a dashboard
+  # nobody can review, diff or rebuild. Export the JSON, commit it, let Flux put
+  # it back.
+  persistence:
+    enabled: false
+
+  # Credentials from SOPS, like every other secret in this repository.
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+
+  priorityClassName: monitoring
+
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 512Mi}
+
+  grafana.ini:
+    analytics:
+      # No call home, and no version check either. Both are outbound requests to
+      # the internet, which networkpolicy.yaml does not permit -- so left on
+      # they produce a dashboard that renders with a spinner in the corner and
+      # a log full of dial timeouts.
+      reporting_enabled: false
+      check_for_updates: false
+    news:
+      news_feed_enabled: false
+    users:
+      # One operator, reached over a port-forward. There is no sign-up flow to
+      # protect and no second user to invite.
+      allow_sign_up: false
+
+  # The Loki datasource. Prometheus's own is provisioned by the chart.
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://loki.monitoring.svc.cluster.local:3100
+      # No X-Scope-OrgID header. Loki runs with auth_enabled false, which makes
+      # it hard-code the tenant and ignore the header entirely -- setting one
+      # would be cargo from a multi-tenant deployment this is not.
+
+# --- The exporters ---------------------------------------------------------
+prometheus-node-exporter:
+  priorityClassName: monitoring
+  resources:
+    requests: {cpu: 10m, memory: 32Mi}
+    limits: {memory: 64Mi}
+
+kube-state-metrics:
+  priorityClassName: monitoring
+  resources:
+    requests: {cpu: 10m, memory: 64Mi}
+    limits: {memory: 192Mi}
+
+prometheusOperator:
+  priorityClassName: monitoring
+  resources:
+    requests: {cpu: 10m, memory: 64Mi}
+    limits: {memory: 256Mi}
+
+# --- What Talos does and does not expose -----------------------------------
+#
+# Three of the control-plane scrape jobs this chart ships find nothing on a
+# default Talos cluster, and each fails the same way: a target that is
+# permanently down, which people learn to scroll past, which is how a
+# monitoring system starts lying. Two are fixed in infra/talos/patches, one is
+# fixed here, and one job is deleted because the component does not exist.
+
+# kube-controller-manager and kube-scheduler bind to 127.0.0.1 until told
+# otherwise; `bind-address: 0.0.0.0` in
+# infra/talos/patches/hetzner-controlplane.yaml is what makes them reachable.
+# Their pods are mirrored into the API with
+# `component=kube-{controller-manager,scheduler}`, so the chart's default
+# selector finds them and the ports it derives for Kubernetes 1.22+ (10257 and
+# 10259, https) are already right. Both serve a self-signed certificate that the
+# cluster CA does not cover, hence the skip.
+kubeControllerManager:
+  serviceMonitor:
+    insecureSkipVerify: true
+kubeScheduler:
+  serviceMonitor:
+    insecureSkipVerify: true
+
+# etcd is the one that cannot be found by selector. Talos runs it as a Talos
+# service rather than a static pod, so unlike the two above there is no Pod
+# object in kube-system to select and the chart's Service would have no
+# endpoints no matter what the machine config said. Naming the addresses is the
+# supported way out: the chart renders an Endpoints object from this list.
+#
+# These are not arbitrary. infra/tofu/servers.tf assigns control planes
+# cidrhost(node_subnet, 11 + index) inside 10.0.1.0/24, so they are the same
+# three addresses talconfig.yaml uses. Changing control_plane_count changes this
+# list; there is no way to derive it here, which is why it is called out in
+# infra/talos/README.md as well.
+#
+# Port 2381 and plain http come from etcd's dedicated metrics listener, enabled
+# by `listen-metrics-urls` in infra/talos/patches/hetzner-controlplane.yaml. It
+# serves /metrics and /health and nothing else, which is what makes an
+# unauthenticated listener acceptable. The alternative is mounting etcd client
+# certificates into Prometheus, which hands a scrape job the credentials to read
+# every secret in the cluster in order to draw a graph.
+kubeEtcd:
+  endpoints:
+    - 10.0.1.11
+    - 10.0.1.12
+    - 10.0.1.13
+
+# There is no kube-proxy here. Talos never starts one (cluster.proxy.disabled in
+# infra/talos/patches/hetzner.yaml) because Cilium replaces it, so this job
+# could only ever be a target that never comes up.
+kubeProxy:
+  enabled: false
+
+defaultRules:
+  rules:
+    # The alerts for the component that does not exist go with it.
+    kubeProxy: false
+    # No Windows nodes, and no prospect of any.
+    windows: false

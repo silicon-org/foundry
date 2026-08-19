@@ -39,7 +39,7 @@ spec:
             - {containerPort: 8982}
             - {containerPort: 8983}
             - {containerPort: 8984}
-            - {containerPort: 9980}
+            - {name: metrics, containerPort: 9980}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

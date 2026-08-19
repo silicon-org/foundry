@@ -17,6 +17,7 @@ Deployed:
 | `hcloud/` | Hetzner cloud controller manager and CSI driver. Cloud clusters only; nothing schedules until the CCM clears the uninitialized taint. |
 | `buildbarn/` | Bazel remote execution + cache. Two frontends, read-only and read-write — see its README for what that does and does not currently enforce. |
 | `arc/` | GitHub Actions runner scale set, ephemeral pods, plus its Cilium egress policy. |
+| `monitoring/` | Prometheus, Grafana, Alertmanager, Loki and Alloy. Hetzner only. Alerts are evaluated and validated; nothing delivers them yet. |
 | `secrets/` | Not a component: how SOPS+age works here, and the one secret created by hand. |
 | `clusters/` | Which components each cluster runs, and the few values that differ. |
 
@@ -27,7 +28,6 @@ Not deployed, and each README says why:
 | `cert-manager/` | Nothing needs a certificate yet. |
 | `kyverno/` | Pod Security Standards already enforce what it was for. |
 | `tailscale/` | The Talos system extension is in the node image and idle; access is currently the break-glass firewall rule. |
-| `monitoring/` | Still a stub. A cache with no alerting fails silently, which makes this the next real gap. |
 
 ## Ordering
 

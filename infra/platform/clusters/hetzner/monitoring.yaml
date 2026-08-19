@@ -1,0 +1,39 @@
+# Only on this cluster, for the same reason as bb-portal: Prometheus and Loki
+# both want a PersistentVolumeClaim, the local cluster has no StorageClass, and
+# metric history on a cluster that `bazel run //infra/talos:down` deletes would
+# be history of nothing.
+#
+# A clusters/local overlay stays possible and nothing here forecloses it -- it
+# would need emptyDir storage and a much shorter retention, the same shape the
+# buildbarn overlay already uses.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: monitoring
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/platform/monitoring
+  prune: true
+  wait: true
+  # Longer than every other Kustomization here, and deliberately so. This one
+  # pulls Prometheus, Grafana, Alertmanager, kube-state-metrics, node-exporter,
+  # Loki and Alloy onto nodes with a cold image cache. At the default 10m the
+  # first reconcile reports a failure that is only slowness, and the reflex is
+  # to go looking for a fault that is not there.
+  timeout: 20m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  # Needs a StorageClass before anything with a volume can bind. Nothing here
+  # depends on buildbarn or arc: a ServiceMonitor for a workload that does not
+  # exist yet is inert, not broken, and making monitoring wait on the things it
+  # monitors gets the dependency exactly backwards.
+  dependsOn:
+    - name: hcloud
+  # The Grafana admin credentials are committed encrypted, like every other
+  # secret in this repository.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age

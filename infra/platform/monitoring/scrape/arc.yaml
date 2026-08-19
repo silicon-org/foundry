@@ -1,0 +1,39 @@
+# The controller and the listener, both in arc-systems.
+#
+# Worth stating because the spec for this work assumed otherwise: the listener
+# pod runs in arc-systems, not arc-runners. That matters, because arc-runners
+# carries `ingress: []` under a default-deny CiliumNetworkPolicy -- a listener
+# there would be unscrapable without punching a hole in the policy that contains
+# untrusted code. It is not there, so no hole is needed. Re-check if a future
+# ARC version moves it:
+#
+#   kubectl get pods -A -l app.kubernetes.io/component=runner-scale-set-listener
+#
+# Neither pod has a Service, hence PodMonitor for both. Metrics exist at all
+# only because of the `metrics:` block in infra/platform/arc/controller.yaml.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: arc
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [arc-systems]
+  selector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [controller-manager, runner-scale-set-listener]
+  podTargetLabels:
+    - app.kubernetes.io/component
+    # Which scale set a series belongs to. One today; the label is what stops
+    # every dashboard needing a rewrite when there is a second.
+    - actions.github.com/scale-set-name
+  podMetricsEndpoints:
+    # By number rather than by name. The controller's pod is rendered by the
+    # Helm chart and names this port `metrics`; the listener's pod is built by
+    # the controller at runtime, so its port name is not something this
+    # repository or that chart controls. 8080 is what both were told to listen
+    # on, and it is the same value in either pod.
+    - portNumber: 8080
+      path: /metrics

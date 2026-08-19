@@ -10,3 +10,4 @@ resources:
   - buildbarn.yaml
   - bb-portal.yaml
   - arc.yaml
+  - monitoring.yaml

@@ -1,0 +1,116 @@
+# Loki, in the smallest shape that is still a real deployment.
+#
+# The chart defaults to SimpleScalable -- read, write and backend as separate
+# StatefulSets, backed by object storage and fronted by memcached. That is the
+# right architecture at ten times this size. Here it would be six pods and
+# several gigabytes of cache to hold a week of logs from four nodes, on a
+# cluster whose one worker is already committed to a build queue.
+#
+# So: one process, one volume, no bucket, no new credential. The thing this
+# replaces is `kubectl logs`, and the bar it has to clear is being able to
+# answer a question about a pod that no longer exists.
+deploymentMode: SingleBinary
+
+singleBinary:
+  replicas: 1
+  priorityClassName: monitoring
+  persistence:
+    enabled: true
+    storageClass: hcloud-volumes
+    accessModes: [ReadWriteOnce]
+    size: 30Gi
+    # The chart would otherwise delete this claim when the StatefulSet goes
+    # away. Combined with the Retain reclaim policy on hcloud-volumes that does
+    # not free anything -- it detaches the PersistentVolume, leaves the Hetzner
+    # volume behind, and starts billing for a disk no object references. Keeping
+    # the claim means a reinstall reattaches rather than orphans.
+    enableStatefulSetAutoDeletePVC: false
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 1Gi}
+
+# SingleBinary means these three are not used. Left at their defaults the chart
+# would still schedule them.
+backend: {replicas: 0}
+read: {replicas: 0}
+write: {replicas: 0}
+
+# --- The caches are on by default and must be turned off -------------------
+#
+# chunksCache alone asks for 8Gi of memcached, resultsCache for another 1Gi.
+# On this node that is more memory than the thing they accelerate, spent to
+# speed up queries a single operator runs by hand. They stay off until there is
+# a query that is measurably too slow.
+chunksCache: {enabled: false}
+resultsCache: {enabled: false}
+
+# The canary writes a synthetic log line every second and alerts if it does not
+# come back. It is a good idea at scale and it is a DaemonSet plus a constant
+# write load here; the same assurance comes free from Alloy's own metrics.
+lokiCanary: {enabled: false}
+
+# Helm test pods, and the nginx gateway that exists to fan out to read and write
+# paths there is only one of.
+test: {enabled: false}
+gateway: {enabled: false}
+
+loki:
+  # One tenant, reached only through Grafana over a port-forward. With this off
+  # Loki hard-codes the tenant and ignores X-Scope-OrgID, which is why the
+  # datasource in values-kube-prometheus-stack.yaml sets no such header.
+  auth_enabled: false
+
+  commonConfig:
+    path_prefix: /var/loki
+    # One replica cannot replicate to three, and the chart's default of 3 makes
+    # every write fail its quorum check on a single-binary deployment.
+    replication_factor: 1
+
+  storage:
+    type: filesystem
+
+  # TSDB and schema v13, which is what Loki 3.x wants. The date is a schema
+  # boundary rather than a deployment date: appending a new entry with a future
+  # `from` is how a schema is ever changed, and a boundary in the past is one
+  # that can no longer be moved.
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+  limits_config:
+    retention_period: 168h
+    # Logs from a CI runner arrive with the timestamps the job wrote, and a
+    # build that started before the window began would otherwise be rejected
+    # line by line as too old.
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
+    # A single Buildbarn worker at six-way concurrency is bursty. The defaults
+    # are sized for a fleet and cause `429 Too Many Requests` from one node
+    # doing a parallel build -- which loses exactly the logs worth having.
+    ingestion_rate_mb: 16
+    ingestion_burst_size_mb: 32
+
+  # Retention is a behaviour, not a value. Without these three lines
+  # retention_period above is a number nothing acts on: the compactor never
+  # deletes anything, the volume fills, and Loki stops accepting writes with the
+  # retention setting still sitting there looking correct.
+  compactor:
+    working_directory: /var/loki/compactor
+    retention_enabled: true
+    delete_request_store: filesystem
+
+  analytics:
+    reporting_enabled: false
+
+# The chart's own ServiceMonitor. Unlike Cilium's, this one is safe to enable
+# here: Loki is installed by Flux, after the Prometheus CRDs, and nothing
+# bootstraps it against an empty cluster.
+monitoring:
+  serviceMonitor:
+    enabled: true

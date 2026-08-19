@@ -1,0 +1,18 @@
+# The portal's Service already publishes a `metrics` port on 9980 -- it is a
+# Buildbarn binary and inherits the same diagnostics server as the rest. Unlike
+# the components in buildbarn/, it has a Service that already carries the port,
+# so this one is a ServiceMonitor and needs nothing added to the workload.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: bb-portal
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [bb-portal]
+  selector:
+    matchLabels:
+      app: bb-portal
+  endpoints:
+    - port: metrics
+      path: /metrics

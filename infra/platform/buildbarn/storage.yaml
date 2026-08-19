@@ -103,7 +103,7 @@ spec:
               value: "128"
           ports:
             - containerPort: 8981
-            - containerPort: 9980
+            - {name: metrics, containerPort: 9980}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

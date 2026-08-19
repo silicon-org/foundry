@@ -1,0 +1,23 @@
+# Monitoring outranks the builds it watches.
+#
+# Everything here shares one node with a Buildbarn worker configured for six
+# concurrent actions, and memory limits on that node already total more than the
+# node has. That overcommit is fine right up until a build uses what it is
+# allowed to, at which point the kubelet starts evicting -- and it evicts by
+# priority first, QoS second.
+#
+# Without this class Prometheus is a Burstable pod among Burstable pods and the
+# tie is broken by whichever is furthest above its request, which on a quiet
+# node is Prometheus. That is precisely backwards: the moment worth having
+# metrics for is the moment the node is under pressure, so the observer must
+# outlive the thing observed.
+#
+# Below system-cluster-critical (2000000000) on purpose. Losing Grafana is
+# survivable; losing Cilium or the CCM is not.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: monitoring
+value: 100000
+globalDefault: false
+description: "Observability. Outranks build workloads, yields to cluster infrastructure."

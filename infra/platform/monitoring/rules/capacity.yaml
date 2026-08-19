@@ -1,0 +1,66 @@
+# Only what the stack does not already alert on.
+#
+# kube-prometheus-stack ships KubePersistentVolumeFillingUp for every claim
+# (Prometheus, Loki, the Buildbarn cache, the portal's Postgres),
+# KubeNodeNotReady, NodeFilesystemAlmostOutOfSpace and NodeMemoryHighUtilization
+# out of the box. Restating those here would not add coverage, it would add a
+# second copy that drifts and a second page for the same event.
+#
+# What is left is the shape of this particular cluster: three control planes
+# that deliberately refuse to run workloads, and exactly one node that will.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: capacity
+  namespace: monitoring
+spec:
+  groups:
+    - name: foundry.capacity
+      rules:
+        - alert: FoundryNoSchedulableWorker
+          # allowSchedulingOnControlPlanes is false in talconfig.yaml for a good
+          # reason, and the consequence is that losing the single worker takes
+          # every build workload with it while the cluster still reports Ready.
+          # `kubectl get nodes` looks fine. Nothing runs.
+          expr: |
+            count(
+              kube_node_status_condition{condition="Ready",status="true"} == 1
+              unless on (node)
+              kube_node_role{role="control-plane"}
+            ) < 1
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "No schedulable worker node"
+            description: >-
+              The control planes are tainted by design, so nothing can be
+              scheduled anywhere. Builds, CI and the cache are all down while
+              the cluster reports healthy.
+
+        - alert: FoundryWorkerMemoryOvercommitted
+          # The M7 number, as an alert rather than as a note in a document.
+          # Memory limits on the worker already exceed what the node has, which
+          # is fine until two things use their allowance at once. When that
+          # ratio climbs further, the next thing to be evicted is chosen by
+          # priority -- and monitoring is the only workload here that sets one.
+          expr: |
+            sum by (node) (
+              kube_pod_container_resource_limits{resource="memory"}
+              * on (pod, namespace) group_left()
+                (kube_pod_status_phase{phase="Running"} == 1)
+            )
+            / on (node) group_left()
+            sum by (node) (kube_node_status_allocatable{resource="memory"})
+            > 1.5
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Memory limits on {{ $labels.node }} are {{ $value | humanizePercentage }} of the node"
+            description: >-
+              Overcommit is intentional here -- build workloads ask for
+              headroom they rarely use -- but past this point a single
+              well-behaved parallel build can drive the kubelet into evicting.
+              This is the signal that the infra node in tasks/monitoring.md M7
+              has stopped being optional.

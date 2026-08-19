@@ -39,7 +39,7 @@ spec:
           args: [/config/frontend-ro.jsonnet]
           ports:
             - containerPort: 8980
-            - containerPort: 9980
+            - {name: metrics, containerPort: 9980}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

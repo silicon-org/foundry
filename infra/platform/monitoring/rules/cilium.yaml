@@ -1,0 +1,58 @@
+# The half of the arc-runners containment story that has never been checked.
+#
+# infra/platform/arc/networkpolicy.yaml asserts, over six paragraphs, that
+# runners cannot reach the read-write cache, the Kubernetes API, or anything
+# else it does not name. That assertion has been verified by nothing. These two
+# rules are the verification, and they point in opposite directions -- which is
+# the interesting part.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cilium
+  namespace: monitoring
+spec:
+  groups:
+    - name: cilium.policy
+      rules:
+        - alert: CiliumPolicyDropsFromRunners
+          # Something in a CI job is trying to reach somewhere it may not. Not
+          # necessarily an attack -- far more often a new build dependency that
+          # needs an entry in the allow-list -- but either way it is a job that
+          # is about to fail confusingly, with "io exception" from a repository
+          # rule and no mention of a network policy anywhere.
+          expr: sum(rate(hubble_drop_total{source="arc-runners"}[10m])) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Flows out of arc-runners are being denied"
+            description: >-
+              Find the name with `cilium hubble observe --namespace arc-runners
+              --verdict DROPPED`. If it is a legitimate build dependency, it
+              belongs in the toFQDNs list in
+              infra/platform/arc/networkpolicy.yaml -- argued for, not just
+              added.
+
+        - alert: CiliumRunnerPolicyNeverDenies
+          # The inversion, and the reason this file exists at all. A default-deny
+          # policy that has denied nothing in a week is far more likely to be a
+          # policy that is not being enforced than a workload that has never put
+          # a foot wrong -- CI jobs try to reach the internet constantly.
+          #
+          # Deliberately long, and deliberately gated on the namespace being in
+          # use: an idle week of no CI is not evidence of anything.
+          expr: |
+            sum(increase(hubble_drop_total{source="arc-runners"}[7d])) == 0
+            and
+            sum(increase(gha_started_jobs_total[7d])) > 10
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "The arc-runners default-deny policy has denied nothing in a week"
+            description: >-
+              Runners have executed jobs and Hubble has recorded no drops from
+              that namespace. Confirm the policy is actually loaded with
+              `kubectl -n arc-runners get cnp runners` and
+              `cilium endpoint list`. A policy that is not applied looks exactly
+              like a policy that is working.

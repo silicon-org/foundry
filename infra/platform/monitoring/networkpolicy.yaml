@@ -1,0 +1,123 @@
+# What monitoring is allowed to reach.
+#
+# A scraper is an unusual thing to contain: its whole job is to connect to
+# everything. But that is the argument for the policy rather than against it --
+# Prometheus holds a service account that can list every pod in the cluster and
+# a Grafana that renders untrusted strings, and the one thing it never needs is
+# the internet. So egress is an allow-list of the things actually scraped, and
+# there is no rule for `world` at all. A compromised Grafana here cannot phone
+# home, and cannot fetch a plugin at runtime either -- which is the same
+# argument that keeps the dashboards committed as files.
+#
+# Ingress stays open, exactly as bb-portal does and for the same reason:
+# `kubectl port-forward` arrives from the node, so a source-based ingress rule
+# would have to permit the node anyway. Ports are the control here.
+#
+# Note what this policy does *not* select. node-exporter and Alloy's peers on
+# the host network have host identity rather than a namespace identity, so
+# `endpointSelector: {}` never matches them. That is not a gap -- traffic to
+# them is covered by the host/remote-node rules below, and the DaemonSet itself
+# is reached rather than reaching.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: monitoring
+  namespace: monitoring
+spec:
+  endpointSelector: {}
+
+  # Stated rather than inferred. Cilium enforces only the directions a policy
+  # mentions, so an egress-only policy leaves ingress wide open without saying
+  # so.
+  enableDefaultDeny:
+    ingress: false
+    egress: true
+
+  egress:
+    # DNS, and only to the cluster's own resolver.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+          rules:
+            dns:
+              - matchPattern: "*"
+
+    # The API server. Every component here watches it: the operator for
+    # ServiceMonitors, Prometheus for service discovery, the Grafana sidecars
+    # for dashboard ConfigMaps, Alloy for the pods on its node.
+    - toEntities: [kube-apiserver]
+
+    # Anything else in this namespace. Prometheus to Alertmanager and
+    # kube-state-metrics, Grafana to Prometheus and Loki, Alloy to Loki.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: monitoring
+
+    # --- Everything that runs on the host network --------------------------
+    #
+    # Enumerated by port rather than allowed wholesale. `toEntities: [host,
+    # remote-node]` with no ports would also open the Talos API on 50000 and
+    # the kubelet's read-write port, from a namespace whose service account can
+    # already read the whole cluster. The list is longer for it and each line
+    # says which target it is for.
+    - toEntities: [host, remote-node]
+      toPorts:
+        - ports:
+            # kubelet: /metrics, and cAdvisor's container metrics.
+            - {port: "10250", protocol: TCP}
+            # kube-controller-manager and kube-scheduler, reachable only
+            # because of the bind-address patch in infra/talos/patches.
+            - {port: "10257", protocol: TCP}
+            - {port: "10259", protocol: TCP}
+            # etcd's dedicated metrics listener.
+            - {port: "2381", protocol: TCP}
+            # node-exporter, which is in this namespace but on the host network.
+            - {port: "9100", protocol: TCP}
+            # Cilium: agent, operator, and Hubble's flow metrics.
+            - {port: "9962", protocol: TCP}
+            - {port: "9963", protocol: TCP}
+            - {port: "9965", protocol: TCP}
+
+    # --- The workloads this cluster exists to run --------------------------
+    #
+    # All six Buildbarn components on the diagnostics port from
+    # config/common.libsonnet, and nothing else. Note the absence of 8980:
+    # monitoring has no business speaking the CAS or Action Cache protocol, so
+    # a compromised Prometheus cannot read a blob or poison an entry.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: buildbarn
+      toPorts:
+        - ports:
+            - {port: "9980", protocol: TCP}
+
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: bb-portal
+            app: bb-portal
+      toPorts:
+        - ports:
+            - {port: "9980", protocol: TCP}
+
+    # The ARC controller and its listener. arc-runners is deliberately absent:
+    # the runners export nothing, and the namespace that executes untrusted
+    # code is the last one to open a path into.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: arc-systems
+      toPorts:
+        - ports:
+            - {port: "8080", protocol: TCP}
+
+    # The Flux controllers, on the port gotk-components names http-prom.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: flux-system
+      toPorts:
+        - ports:
+            - {port: "8080", protocol: TCP}

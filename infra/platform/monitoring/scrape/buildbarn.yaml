@@ -1,0 +1,31 @@
+# Every Buildbarn component already serves Prometheus metrics and has since the
+# day it was deployed: config/common.libsonnet gives all six a diagnostics HTTP
+# server on :9980 with enablePrometheus set. Nothing was scraping it. This file
+# is the missing half.
+#
+# A PodMonitor rather than a ServiceMonitor, because two of the six have no
+# Service that would work. The worker has none at all -- it dials the scheduler
+# and nothing dials it -- and remote-asset's publishes only gRPC 8985.
+# Inventing Services so that a ServiceMonitor could select them would mean two
+# objects nothing else needs, existing only to be a target.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: buildbarn
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [buildbarn]
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: [storage, frontend-ro, frontend-rw, scheduler, worker, remote-asset]
+  # Carry `app` through as a label so a query can say which component it means.
+  # Without this the only distinguishing label is the pod name, which carries a
+  # replicaset hash and therefore changes on every deploy -- so every graph
+  # would break its own history each time anything is rolled.
+  podTargetLabels: [app]
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics

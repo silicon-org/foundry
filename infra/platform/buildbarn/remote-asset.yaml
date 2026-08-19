@@ -19,6 +19,9 @@ spec:
         - name: remote-asset
           image: ghcr.io/buildbarn/bb-remote-asset@sha256:0e4aabddd7750938299174818607b4efec2390cf0c2e8fd37ee2e9d1e548a4e3
           args: [/config/remote-asset.jsonnet]
+          ports:
+            - {containerPort: 8985}
+            - {name: metrics, containerPort: 9980}
           resources:
             requests: {cpu: 100m, memory: 128Mi}
             limits: {memory: 512Mi}

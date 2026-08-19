@@ -53,6 +53,12 @@ kind: Service
 metadata:
   name: bb-portal
   namespace: bb-portal
+  labels:
+    # A ServiceMonitor selects Services by *their* labels, not by the pod
+    # selector below -- so without this line the object in
+    # infra/platform/monitoring/scrape/bb-portal.yaml matches nothing, reports
+    # no error, and shows up only as a metric that is never there.
+    app: bb-portal
 spec:
   selector:
     app: bb-portal

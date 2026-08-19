@@ -19,7 +19,30 @@ KUSTOMIZE_ROOTS = [
     "infra/platform/clusters/hetzner/arc",
     "infra/platform/clusters/hetzner",
     "infra/platform/clusters/local/arc",
+    "infra/platform/monitoring",
 ]
+
+# Every PrometheusRule in the tree. Listed rather than globbed so that a file
+# added to monitoring/rules/ and forgotten here fails review rather than
+# silently going unchecked.
+PROMETHEUS_RULES = [
+    "infra/platform/monitoring/rules/arc.yaml",
+    "infra/platform/monitoring/rules/buildbarn.yaml",
+    "infra/platform/monitoring/rules/capacity.yaml",
+    "infra/platform/monitoring/rules/cilium.yaml",
+    "infra/platform/monitoring/rules/flux.yaml",
+]
+
+sh_test(
+    name = "promtool_test",
+    size = "small",
+    srcs = ["promtool_test.sh"],
+    args = ["$(rlocationpath @multitool//tools/promtool)"] + PROMETHEUS_RULES,
+    data = [
+        "@multitool//tools/promtool",
+        "//infra/platform/monitoring:manifests",
+    ],
+)
 
 sh_test(
     name = "kustomize_test",
@@ -32,5 +55,6 @@ sh_test(
         "//infra/platform/cilium:manifests",
         "//infra/platform/hcloud:manifests",
         "//infra/platform/bb-portal:manifests",
+        "//infra/platform/monitoring:manifests",
     ] + glob(["**/*.yaml"]),
 )

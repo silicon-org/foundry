@@ -1,0 +1,21 @@
+# Privileged, and that is a choice rather than an oversight.
+#
+# node-exporter needs hostNetwork and hostPID. Those are Pod Security Standards
+# *baseline* violations, not merely `restricted` ones, so no label short of
+# `privileged` admits it -- and node metrics on a four-node cluster are worth
+# more than the label would be.
+#
+# The alternative considered was node-exporter alone in its own privileged
+# namespace with everything else `restricted`. It is more correct and it costs
+# two more objects, and the blast radius it reduces is a DaemonSet that upstream
+# publishes and everyone runs. Revisit it if anything in here ever starts
+# handling untrusted input; until then containment is networkpolicy.yaml's job,
+# which is a control that actually constrains this namespace rather than a label
+# that describes it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: latest

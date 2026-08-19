@@ -15,3 +15,18 @@ spec:
         namespace: flux-system
   install:
     createNamespace: false
+  # Metrics are off until asked for, and the block has to name all three fields:
+  # without it the controller is started with `--metrics-addr=0` and
+  # `--listener-metrics-addr=0`, so there are no gha_* series anywhere and
+  # nothing says so. The listener's are the ones worth having -- queue wait,
+  # runners desired versus running, job lifecycle -- and they come from a pod
+  # the controller creates rather than from this chart.
+  #
+  # Both addresses are :8080 and they do not collide: the controller and each
+  # listener are separate pods. Scraped by
+  # infra/platform/monitoring/scrape/arc.yaml.
+  values:
+    metrics:
+      controllerManagerAddr: ":8080"
+      listenerAddr: ":8080"
+      listenerEndpoint: "/metrics"

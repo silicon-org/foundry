@@ -1,0 +1,40 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+# Exposed so //infra/platform:kustomize_test can render this root. Globs do not
+# cross package boundaries, and the dashboards are JSON rather than YAML, so the
+# test's own glob would not pick them up.
+filegroup(
+    name = "manifests",
+    srcs = glob([
+        "*.yaml",
+        "scrape/*.yaml",
+        "rules/*.yaml",
+        "dashboards/*.json",
+    ]),
+    visibility = ["//infra/platform:__pkg__"],
+)
+
+# bazel run //infra/platform/monitoring:tunnel-hetzner
+#
+# Grafana, Prometheus and Alertmanager on localhost, for as long as it runs.
+# There is no Ingress and no LoadBalancer -- invariant #4 in
+# infra/doc/architecture.md, and Grafana is named in tailscale/README.md as
+# something the operator will publish to the tailnet once that exists. Until
+# then this is the only way in, which is the point.
+#
+# Ports deliberately clear of the buildbarn tunnel's, so both can run at once.
+sh_binary(
+    name = "tunnel-hetzner",
+    srcs = ["//infra/platform:tunnel.sh"],
+    args = [
+        "$(rlocationpath @multitool//tools/kubectl)",
+        "infra/talos/clusterconfig/kubeconfig",
+        "hetzner",
+        "Grafana on http://localhost:3000.",
+        "monitoring/kube-prometheus-stack-grafana:3000:80",
+        "monitoring/kube-prometheus-stack-prometheus:9090:9090",
+        "monitoring/kube-prometheus-stack-alertmanager:9093:9093",
+    ],
+    data = ["@multitool//tools/kubectl"],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
+)

@@ -43,9 +43,49 @@ securityContext:
 # on; see infra/platform/clusters/.
 kubeProxyReplacement: false
 
+# Metrics endpoints, and the Services in front of them -- but no ServiceMonitor.
+#
+# That split is the whole point and it is not stylistic. This file is consumed
+# by `//infra/platform/cilium:bootstrap`, which runs against a brand-new cluster
+# that has no CNI, no Flux and no Prometheus CRDs. Setting
+# `prometheus.serviceMonitor.enabled` here would make a cluster's very first
+# helm install depend on a CRD that arrives four steps later, so the failure
+# would not be "monitoring is broken", it would be "the cluster will not build".
+# The ServiceMonitor objects live in infra/platform/monitoring/scrape/cilium.yaml
+# instead: components own their metrics ports, monitoring owns the scrape.
+#
+# metricsService is the part that is easy to miss. The chart only renders the
+# cilium-agent and cilium-operator Services when *either* serviceMonitor.enabled
+# or metricsService is set -- so enabling the ports alone opens two endpoints
+# with nothing in front of them, and a ServiceMonitor written against a Service
+# that was never created reports no error at all. It simply has no targets.
+prometheus:
+  enabled: true          # agent, :9962
+  metricsService: true
+operator:
+  prometheus:
+    enabled: true        # operator, :9963
+    metricsService: true
+
 # Flow visibility. The relay is what `cilium hubble` and the metrics stack talk
 # to; without it, a default-deny policy is enforced blind.
 hubble:
   enabled: true
   relay:
     enabled: true
+  metrics:
+    # The hubble-metrics Service needs no equivalent flag -- it renders whenever
+    # this list is non-empty.
+    #
+    # The label context on `drop` is not decoration. Without it,
+    # hubble_drop_total carries no namespace dimension, and the question
+    # infra/platform/monitoring exists to answer -- are flows out of arc-runners
+    # being denied, and is the default-deny policy doing anything at all --
+    # cannot be written as a query. The other three are cheap and cover what a
+    # dropped flow usually turns out to be: a name that did not resolve, a
+    # connection that never established.
+    enabled:
+      - "drop:sourceContext=namespace;destinationContext=namespace"
+      - dns
+      - tcp
+      - flow

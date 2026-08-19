@@ -1,0 +1,116 @@
+# What Buildbarn failing quietly looks like, expressed as queries.
+#
+# Every expression here was derived against a live instance rather than from
+# documentation, because Buildbarn's metric surface is not what a reader would
+# guess. In particular there is no cache-hit counter and no queue-depth gauge:
+# hit rate is a ratio over gRPC status codes, and queue pressure is a histogram
+# of how long tasks waited. Re-derive rather than trusting this comment:
+#
+#   kubectl -n buildbarn port-forward svc/frontend-rw 9980
+#   curl -s localhost:9980/metrics | grep '^# TYPE'
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: buildbarn
+  namespace: monitoring
+spec:
+  groups:
+    - name: buildbarn.cache
+      rules:
+        # The number this whole cluster exists to move, and the one thing that
+        # can be catastrophically wrong while everything reports healthy.
+        #
+        # A miss is `NotFound`, not an error -- which is why this is a ratio
+        # over status codes rather than a counter someone thought to export,
+        # and why a 0% hit rate produces no error log anywhere.
+        - record: buildbarn:action_cache_hit_rate:ratio30m
+          expr: |
+            sum(rate(grpc_server_handled_total{namespace="buildbarn",grpc_method="GetActionResult",grpc_code="OK"}[30m]))
+            /
+            clamp_min(sum(rate(grpc_server_handled_total{namespace="buildbarn",grpc_method="GetActionResult"}[30m])), 0.001)
+
+        - alert: BuildbarnCacheHitRateCollapsed
+          # 30% is not a target, it is a floor. A cold cache after a dependency
+          # bump is legitimately near zero for a while, which is why this waits
+          # an hour and requires real traffic (the `and` clause) before firing --
+          # otherwise it alerts every time the cache is doing exactly what it
+          # was asked to.
+          expr: |
+            buildbarn:action_cache_hit_rate:ratio30m < 0.3
+            and
+            sum(rate(grpc_server_handled_total{namespace="buildbarn",grpc_method="GetActionResult"}[30m])) > 0.05
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Action Cache hit rate has been below 30% for an hour"
+            description: >-
+              {{ $value | humanizePercentage }} of GetActionResult calls are
+              hits. Remote execution is being paid for and not used. Check
+              whether something is changing the action key on every build --
+              a toolchain path, a timestamp, an unpinned dependency.
+
+    - name: buildbarn.queue
+      rules:
+        # Workers as a gauge, which the scheduler does not export directly.
+        # Both counters reset together when the scheduler restarts, so the
+        # difference goes to zero and climbs back as workers re-register; that
+        # is a brief false reading rather than a wrong one, and it is why the
+        # alert below waits.
+        - record: buildbarn:workers_registered:count
+          expr: |
+            sum by (platform) (buildbarn_builder_in_memory_build_queue_workers_created_total)
+            -
+            sum by (platform) (buildbarn_builder_in_memory_build_queue_workers_removed_total)
+
+        - alert: BuildbarnNoWorkersRegistered
+          # The failure this cluster is most likely to actually have: the ISA
+          # in worker.yaml, the exec_properties in //platforms and the platform
+          # the client asks for must all agree, in three different files. When
+          # they do not, nothing errors -- actions simply queue forever.
+          expr: buildbarn:workers_registered:count < 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "No workers registered for platform {{ $labels.platform }}"
+            description: >-
+              The scheduler has no worker for this platform, so every action
+              targeting it will queue indefinitely. Check that the worker's ISA
+              matches the platform clients request.
+
+        - alert: BuildbarnQueueWaitHigh
+          # Queue wait rather than queue depth, because depth is not exported
+          # and wait is the thing anyone actually cares about. Five minutes of
+          # waiting is longer than most actions take to run.
+          expr: |
+            histogram_quantile(
+              0.9,
+              sum by (le, platform) (rate(buildbarn_builder_in_memory_build_queue_tasks_queued_duration_seconds_bucket[15m]))
+            ) > 300
+          for: 20m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Actions are waiting {{ $value | humanizeDuration }} to start on {{ $labels.platform }}"
+            description: >-
+              Nine in ten actions wait this long before a worker picks them up.
+              Either RUNNER_CONCURRENCY is too low for the load or the node is
+              saturated; //infra/platform/clusters/hetzner/buildbarn sets both.
+
+    - name: buildbarn.availability
+      rules:
+        - alert: BuildbarnComponentDown
+          # Scheduler and storage are the two whose absence stops builds rather
+          # than slowing them. The frontends are covered by the same rule
+          # because there is no useful cache without them either.
+          expr: up{namespace="buildbarn"} == 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Buildbarn {{ $labels.app }} is not being scraped"
+            description: >-
+              Either the component is down or its diagnostics server is not
+              answering. Both make every build slower and neither is visible
+              from a build's output.

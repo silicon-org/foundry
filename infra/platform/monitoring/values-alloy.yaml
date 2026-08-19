@@ -1,0 +1,158 @@
+# Grafana Alloy: the log shipper.
+#
+# Not Promtail. Promtail reached end of life in February 2025 and its final
+# release takes no fixes; starting a new deployment on it would be starting in
+# arrears. Alloy is the successor Grafana points Promtail users at, and its
+# pipeline is a config file rather than a set of flags -- which suits a
+# repository where the config is the artefact.
+#
+# A DaemonSet reading /var/log/pods from the host, rather than
+# loki.source.kubernetes reading through the API. The file path keeps working
+# when the API server is busy or unavailable, which is when the logs are worth
+# having; the API path would put a per-container watch on the thing already
+# under load.
+
+crds:
+  # Alloy ships PodLogs/etc. CRDs for its Kubernetes-native collectors. Nothing
+  # here uses them -- the pipeline below is static config -- so they are three
+  # cluster-scoped objects that would exist to be unused.
+  create: false
+
+controller:
+  type: daemonset
+  volumes:
+    extra:
+      - name: alloy-data
+        emptyDir: {}
+  # Logs from the control planes matter too, and those nodes carry the standard
+  # NoSchedule taint.
+  tolerations:
+    - operator: Exists
+  priorityClassName: monitoring
+
+alloy:
+  # No call home. networkpolicy.yaml denies it in any case, so left on this
+  # produces a log full of dial timeouts and nothing else.
+  enableReporting: false
+
+  mounts:
+    # /var/log/pods, which is the whole point of running this as a DaemonSet.
+    varlog: true
+    # containerd, not Docker. This mount is a leftover from the dockershim era.
+    dockercontainers: false
+    # Alloy is started with `--storage.path=/tmp/alloy` and the root filesystem
+    # below is read-only, so without this it has nowhere to keep how far it has
+    # read into each file. The symptom is not a crash: on every restart it
+    # re-reads every log from the beginning and ships it again, so a pod that
+    # restarts hourly quietly multiplies a day of logs.
+    #
+    # emptyDir rather than a volume: losing positions on reschedule costs some
+    # duplicate lines once, which is not worth a PersistentVolume per node.
+    extra:
+      - name: alloy-data
+        mountPath: /tmp/alloy
+
+  securityContext:
+    # Root, deliberately, and this is the reason the namespace is `privileged`
+    # rather than `baseline` -- see namespace.yaml.
+    #
+    # containerd writes container logs under /var/log/pods owned by root with
+    # no group read. A non-root Alloy starts cleanly, discovers every target,
+    # and then fails to open each file -- which surfaces as a log stream that
+    # is simply empty, per container, with the collector reporting healthy.
+    runAsUser: 0
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+    readOnlyRootFilesystem: true
+
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 256Mi}
+
+  configMap:
+    content: |-
+      // Discovery: pods on this node, and nothing else.
+      discovery.kubernetes "pods" {
+        role = "pod"
+        selectors {
+          role  = "pod"
+          field = "spec.nodeName=" + sys.env("K8S_NODE_NAME")
+        }
+      }
+
+      // The labels a question is actually asked in. Namespace, pod and
+      // container are the three the gate for this milestone is written
+      // against: find a dead worker's last lines by namespace and pod, after
+      // the pod object is gone.
+      //
+      // Deliberately no more than these. Every distinct label combination is a
+      // separate Loki stream, and stream cardinality is the failure mode that
+      // takes a small Loki down -- pod name is already the high-cardinality
+      // one, and it is here because without it the logs are unusable.
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_node_name"]
+          target_label  = "node"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_container_name"]
+          separator     = "/"
+          target_label  = "job"
+        }
+
+        // Where the bytes are. The uid/container form is the one containerd
+        // writes; the glob absorbs the rotation suffix.
+        rule {
+          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          separator     = "/"
+          action        = "replace"
+          replacement   = "/var/log/pods/*$1/*.log"
+          target_label  = "__path__"
+        }
+      }
+
+      local.file_match "pod_logs" {
+        path_targets = discovery.relabel.pod_logs.output
+      }
+
+      loki.source.file "pod_logs" {
+        targets    = local.file_match.pod_logs.targets
+        forward_to = [loki.process.pod_logs.receiver]
+      }
+
+      // CRI wraps every line with a timestamp, a stream name and a partial-line
+      // flag. Without this stage each line arrives with that prefix embedded in
+      // the message and Loki timestamps it on arrival instead of on write --
+      // which reorders exactly the burst of output a crash produces.
+      loki.process "pod_logs" {
+        stage.cri {}
+
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }
+
+# Alloy's own metrics: how many targets it found, how many lines it sent, and
+# how far behind it is. This is what makes the missing-logs case visible as a
+# number rather than as an empty search result.
+serviceMonitor:
+  enabled: true

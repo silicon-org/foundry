@@ -1,0 +1,24 @@
+# The CHI link layer: flow control, and nothing about what a flit means.
+#
+# See //hardware/vip/README.md for the layering, and chi_link_hn.sv for why the
+# interface and the protocol are separate modules in separate languages.
+
+load("@rules_verilog//verilog:defs.bzl", "verilog_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# No top_module: these are parameterised library modules, and the lint aspect
+# cannot elaborate one in isolation. //hardware/vip/chi/test is where they are
+# elaborated, with their parameters fixed and both ends wired together.
+verilog_library(
+    name = "chi_link",
+    srcs = [
+        "chi_link_activation_ack.sv",
+        "chi_link_activation_req.sv",
+        "chi_link_hn.sv",
+        "chi_link_rn.sv",
+        "chi_link_rx_channel.sv",
+        "chi_link_tx_channel.sv",
+    ],
+    deps = ["//hardware/ip/chi:chi_pkg"],
+)

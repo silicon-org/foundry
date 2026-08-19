@@ -156,3 +156,39 @@ more time than it should have.
   surface is an undefined symbol at link time in every testbench that
   implements less than all of it. One header per testbench.
 
+## Simulation
+
+- `parameter time ClkPeriod = 1ns; forever #(ClkPeriod / 2) clk = ~clk;` is an
+  integer division. At a coarse enough time precision it yields zero, and
+  `forever #0` is an infinite loop in zero time -- reported, a long way from the
+  cause, as `%Error-DIDNOTCONVERGE: Inactive region did not converge`. Cost half
+  an hour of suspecting the design, and two eleven-minute rebuilds. Name a half
+  period; do not divide one.
+
+- Reading a design's combinational `ready` from a procedural block after
+  `@(posedge clk)` reads it *after* the design's own registers have updated at
+  that edge. A transmitter that was not ready at the edge looks ready just
+  afterwards, so the testbench drops `valid` believing the flit went, and it
+  did not. Drive stimulus on the falling edge, and observe a handshake through a
+  flag registered by the design's own clock. This showed up as five of six
+  channels delivering and one silently losing every flit.
+
+- `assert (...) else $error(...)` prints `%Error` and lets Verilator exit zero.
+  Only `$fatal` fails the run. For an interface invariant `$fatal` is the right
+  answer anyway -- once one is violated, everything observed afterwards is a
+  consequence rather than evidence.
+
+- A `--timing` evaluation loop must test `gotFinish()` immediately after
+  `eval()`, before asking whether events are pending. `$finish` leaves nothing
+  scheduled, so checking in the other order reports every successful run as a
+  deadlock.
+
+- A negative test needs to fail *for the stated reason*. Ours takes the expected
+  message as an argument, because the first version passed on an unrelated
+  assertion in a different module -- the testbench had frozen a credit signal
+  and three transmitters overflowed at once, which is a fault, but not the one
+  under test.
+
+- Verilating XiangShan with `--timing`: 676 s and 8187 actions the first time,
+  ~130 s for a Verilator-only change afterwards. The model runs 1000 cycles in
+  12 s. `--output-split 20000` is what keeps the C++ compiles parallel.

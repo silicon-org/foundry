@@ -1,0 +1,17 @@
+# AMBA CHI, Issue E.b.
+#
+# Ours rather than third-party, despite sitting under ip/: it is a description
+# of a specification, shared by the designs that speak CHI and the agents that
+# verify them, and it belongs to neither of them. See README.md.
+
+load("@rules_verilog//verilog:defs.bzl", "verilog_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# No top_module, so the lint aspect passes over this and checks it where it is
+# instantiated instead. A package has nothing to elaborate.
+verilog_library(
+    name = "chi_pkg",
+    srcs = ["src/chi_pkg.sv"],
+    hdrs = ["include/chi_typedef.svh"],
+)

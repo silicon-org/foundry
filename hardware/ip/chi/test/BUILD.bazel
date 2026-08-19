@@ -1,0 +1,72 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
+load("@rules_verilog//verilog:defs.bzl", "verilog_library")
+
+# chi_pkg has nothing to elaborate on its own, so the testbench is the concrete
+# top: one initial block that reads the package and reports through DPI.
+verilog_library(
+    name = "chi_pkg_tb",
+    srcs = ["chi_pkg_tb.sv"],
+    hdrs = [
+        "chi_pkg_dpi.svh",
+        "chi_test_channel.svh",
+    ],
+    top_module = "chi_pkg_tb",
+    deps = ["//hardware/ip/chi:chi_pkg"],
+)
+
+verilator_cc_library(
+    name = "chi_pkg_verilated",
+    module = ":chi_pkg_tb",
+    vopts = [
+        "-Wall",
+        "-Wno-fatal",
+        # A package declares the whole specification's worth of parameters and
+        # any one testbench reads a fraction of them. That is what a package is
+        # for, and it is not something to warn about here.
+        "-Wno-UNUSEDPARAM",
+    ],
+)
+
+cc_test(
+    name = "chi_pkg_test",
+    size = "small",
+    srcs = ["chi_pkg_test.cc"],
+    deps = [
+        ":chi_pkg_verilated",
+        "//hardware/vip/chi:chi_flit",
+    ],
+)
+
+# The package's structs against CHIron's bit layout, in the direction that
+# matters: the package packs, CHIron decodes.
+verilog_library(
+    name = "chi_layout_tb",
+    srcs = ["chi_layout_tb.sv"],
+    hdrs = [
+        "chi_layout_dpi.svh",
+        "chi_test_channel.svh",
+    ],
+    top_module = "chi_layout_tb",
+    deps = ["//hardware/ip/chi:chi_pkg"],
+)
+
+verilator_cc_library(
+    name = "chi_layout_verilated",
+    module = ":chi_layout_tb",
+    vopts = [
+        "-Wall",
+        "-Wno-fatal",
+        "-Wno-UNUSEDPARAM",
+    ],
+)
+
+cc_test(
+    name = "chi_layout_test",
+    size = "small",
+    srcs = ["chi_layout_test.cc"],
+    deps = [
+        ":chi_layout_verilated",
+        "//hardware/vip/chi:chi_flit",
+    ],
+)

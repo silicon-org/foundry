@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_test")
 
 cc_test(
     name = "chi_flit_test",
@@ -6,3 +6,85 @@ cc_test(
     srcs = ["chi_flit_test.cc"],
     deps = ["//hardware/vip/chi:chi_flit"],
 )
+
+# The link layer, against its own mirror image, with no design in the build.
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
+load("@rules_verilog//verilog:defs.bzl", "verilog_library")
+
+verilog_library(
+    name = "chi_link_loopback_tb",
+    srcs = ["chi_link_loopback_tb.sv"],
+    top_module = "chi_link_loopback_tb",
+    deps = ["//hardware/vip/chi/rtl:chi_link"],
+)
+
+verilator_cc_library(
+    name = "chi_link_loopback_verilated",
+    module = ":chi_link_loopback_tb",
+    timing = True,
+    vopts = [
+        "-Wall",
+        "-Wno-fatal",
+        "-Wno-UNUSEDPARAM",
+        # A testbench's reset is read both asynchronously, by the flops it
+        # resets, and synchronously, by the checks that only apply once it is
+        # released. In design code that mixture is a warning worth having.
+        "-Wno-SYNCASYNCNET",
+        # The assertions in the link layer are the test's verdict, so they have
+        # to be compiled in.
+        "--assert",
+        # One default timescale for every module, so that a mixture of files
+        # with and without a `timescale directive is not a warning about
+        # something nobody chose.
+        "--timescale",
+        "1ns/1ps",
+    ],
+)
+
+# The binary the cases share. A cc_binary rather than a cc_test, because it needs
+# a `+case=` to do anything and a test that always fails is noise.
+cc_binary(
+    name = "chi_link_loopback",
+    srcs = ["chi_link_loopback_tb.cc"],
+    deps = [
+        ":chi_link_loopback_verilated",
+        "//hardware/vip/common:sim_main",
+    ],
+)
+
+# One model, one case each. Separate targets rather than one run of everything,
+# so a failure names the property that broke rather than the file it was in.
+[cc_test(
+    name = "chi_link_{}_test".format(case),
+    size = "small",
+    srcs = ["chi_link_loopback_tb.cc"],
+    args = ["+case={}".format(case)],
+    deps = [
+        ":chi_link_loopback_verilated",
+        "//hardware/vip/common:sim_main",
+    ],
+) for case in [
+    "bringup",
+    "transfer",
+    "credit",
+    "deactivate",
+]]
+
+# The negative cases. Each drives the pins with something no correct transmitter
+# would produce; passing means the receiving channel failed to notice, and the
+# expected text means it noticed for the right reason.
+[sh_test(
+    name = "chi_link_{}_test".format(case),
+    size = "small",
+    srcs = ["expect_failure.sh"],
+    args = [
+        "$(rootpath :chi_link_loopback)",
+        expected,
+        "+case={}".format(case),
+    ],
+    data = [":chi_link_loopback"],
+) for case, expected in [
+    ("rogue_overrun", "flit arrived with the buffer full"),
+    ("rogue_before_run", "flit arrived with no L-Credit outstanding"),
+]]

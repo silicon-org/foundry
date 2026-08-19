@@ -135,13 +135,58 @@ simulator-free C++ protocol model. See `//hardware/vip/README.md`.
 
 ## M6 — The DPI boundary and the home node
 
-- [ ] `chi_dpi.svh` with an elaboration-time width check against the package
-- [ ] `chi::HomeNode`, simulator-free. One RN-F, so it never snoops.
-- [ ] `SparseMemory`, `Watchpoint`, spdlog
-- [ ] The program as words: nops, `sw` to `tohost`, `j .`
-- [ ] **Gate:** `//hardware/vip/common:memory_test`,
-      `//hardware/vip/chi:chi_home_node_test` (every opcode, no RTL), then
-      `xs_cluster_tb`
+- [x] `chi_dpi.svh` / `chi_hn_dpi.cc`: one packed flit per call, a chandle per
+      agent, and an elaboration-time check of the literal widths against
+      `chi_pkg` -- an assertion rather than a generate `$error`, for the reason
+      M3 records.
+- [x] `chi::HomeNode`, simulator-free. One RN-F, so it never snoops. Reads,
+      copyback and immediate writes, the dataless requests, `CompAck`,
+      `WriteDataCancel`, and an error response for anything else rather than
+      silence.
+- [x] `SparseMemory` with watchpoints, `spdlog` behind `VIP_LOG_LEVEL`
+- [x] The whole of a test's setup crosses DPI, so the testbench *is* the test:
+      the program, the memory, the home node and the address that ends the run
+      are all in `xs_cluster_tb.sv`, and its C++ is the one line every testbench
+      shares.
+- [x] `//hardware/soc/xs_cluster:xs_cluster` brings the trace-encoder port out
+      rather than tying it off. It is the only window into what the core is
+      doing that is not a waveform, and this milestone needed it.
+- [x] **Gates passed.** `//hardware/vip/common/test:memory_test`;
+      `//hardware/vip/chi/test:chi_home_node_test`, every opcode with no RTL in
+      the build; and `chi_hn_agent_{read_line,write_word}_test`, the whole agent
+      -- link, DPI, protocol model, memory -- against a request node's link with
+      no design in the build. That last pair was not in the plan and should have
+      been: it is the seam the other two cannot reach, and it is what proved the
+      flit data reaching the core was correct.
+- [x] `//hardware/soc/xs_cluster/tb:xs_cluster_tb_test`: the link comes up at
+      cycle 199, the core asks for the line its reset vector is in at cycle
+      1048, and the home node serves it. The thousand-cycle wait is CoupledL2
+      walking its directory to clear it, not the core being slow.
+
+### Open: the core does not execute what it is served
+
+About thirty-five cycles after its first line arrives, the core raises
+`critical_error_o`. What is established:
+
+- The line delivered is correct. At the pins, the first beat of the reset-vector
+  line reads `00000013 00000013 0000006f` -- the program, in order.
+- It is not the program. The failure is at the same cycle for a six-instruction
+  program, a three-instruction one, and a memory filled entirely with
+  jump-to-self, which cannot trap.
+- It is not the timer, and not the reset length. Holding `time_valid_i` low
+  changes nothing; holding reset for 2000 cycles instead of 20 changes nothing.
+- `bus_error_o` and `wfi_o` are low throughout, and the core is out of reset
+  from cycle 31.
+- The mechanism is `criticalErrorStateInCSR = ~mnstatus.NMIE & trap_valid` in
+  the generated RTL, and `reg_NMIE` resets to zero. Under Smrnmi that makes
+  *any* trap a critical error until software sets it, so what is needed is the
+  trap, not the mechanism.
+- The trace-encoder port produces nothing before the failure, so the core
+  retires no instruction at all.
+
+Next: find the trap. The trace port is out of the wrapper for this; the
+remaining lever is a waveform on the front end, or finding what XiangShan's own
+boot sequence does before its first instruction.
 
 ## M7 — Checking, properly
 

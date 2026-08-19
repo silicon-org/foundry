@@ -22,3 +22,11 @@ verilog_library(
     ],
     deps = ["//hardware/ip/chi:chi_pkg"],
 )
+
+# The agent: the link, plus the DPI calls that join it to the C++ home node.
+verilog_library(
+    name = "chi_hn_agent",
+    srcs = ["chi_hn_agent.sv"],
+    hdrs = ["//hardware/vip/chi:chi_hn_dpi_svh"],
+    deps = [":chi_link"],
+)

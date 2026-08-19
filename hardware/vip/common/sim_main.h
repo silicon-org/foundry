@@ -19,15 +19,21 @@
 #include <cstdio>
 #include <memory>
 
+#include "hardware/vip/common/test_control.h"
 #include "verilated.h"
 
 namespace vip {
 
-// Runs a timing-enabled Verilated model to completion.
+// Runs a timing-enabled Verilated model to completion and returns the verdict.
 //
-// Returns 0 if the testbench finished of its own accord, and non-zero if it
-// deadlocked or if Verilator reported an error -- a failed assertion, for
-// instance, which is how the SystemVerilog side fails a test.
+// Non-zero if the simulation deadlocked, if Verilator reported an error -- a
+// failed assertion, which is how the SystemVerilog side fails a test -- or if
+// nothing ever declared the run successful. That last one matters: a testbench
+// that reaches $finish without a verdict has ended, not passed.
+//
+// This is the whole of a testbench's C++. Everything a particular test needs --
+// the program, the memory, the agents -- is set up from the testbench over DPI,
+// so that the test reads as one file.
 template <typename Model>
 int RunTimingModel(int argc, char** argv) {
   VerilatedContext context;
@@ -59,7 +65,8 @@ int RunTimingModel(int argc, char** argv) {
   }
 
   model->final();
-  return context.gotError() ? 1 : 0;
+  if (context.gotError()) return 1;
+  return TestExitStatus();
 }
 
 }  // namespace vip

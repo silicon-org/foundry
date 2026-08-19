@@ -46,6 +46,18 @@ module chi_pkg_tb;
     chi_expect_flit_width(`CHI_CH_RSP, $bits(chi_rsp_t));
     chi_expect_flit_width(`CHI_CH_DAT, $bits(chi_dat_t));
     chi_expect_flit_width(`CHI_CH_SNP, $bits(chi_snp_t));
+
+    // And against the widths XSTop declares on its own ports, written out as
+    // literals because that is what they are in the generated RTL. The
+    // wrapper in //hardware/soc/xs_cluster connects a struct straight to those
+    // vectors, so this is the check that stops a package one bit out from
+    // connecting silently and decoding into nonsense. It is here rather than
+    // in the wrapper because a generate block's $error is only a warning as
+    // far as Verilator is concerned, and a warning is not a check.
+    chi_expect("xstop_req_flit", $bits(chi_req_t), 162);
+    chi_expect("xstop_rsp_flit", $bits(chi_rsp_t), 73);
+    chi_expect("xstop_dat_flit", $bits(chi_dat_t), 422);
+    chi_expect("xstop_snp_flit", $bits(chi_snp_t), 115);
   endtask
 
   // Field types against the parameters they were built from. A macro that

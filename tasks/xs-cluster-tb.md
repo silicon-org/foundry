@@ -79,11 +79,19 @@ simulator-free C++ protocol model. See `//hardware/vip/README.md`.
 
 ## M3 — `xs_cluster.sv` on struct ports
 
-- [ ] CHI ports become the link bundles; the packing to the generated top's
-      flat signals moves inside
-- [ ] Rewrite the comment claiming a CHI package "belongs with the
-      interconnect" -- it is no longer true and would mislead
-- [ ] **Gate:** `bazel build --config=lint //hardware/...`
+- [x] CHI ports become `chi_pkg::chi_rn_link_tx_t` and `chi_rn_link_rx_t`;
+      thirty signals become two, and the mapping to the generated top's flat
+      ports moves inside
+- [x] Rewrite the comment claiming a CHI package "belongs with the
+      interconnect" -- no longer true, and it would mislead
+- [x] The width check does **not** live in the wrapper. `$error` in a generate
+      block is `%Warning-USERERROR` to Verilator, so that check passes whatever
+      the widths are; proved by writing it with a false condition and watching
+      lint succeed. XSTop's four literal widths went into `chi_pkg_test`
+      instead, where a wrong one fails -- also proved, the other way round.
+- [x] **Gate passed.** `bazel build --config=lint //hardware/...` elaborates the
+      wrapper with the struct ports and reports no width warning on any CHI
+      connection.
 
 ## M4 — Verilate the cluster
 

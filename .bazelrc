@@ -6,6 +6,27 @@ build --incompatible_strict_action_env
 common --lockfile_mode=update
 common:ci --lockfile_mode=error
 
+# C++20 everywhere, host and target.
+#
+# Three separate things need it, which is why it is here rather than in three
+# sets of per-target copts:
+#
+#   - Verilator's --timing runtime is built on coroutines. rules_verilator
+#     already forces -std=c++20 onto the generated model, so anything of ours
+#     linked against that model has to agree or the two halves of one binary are
+#     compiled at different standards.
+#   - CHIron, the CHI flit library under //hardware/vip/chi, is concepts and
+#     consteval throughout and does not compile at 17 at all.
+#   - It settles the question //tasks/todo.md left open at M5 of the CIRCT work,
+#     where slang needs 20 and the alternative was compiling MLIR headers at two
+#     standards inside one translation unit.
+#
+# The cost is that LLVM, MLIR and CIRCT are rebuilt at a standard upstream does
+# not test them at. That is a real risk and it is checked rather than assumed:
+# `bazel build @circt//:firtool` is the gate on this line.
+build --cxxopt=-std=c++20
+build --host_cxxopt=-std=c++20
+
 # Readable failures.
 common --color=yes
 build --verbose_failures

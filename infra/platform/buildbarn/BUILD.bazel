@@ -46,8 +46,8 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
             "$(rlocationpath @multitool//tools/kubectl)",
             target,
             cluster,
-            "Build with --config=" + cluster + "-dev.",
         ] + specs,
+        env = {"TUNNEL_HINT": "Build with --config=" + cluster + "-dev."},
         data = ["@multitool//tools/kubectl"],
         deps = ["@bazel_tools//tools/bash/runfiles"],
     )

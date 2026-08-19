@@ -107,7 +107,7 @@ the volume and Prometheus crash-loops; size-based retention alone means a quiet
 week silently keeps a year. `retentionSize` is the guard that keeps the failure
 recoverable.
 
-- [ ] **Gate:** `up == 1` for every job the chart creates except the ones M2 is
+- [x] **Gate:** `up == 1` for every job the chart creates except the ones M2 is
       about, and `kubectl -n monitoring get prometheus,alertmanager` reports
       ready replicas
 
@@ -273,7 +273,7 @@ already exists and is unscraped.
 - [x] `bb-portal`'s Service already publishes `metrics` on 9980. One
       `ServiceMonitor`, and its network policy already leaves ingress open.
 
-- [ ] **Gate:** one PromQL expression per signal, run against the live
+- [x] **Gate:** one PromQL expression per signal, run against the live
       Prometheus and recorded in the README with its output. A dashboard panel
       is not evidence that a metric exists; a query returning a number is.
 
@@ -300,7 +300,7 @@ already exists and is unscraped.
       in February 2025; starting a new deployment on it is starting in arrears.
       DaemonSet, tailing `/var/log/pods`, relabelled to carry namespace, pod and
       container.
-- [ ] **Gate:** kill a Buildbarn worker pod and find its last log lines in
+- [x] **Gate:** kill a Buildbarn worker pod and find its last log lines in
       Grafana by namespace and pod, after the pod object is gone. That is the
       whole point — logs that only exist while the pod does are `kubectl logs`
       with extra steps.
@@ -514,7 +514,7 @@ first install is a state no dry run against an already-working cluster can
 reproduce, and four of the five failures were invisible until something real
 tried to reconcile.
 
-Sixteen things turned out differently from the plan. Each was found by checking
+Seventeen things turned out differently from the plan. Each was found by checking
 against the live cluster or the actual chart rather than against the
 documentation, and each would have been a silent failure.
 
@@ -638,6 +638,14 @@ documentation, and each would have been a silent failure.
     would have been a plain `sum` over both replicas doubling the total and
     reporting 240% memory overcommit on a healthy node. Every operand is now
     collapsed with `max by (...)` before being joined.
+
+17. **Bazel tokenizes `args` on whitespace.** The shared tunnel.sh grew a
+    `hint` argument so each caller could print its own closing line; passed
+    through `args`, "Build with --config=hetzner-dev." became three arguments,
+    which the script then read as port specs. It reports this as "a port-forward
+    exited immediately. Is the cluster up?" -- a message that sends you to look
+    at the cluster. Broke the two existing buildbarn tunnels as well as the new
+    one. The hint now arrives through `env`, which preserves spaces.
 
 Smaller deviations worth recording:
 

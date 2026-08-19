@@ -31,11 +31,11 @@ sh_binary(
         "$(rlocationpath @multitool//tools/kubectl)",
         "infra/talos/clusterconfig/kubeconfig",
         "hetzner",
-        "Grafana on http://localhost:3000.",
         "monitoring/kube-prometheus-stack-grafana:3000:80",
         "monitoring/kube-prometheus-stack-prometheus:9090:9090",
         "monitoring/kube-prometheus-stack-alertmanager:9093:9093",
     ],
+    env = {"TUNNEL_HINT": "Grafana on http://localhost:3000, admin password in grafana-admin.sops.yaml."},
     data = ["@multitool//tools/kubectl"],
     deps = ["@bazel_tools//tools/bash/runfiles"],
 )

@@ -9,11 +9,16 @@
 #
 # Usage (from //infra/platform/buildbarn:tunnel-local | :tunnel-hetzner, or
 # //infra/platform/monitoring:tunnel-hetzner):
-#   tunnel.sh <kubectl-rlocationpath> <context-or-kubeconfig> <label> <hint> <spec...>
+#   tunnel.sh <kubectl-rlocationpath> <context-or-kubeconfig> <label> <spec...>
 #
-# Each spec is "namespace/service:localport:remoteport". <hint> is the one line
-# printed once the tunnels are up, which differs by what they are for: a cache
-# tunnel wants a --config to build with, a dashboard tunnel wants a URL.
+# Each spec is "namespace/service:localport:remoteport".
+#
+# TUNNEL_HINT is the one line printed once the tunnels are up, and differs by
+# what they are for: a cache tunnel wants a --config to build with, a dashboard
+# tunnel wants a URL. It arrives through the environment rather than as an
+# argument because Bazel applies Bourne tokenization to `args`, so a value with
+# a space in it silently becomes several arguments -- which this script then
+# reads as port specs, and reports as "a port-forward exited immediately".
 
 # --- begin runfiles.bash initialization v3 ---
 set -uo pipefail
@@ -33,8 +38,8 @@ set -euo pipefail
 kubectl="$(rlocation "$1")"
 target="$2"
 label="$3"
-hint="$4"
-shift 4
+hint="${TUNNEL_HINT:-}"
+shift 3
 
 if [[ -z "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
   echo >&2 "ERROR: use 'bazel run' -- the Hetzner kubeconfig is read from the source tree."

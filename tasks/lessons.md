@@ -139,3 +139,20 @@ more time than it should have.
   patch into a 1900-line diff. Vendored third-party files get edited in binary
   mode.
 
+- `$error` inside a generate block is a **warning** to Verilator --
+  `%Warning-USERERROR` -- not an error, so an elaboration-time check written
+  that way passes whatever the condition says whenever warnings are non-fatal,
+  which is everywhere in this repository. Verified by writing the check with a
+  deliberately false condition and watching the build succeed. What does fail
+  is `initial assert (...) else $fatal(...)`, at run time. Prefer putting the
+  check in a test that runs.
+
+- A SystemVerilog comment whose first word is `verilator` is a pragma. Wrapping
+  a sentence so that a line begins "// Verilator, and ..." is
+  `%Error-BADVLTPRAGMA`, from a paragraph of prose.
+
+- Verilator emits a DPI wrapper for every `import "DPI-C"` it parses, whether
+  the testbench calls it or not, so a header declaring the whole project's DPI
+  surface is an undefined symbol at link time in every testbench that
+  implements less than all of it. One header per testbench.
+

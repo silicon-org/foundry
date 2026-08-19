@@ -13,6 +13,22 @@ metadata:
   namespace: buildbarn
 spec:
   replicas: 1
+  strategy:
+    # Never two workers at once, and on this cluster that is not a preference.
+    #
+    # The Hetzner overlay gives this pod 5 of the node's 8 CPUs. A RollingUpdate
+    # -- the default, and what this was until the first change to this file
+    # actually tried to roll it -- starts the replacement before the old pod
+    # exits, because maxUnavailable of 25% on one replica rounds down to zero.
+    # Two of these do not fit on the node, so the new pod sits Pending forever,
+    # the Deployment reports Failed, and Flux marks the whole buildbarn
+    # Kustomization unhealthy. Builds keep working throughout, on the old pod,
+    # which is what makes it easy to miss.
+    #
+    # Recreate is also the honest description of what this workload is: a
+    # singleton sharing an emptyDir and a unix socket with its runner sidecar.
+    # There is nothing for a second copy to do except fail to schedule.
+    type: Recreate
   selector:
     matchLabels:
       app: worker

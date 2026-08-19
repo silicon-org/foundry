@@ -1,0 +1,55 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
+load("@rules_verilog//verilog:defs.bzl", "verilog_library")
+
+verilog_library(
+    name = "xs_cluster_tb",
+    srcs = ["xs_cluster_tb.sv"],
+    top_module = "xs_cluster_tb",
+    deps = ["//hardware/soc/xs_cluster"],
+)
+
+# The expensive one. 139 MB of generated SystemVerilog across 1868 modules, and
+# --timing on top of it because the clock lives in the testbench.
+verilator_cc_library(
+    name = "xs_cluster_verilated",
+    module = ":xs_cluster_tb",
+    timing = True,
+    vopts = [
+        # The generated RTL warns in thousands of places and none of it is ours
+        # to fix. The design that matters here is the wrapper, and
+        # `bazel build --config=lint //hardware/...` is where that is checked.
+        "-Wno-fatal",
+        # Without this, Verilator emits a handful of C++ files of a size that
+        # makes the compiler the bottleneck and, on a smaller machine, makes it
+        # run out of memory. Splitting costs nothing at this scale.
+        "--output-split",
+        "20000",
+        # Under investigation: the model does not settle at the default limit
+        # of 100. Raised to tell slow settling from a genuine combinational
+        # loop; if this is what makes it converge, it stays with a note saying
+        # what settles slowly and why.
+        # One default timescale for every module. The generated RTL declares
+        # none, and a design whose time precision depends on which file
+        # Verilator saw first is a design whose clock period does too.
+        "--timescale",
+        "1ns/1ps",
+        "--output-split-cfuncs",
+        "20000",
+    ],
+)
+
+# Deliberately not `manual`: a testbench nobody runs is a testbench that stops
+# working. `exclusive` because several copies of a model this size will exhaust a
+# worker's memory, and the fast loop for everything else is
+# `bazel test //hardware/ip/... //hardware/vip/...`.
+cc_test(
+    name = "xs_cluster_tb_test",
+    size = "enormous",
+    srcs = ["xs_cluster_tb.cc"],
+    tags = ["exclusive"],
+    deps = [
+        ":xs_cluster_verilated",
+        "//hardware/vip/common:sim_main",
+    ],
+)

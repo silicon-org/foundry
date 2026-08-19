@@ -55,17 +55,27 @@ simulator-free C++ protocol model. See `//hardware/vip/README.md`.
 
 ## M2 — The CHI package
 
-- [ ] `//hardware/ip/chi/src/chi_pkg.sv`: widths, `chi_issue_e`, the four
+- [x] `//hardware/ip/chi/src/chi_pkg.sv`: widths, `chi_issue_e`, the four
       opcode enums, `chi_resp_e` / `chi_resp_err_e` / `chi_order_e`,
-      `chi_mem_attr_t`, `chi_mpam_t`, the snoop and DAT classifiers
-- [ ] `include/chi_typedef.svh`: `CHI_TYPEDEF_{REQ,RSP,DAT,SNP}_T`,
+      `chi_mem_attr_t`, `chi_mpam_t`, `chi_link_state_e`, the snoop and DAT
+      classifiers. Values from ARM IHI 0050 (Issue H, whose shared encodings
+      have not moved); membership from CHIron's E.b tables, since Issue H
+      defines a good many opcodes E.b does not.
+- [x] `include/chi_typedef.svh`: `CHI_TYPEDEF_{REQ,RSP,DAT,SNP}_T`,
       `CHI_TYPEDEF_FIELDS`, `CHI_TYPEDEF_ALL`
-- [ ] Credit-based link bundles, which `hw.riscv#2184` does not have: its
-      bundles are valid/ready, and a CHI link is not. One packed struct per
-      direction, so two ports replace thirty on `xs_cluster`.
-- [ ] **Gate:** `//hardware/ip/chi/test:chi_pkg_test` (`$bits`, classifiers
-      exhaustively) and `:chi_layout_test` (the SV struct against CHIron, both
-      directions)
+- [x] Credit-based link bundles, which `hw.riscv#2184` does not have: its
+      bundles are valid/ready, and a CHI link is not. `chi_rn_link_tx_t` and
+      `chi_rn_link_rx_t`, one packed struct per direction.
+- [x] **Gate passed.** `chi_pkg_test`: 588 checks, including every encoding of
+      all four opcode spaces -- 128, 32, 32 and 16 -- compared against CHIron
+      by name in both directions, so an opcode invented here and one forgotten
+      fail the same way. `chi_layout_test`: 74 fields across four channels,
+      the package packing and CHIron decoding.
+- [x] The testbenches are SystemVerilog driving C++ over DPI, which is the
+      shape M6 needs anyway. Each declares only the imports it implements:
+      Verilator emits a wrapper for every `import "DPI-C"` it parses, so a
+      shared header of all of them is a link error in whichever testbench uses
+      the smaller half.
 
 ## M3 — `xs_cluster.sv` on struct ports
 

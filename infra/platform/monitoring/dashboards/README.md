@@ -18,7 +18,7 @@ URL and to any link pointing at it.
 
 | File | Origin |
 |---|---|
-| `buildbarn.json` | Written here. Nobody publishes one, and the metric surface is not what a general dashboard would assume -- see `../rules/buildbarn.yaml`. |
+| `buildbarn.json` | Written here. Nobody publishes one, and the metric surface is not what a general dashboard would assume -- see `../observe/rules/buildbarn.yaml`. |
 | `arc.json` | Written here, for the same reason. |
 | `cilium-agent.json`, `cilium-operator.json`, `hubble.json` | `cilium/cilium` at `v1.20.0`, under `install/kubernetes/cilium/files/*/dashboards/`. The same tag as the chart in `../../cilium`. |
 | `flux-cluster.json`, `flux-control-plane.json` | `fluxcd/flux2-monitoring-example`, `monitoring/configs/dashboards/`. |

@@ -7,8 +7,9 @@ filegroup(
     name = "manifests",
     srcs = glob([
         "*.yaml",
-        "scrape/*.yaml",
-        "rules/*.yaml",
+        "observe/*.yaml",
+        "observe/scrape/*.yaml",
+        "observe/rules/*.yaml",
         "dashboards/*.json",
     ]),
     visibility = ["//infra/platform:__pkg__"],

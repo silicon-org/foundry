@@ -20,17 +20,18 @@ KUSTOMIZE_ROOTS = [
     "infra/platform/clusters/hetzner",
     "infra/platform/clusters/local/arc",
     "infra/platform/monitoring",
+    "infra/platform/monitoring/observe",
 ]
 
 # Every PrometheusRule in the tree. Listed rather than globbed so that a file
-# added to monitoring/rules/ and forgotten here fails review rather than
+# added to monitoring/observe/rules/ and forgotten here fails review rather than
 # silently going unchecked.
 PROMETHEUS_RULES = [
-    "infra/platform/monitoring/rules/arc.yaml",
-    "infra/platform/monitoring/rules/buildbarn.yaml",
-    "infra/platform/monitoring/rules/capacity.yaml",
-    "infra/platform/monitoring/rules/cilium.yaml",
-    "infra/platform/monitoring/rules/flux.yaml",
+    "infra/platform/monitoring/observe/rules/arc.yaml",
+    "infra/platform/monitoring/observe/rules/buildbarn.yaml",
+    "infra/platform/monitoring/observe/rules/capacity.yaml",
+    "infra/platform/monitoring/observe/rules/cilium.yaml",
+    "infra/platform/monitoring/observe/rules/flux.yaml",
 ]
 
 sh_test(

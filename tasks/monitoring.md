@@ -509,7 +509,7 @@ Everything that can be built without a running stack is built and tested;
 boxes still open are all gates that need the stack deployed, plus M7's two-week
 measurement and M8's deliberate deferrals.
 
-Ten things turned out differently from the plan. Each was found by checking
+Eleven things turned out differently from the plan. Each was found by checking
 against the live cluster or the actual chart rather than against the
 documentation, and each would have been a silent failure.
 
@@ -574,6 +574,19 @@ documentation, and each would have been a silent failure.
     alerts all exist upstream. `rules/capacity.yaml` was cut down to the two
     things that are specific to this cluster: no schedulable worker, and memory
     limits on the worker climbing past 150% of the node.
+
+11. **A Kustomization cannot install the CRDs it also consumes.** Found by the
+    first real reconcile, not by any local check: kustomize-controller
+    server-side dry-runs an entire Kustomization before applying any of it, so
+    the PodMonitors and PrometheusRules failed the whole set on a kind that the
+    kube-prometheus-stack HelmRelease in the same directory is what creates.
+    Deadlock, and it fails only on a first install — which is exactly the case
+    no dry run here could reach, because the CRDs were absent locally too and
+    every local check had already accepted that as normal. Split into
+    `monitoring/` and `monitoring/observe/`, two Flux Kustomizations with
+    `dependsOn` and `wait: true` between them. Same shape as the Cilium trap one
+    level up: something that installs an API has to finish before the thing that
+    uses it starts.
 
 Smaller deviations worth recording:
 

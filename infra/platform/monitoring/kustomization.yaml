@@ -9,17 +9,13 @@ resources:
   - kube-prometheus-stack.yaml
   - loki.yaml
   - alloy.yaml
-  - scrape/buildbarn.yaml
-  - scrape/arc.yaml
-  - scrape/cilium.yaml
-  - scrape/flux.yaml
-  - scrape/bb-portal.yaml
-  - rules/buildbarn.yaml
-  - rules/arc.yaml
-  - rules/cilium.yaml
-  - rules/capacity.yaml
-  - rules/flux.yaml
   - networkpolicy.yaml
+# The ServiceMonitors, PodMonitors and PrometheusRules are deliberately not
+# here. They need CRDs that the HelmRelease above installs, and a Kustomization
+# is dry-run as a whole before any of it is applied -- so including them makes
+# the first install fail on a kind that this same Kustomization is what creates.
+# They live in observe/, applied by a second Flux Kustomization that waits for
+# this one. See observe/kustomization.yaml.
 configMapGenerator:
   - name: kube-prometheus-stack-values
     files:

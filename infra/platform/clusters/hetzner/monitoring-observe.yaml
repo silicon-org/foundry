@@ -1,0 +1,29 @@
+# The scrape objects and alert rules, split from the stack that serves them.
+#
+# Not an organisational preference -- a hard ordering constraint.
+# kustomize-controller dry-runs a whole Kustomization before applying any of it,
+# so one unknown kind fails the entire set. Every object under observe/ is a
+# monitoring.coreos.com/v1 kind whose CRD arrives from the kube-prometheus-stack
+# HelmRelease in the `monitoring` Kustomization -- which helm-controller
+# installs only after kustomize-controller has finished. Kept together they
+# deadlock on a first install; split, they simply queue.
+#
+# The `wait: true` on the monitoring Kustomization is what makes this work: it
+# does not report ready until the HelmReleases are, and a ready
+# kube-prometheus-stack means the CRDs exist.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: monitoring-observe
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/platform/monitoring/observe
+  prune: true
+  wait: true
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: monitoring

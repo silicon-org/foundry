@@ -11,3 +11,4 @@ resources:
   - bb-portal.yaml
   - arc.yaml
   - monitoring.yaml
+  - monitoring-observe.yaml

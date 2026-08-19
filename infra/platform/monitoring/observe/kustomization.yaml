@@ -1,0 +1,31 @@
+# Everything that is a monitoring.coreos.com/v1 object, and therefore everything
+# that cannot exist until the Prometheus operator's CRDs do.
+#
+# This is a separate Flux Kustomization from ../ for one reason, and it is not
+# tidiness. kustomize-controller server-side dry-runs an entire Kustomization
+# before applying any of it, so a single unknown kind fails the whole set. The
+# CRDs these objects need are installed by the kube-prometheus-stack HelmRelease
+# in ../ -- which helm-controller only reaches *after* kustomize-controller has
+# finished applying. In one Kustomization that is a deadlock, and it fails
+# exactly once, on the first install, with:
+#
+#   PodMonitor/monitoring/arc dry-run failed: no matches for kind "PodMonitor"
+#
+# ../../clusters/hetzner/monitoring-observe.yaml therefore depends on the
+# `monitoring` Kustomization with `wait: true`, so the operator is ready before
+# anything here is applied. Same shape as hcloud depending on cilium: the thing
+# that installs the API has to finish before the thing that uses it starts.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+resources:
+  - scrape/buildbarn.yaml
+  - scrape/arc.yaml
+  - scrape/cilium.yaml
+  - scrape/flux.yaml
+  - scrape/bb-portal.yaml
+  - rules/buildbarn.yaml
+  - rules/arc.yaml
+  - rules/cilium.yaml
+  - rules/capacity.yaml
+  - rules/flux.yaml

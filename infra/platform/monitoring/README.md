@@ -36,13 +36,20 @@ once that exists; until then a port-forward is the whole access story, and
 |---|---|---|
 | Kubernetes control plane | chart | Talos needs three machine-config settings first; see `../../talos/README.md`. |
 | Nodes | chart | node-exporter, which is why this namespace is PSS `privileged`. |
-| Buildbarn (all six) | `scrape/buildbarn.yaml` | A PodMonitor: the worker has no Service and remote-asset's exposes only gRPC. |
-| ARC controller + listener | `scrape/arc.yaml` | Off entirely without the `metrics:` block in `../arc/controller.yaml`. |
-| Cilium, Hubble | `scrape/cilium.yaml` | Ports enabled in `../cilium/values.yaml`; the scrape objects deliberately are not. |
-| Flux controllers | `scrape/flux.yaml` | `gotk-components.yaml` ships no monitor of its own. |
-| Buildbarn portal | `scrape/bb-portal.yaml` | Already served metrics on 9980; nothing was reading them. |
+| Buildbarn (all six) | `observe/scrape/buildbarn.yaml` | A PodMonitor: the worker has no Service and remote-asset's exposes only gRPC. |
+| ARC controller + listener | `observe/scrape/arc.yaml` | Off entirely without the `metrics:` block in `../arc/controller.yaml`. |
+| Cilium, Hubble | `observe/scrape/cilium.yaml` | Ports enabled in `../cilium/values.yaml`; the scrape objects deliberately are not. |
+| Flux controllers | `observe/scrape/flux.yaml` | `gotk-components.yaml` ships no monitor of its own. |
+| Buildbarn portal | `observe/scrape/bb-portal.yaml` | Already served metrics on 9980; nothing was reading them. |
 
-Components own their metrics ports; this directory owns every scrape object.
+`observe/` is a second Flux Kustomization rather than part of this one, and the
+reason is ordering: kustomize-controller dry-runs a whole Kustomization before
+applying any of it, so a single unknown kind fails the entire set — and the CRDs
+those objects need come from the HelmRelease in *this* directory, which
+helm-controller installs only after kustomize-controller has finished. Together
+they deadlock on a first install. Split, they queue.
+
+Components own their metrics ports; `observe/` owns every scrape object.
 That split is not stylistic. `../cilium/values.yaml` is also consumed by
 `bazel run //infra/platform/cilium:bootstrap`, which runs against a brand-new
 cluster with no CNI, no Flux and no Prometheus CRDs — a ServiceMonitor in there
@@ -57,7 +64,7 @@ signals that matter most are the two that do not exist as their obvious name:
 - **Cache hit rate** is a ratio over gRPC status codes, not a counter. A miss is
   `NotFound`, which is a legitimate answer rather than an error, so nothing
   counts it as one. See `buildbarn:action_cache_hit_rate:ratio30m` in
-  `rules/buildbarn.yaml`.
+  `observe/rules/buildbarn.yaml`.
 - **Queue depth** is not exported at all. What is exported is how long tasks
   waited, as a histogram — which is the number anyone actually wants.
 - **Worker count** is likewise a difference of two counters rather than a gauge.
@@ -84,8 +91,8 @@ secret. The candidates and what each costs: a Slack webhook (good formatting,
 easy to sleep through), ntfy or Pushover (actually wakes someone, needs a phone
 app), SMTP (universal, and deliverability from a Hetzner IP is its own project).
 
-`rules/capacity.yaml` covers only what the chart does not. kube-prometheus-stack
-already ships `KubePersistentVolumeFillingUp`, `KubeNodeNotReady` and the
+`observe/rules/capacity.yaml` covers only what the chart does not.
+kube-prometheus-stack already ships `KubePersistentVolumeFillingUp`, `KubeNodeNotReady` and the
 node-exporter alerts; restating those here would not add coverage, it would add
 a second copy that drifts and a second page for the same event.
 
@@ -121,5 +128,5 @@ The sequence, deliberately in this order: ship co-tenant, run for two weeks,
 record actual RSS and ingestion rate and volume growth, then size a small
 `infra` node in `infra/tofu` and `talconfig.yaml` from data. A node bought before
 the measurement is a guess with a monthly bill; the same node bought after is a
-sized decision. `FoundryWorkerMemoryOvercommitted` in `rules/capacity.yaml` is
-the signal that the wait is over.
+sized decision. `FoundryWorkerMemoryOvercommitted` in
+`observe/rules/capacity.yaml` is the signal that the wait is over.

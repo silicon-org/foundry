@@ -2,10 +2,18 @@
 # Opens the ports a developer needs against one of the clusters, and holds them
 # until interrupted.
 #
-# Usage (from //infra/platform/buildbarn:tunnel-local | :tunnel-hetzner):
-#   tunnel.sh <kubectl-rlocationpath> <context-or-kubeconfig> <label> <spec...>
+# Lives here rather than in buildbarn/ because two packages now use it -- the
+# cache tunnels and the monitoring one. It is cluster access tooling, not a
+# Buildbarn detail, and one copy is the only way the two stay in step about
+# which kubeconfig belongs to which cluster.
 #
-# Each spec is "namespace/service:localport:remoteport".
+# Usage (from //infra/platform/buildbarn:tunnel-local | :tunnel-hetzner, or
+# //infra/platform/monitoring:tunnel-hetzner):
+#   tunnel.sh <kubectl-rlocationpath> <context-or-kubeconfig> <label> <hint> <spec...>
+#
+# Each spec is "namespace/service:localport:remoteport". <hint> is the one line
+# printed once the tunnels are up, which differs by what they are for: a cache
+# tunnel wants a --config to build with, a dashboard tunnel wants a URL.
 
 # --- begin runfiles.bash initialization v3 ---
 set -uo pipefail
@@ -25,7 +33,8 @@ set -euo pipefail
 kubectl="$(rlocation "$1")"
 target="$2"
 label="$3"
-shift 3
+hint="$4"
+shift 4
 
 if [[ -z "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
   echo >&2 "ERROR: use 'bazel run' -- the Hetzner kubeconfig is read from the source tree."
@@ -72,5 +81,5 @@ for p in "${pids[@]}"; do
 done
 
 echo >&2
-echo >&2 "Ready. Build with --config=${label}-dev. Ctrl-C to close."
+echo >&2 "Ready. ${hint} Ctrl-C to close."
 wait

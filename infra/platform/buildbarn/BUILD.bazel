@@ -41,11 +41,12 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 [
     sh_binary(
         name = "tunnel-" + cluster,
-        srcs = ["tunnel.sh"],
+        srcs = ["//infra/platform:tunnel.sh"],
         args = [
             "$(rlocationpath @multitool//tools/kubectl)",
             target,
             cluster,
+            "Build with --config=" + cluster + "-dev.",
         ] + specs,
         data = ["@multitool//tools/kubectl"],
         deps = ["@bazel_tools//tools/bash/runfiles"],

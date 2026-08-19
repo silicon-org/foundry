@@ -1,5 +1,8 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
+# Shared by the tunnel targets in buildbarn/ and monitoring/. See tunnel.sh.
+exports_files(["tunnel.sh"])
+
 # Every directory holding a kustomization.yaml. Flux renders these at reconcile
 # time; this renders them at commit time, where a failure is attached to the
 # change that caused it.

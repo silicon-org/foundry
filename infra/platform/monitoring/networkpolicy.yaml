@@ -47,6 +47,19 @@ spec:
             dns:
               - matchPattern: "*"
 
+    # CoreDNS's own metrics, which are a different port on the same pods and are
+    # therefore easy to leave out of the rule above. kube-prometheus-stack ships
+    # a ServiceMonitor for them, so omitting this does not lose a metric quietly
+    # -- it produces two permanently-down targets, which is the failure mode this
+    # whole deployment exists to stop tolerating.
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "9153", protocol: TCP}
+
     # The API server. Every component here watches it: the operator for
     # ServiceMonitors, Prometheus for service discovery, the Grafana sidecars
     # for dashboard ConfigMaps, Alloy for the pods on its node.

@@ -1,0 +1,24 @@
+# Verification IP that no protocol owns.
+#
+# See //hardware/vip/README.md for the layering. Everything here is shared by
+# the CHI, AXI and TileLink agents, and anything that is not shared belongs one
+# level down.
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# The --timing evaluation loop, and the one symbol Verilator's runtime wants
+# that a testbench would otherwise define for itself.
+#
+# No dependency on the Verilated runtime, deliberately. rules_verilator builds
+# one runtime for timing-enabled models and one for the rest, from the same
+# target under two configurations, and a library that named either would drag
+# the wrong one into half the testbenches here. sim_main.h gets verilated.h from
+# whichever verilator_cc_library the test depends on; sim_main.cc needs no
+# Verilator header at all.
+cc_library(
+    name = "sim_main",
+    srcs = ["sim_main.cc"],
+    hdrs = ["sim_main.h"],
+)

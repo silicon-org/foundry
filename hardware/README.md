@@ -1,14 +1,18 @@
 # Hardware
 
-Designs, and the third-party IP they build on.
+Designs, the IP they build on, and the agents that verify them.
 
 ```
 hardware/
-  ip/           third-party IP, integrated but not vendored
-    common_cells/
-    xiangshan/   a generator rather than RTL; see below
+  ip/           IP we build on
+    common_cells/  third-party, integrated but not vendored
+    xiangshan/     third-party, a generator rather than RTL; see below
+    chi/           ours: the CHI package the designs and the agents share
   soc/          our own designs
     xs_cluster/  a XiangShan core and its L2, wrapped for integration
+  vip/          verification IP: reusable bus agents; see vip/README.md
+    common/
+    chi/
 ```
 
 ## How third-party IP is integrated
@@ -25,6 +29,15 @@ label, so the integration is visible in the label.
 
 Only what is actually used gets a target. Adding a cell should be a decision
 someone made, not a side effect of a glob.
+
+### The one exception
+
+`//hardware/vip/chi/chiron` is a copy. It is a 700 KB subset of a 13 MB
+header-only library, we carry two patches against it, and the reasoning is
+written out in that directory's `PROVENANCE.md` rather than summarised here.
+`refresh.sh` beside it re-copies from a named commit and re-applies the patches,
+so verifying the copy against upstream is one command and a diff. If a second
+exception is ever proposed, that file is the bar it has to clear.
 
 ## When the IP is a generator
 

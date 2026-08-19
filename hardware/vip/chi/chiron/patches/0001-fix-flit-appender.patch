@@ -1,0 +1,61 @@
+Fix FlitAppender, so that Serialize{REQ,RSP,DAT,SNP} produce a correct flit.
+
+Three defects, all in Append32, and together they mean serialization has never
+worked -- the assert in Finish() fires on the first flit. Only deserialization
+was ever tested: it arrived in RISMicroDevices/CHIron#1, the one human-authored
+pull request the repository has merged.
+
+  1. `offset` is never advanced for a field that does not cross a word
+     boundary. There is no `else` branch. Every such field is therefore written
+     on top of the previous one at the same bit position.
+
+  2. `index` is advanced twice when a field does cross, once by the `++index`
+     inside the subscript and once by the statement after it, so the writer
+     skips a whole 32-bit word.
+
+  3. `0xFFFFFFFFU >> (32 - rem)` is undefined behaviour when `rem == 0`, which
+     is every field that ends exactly on a word boundary.
+
+The masking of `value` moves ahead of both uses so the spill shifted into the
+next word is masked too, and the `width == 0` guard covers the optional fields
+whose width the configuration can set to zero -- DataCheck, Poison and MPAM.
+
+Worth sending upstream.
+
+--- a/include/chi/util/chi_util_flit.hpp	2026-08-19 10:04:00
++++ b/include/chi/util/chi_util_flit.hpp	2026-08-19 10:04:00
+@@ -484,16 +484,30 @@
+ 
+                 inline void Append32(uint32_t value, size_t width) noexcept
+                 {
+-                    flitBits[index] |= (value & (0xFFFFFFFFU >> (32 - width))) << offset;
++                    if (width == 0)
++                        return;
+ 
++                    value &= (width >= 32) ? 0xFFFFFFFFU : ((UINT32_C(1) << width) - 1);
++
++                    flitBits[index] |= value << offset;
++
+                     if (offset + width >= 32)
+                     {
+                         size_t rem = offset + width - 32;
+ 
+-                        flitBits[++index] = (value >> (32 - offset)) & (0xFFFFFFFFU >> (32 - rem));
+-
+-                        ++index;
++                        // Assignment rather than |=, so that the word the next field
++                        // starts in is initialised exactly once. This is the only path
++                        // that advances `index`, so every word is reached by it -- and
++                        // the caller must supply one word of slack beyond
++                        // ceil(WIDTH / 32) for the case where the last field ends on a
++                        // word boundary.
++                        flitBits[++index] = (offset == 0) ? 0U : (value >> (32 - offset));
++
+                         offset = rem;
++                    }
++                    else
++                    {
++                        offset += width;
+                     }
+                 }
+ 

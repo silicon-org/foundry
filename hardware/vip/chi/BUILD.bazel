@@ -1,0 +1,18 @@
+# CHI verification IP.
+#
+# See //hardware/vip/README.md for the layering this package sits in: this is
+# the protocol half, and the interface half is the SystemVerilog under rtl/.
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# The link configuration, the four width assertions, and pack/unpack.
+#
+# Everything else in this package and every testbench depends on this rather
+# than on CHIron directly, so that the configuration is written once.
+cc_library(
+    name = "chi_flit",
+    hdrs = ["chi_flit.h"],
+    deps = ["//hardware/vip/chi/chiron"],
+)

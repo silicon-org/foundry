@@ -1,0 +1,131 @@
+Fix DeserializeREQ and DeserializeSNP dropping the top of Addr, and read every
+multi-word field in a defined order.
+
+Both address readers are written as
+
+    flit.Addr() = uint64_t(walker.Walk32())
+                | uint64_t(walker.Walk32(ADDR_WIDTH - 32));
+
+with no shift on the second half, so the high 16 bits of a REQ address and the
+high 13 of a SNP address are OR-ed on top of the low ones. A request for
+0x0000abcdef012345 decodes as 0x00000000ef01abcd. Every other multi-word field
+in the file -- BE, the eight Data words, DataCheck -- has the `<< 32`, so this
+is two sites and not a convention.
+
+The same two lines have a second problem the others share: the operands of `|`
+are unsequenced, so which call to Walk32 reads the low word is the compiler's
+choice rather than the program's. It happens to come out right today.
+
+Both are fixed by routing all twelve reads through one `Walk64` helper next to
+the walker, which reads low then high as two statements. Going through a single
+function is also what makes a missing shift impossible to reintroduce.
+
+Worth sending upstream, with the appender fix.
+
+--- a/include/chi/util/chi_util_flit.hpp	2026-08-19 10:11:47
++++ b/include/chi/util/chi_util_flit.hpp	2026-08-19 10:11:47
+@@ -461,6 +461,21 @@
+                     assert(index * 32 + offset == width);
+                 }
+             };
++
++            /*
++            Read a field wider than 32 bits, low word first.
++
++            The obvious spelling -- Walk32() | (Walk32() << 32) -- leaves the two calls
++            unsequenced, so which half of the field each one returns is up to the
++            compiler. Splitting it into two statements is what makes the order part of
++            the program rather than of the build.
++            */
++            inline uint64_t Walk64(FlitWalker& walker, size_t hiWidth = 32) noexcept
++            {
++                uint64_t lo = walker.Walk32();
++                uint64_t hi = walker.Walk32(hiWidth);
++                return lo | (hi << 32);
++            }
+             
+             /*
+             Flit appender.
+@@ -552,8 +567,7 @@
+         //  flit.StashLPIDValid()
+             flit.Opcode()           = walker.Walk32(REQ_t::OPCODE_WIDTH);
+             flit.Size()             = walker.Walk32(REQ_t::SSIZE_WIDTH);
+-            flit.Addr()             = uint64_t(walker.Walk32())
+-                                    | uint64_t(walker.Walk32(REQ_t::ADDR_WIDTH - 32));
++            flit.Addr() = details::Walk64(walker, REQ_t::ADDR_WIDTH - 32);
+             flit.NS()               = walker.Walk32(REQ_t::NS_WIDTH);
+             flit.LikelyShared()     = walker.Walk32(REQ_t::LIKELYSHARED_WIDTH);
+             flit.AllowRetry()       = walker.Walk32(REQ_t::ALLOWRETRY_WIDTH);
+@@ -664,8 +678,7 @@
+         //  flit.StashLPIDValid()
+         //  flit.VMIDExt()
+             flit.Opcode()           = walker.Walk32(SNP_t::OPCODE_WIDTH);
+-            flit.Addr()             = uint64_t(walker.Walk32())
+-                                    | uint64_t(walker.Walk32(SNP_t::ADDR_WIDTH - 32));
++            flit.Addr() = details::Walk64(walker, SNP_t::ADDR_WIDTH - 32);
+             flit.NS()               = walker.Walk32(SNP_t::NS_WIDTH);
+             flit.DoNotGoToSD()      = walker.Walk32(SNP_t::DONOTGOTOSD_WIDTH);
+ #ifdef CHI_ISSUE_B_ENABLE
+@@ -732,8 +745,7 @@
+ 
+             if constexpr (DAT_t::BE_WIDTH == 64)
+             {
+-                flit.BE()           =  uint64_t(walker.Walk32())
+-                                    | (uint64_t(walker.Walk32()) << 32);
++                flit.BE() = details::Walk64(walker);
+             }
+             else
+             {
+@@ -742,43 +754,34 @@
+ 
+             if constexpr (DAT_t::DATA_WIDTH >= 128)
+             {
+-                flit.Data()[0]      =  uint64_t(walker.Walk32())
+-                                    | (uint64_t(walker.Walk32()) << 32);
++                flit.Data()[0] = details::Walk64(walker);
+                 
+-                flit.Data()[1]      =  uint64_t(walker.Walk32())
+-                                    | (uint64_t(walker.Walk32()) << 32);
++                flit.Data()[1] = details::Walk64(walker);
+             }
+ 
+             if constexpr (DAT_t::DATA_WIDTH >= 256)
+             {
+-                flit.Data()[2]      =  uint64_t(walker.Walk32())
+-                                    | (uint64_t(walker.Walk32()) << 32);
++                flit.Data()[2] = details::Walk64(walker);
+                 
+-                flit.Data()[3]      =  uint64_t(walker.Walk32())
+-                                    | (uint64_t(walker.Walk32()) << 32);
++                flit.Data()[3] = details::Walk64(walker);
+             }
+ 
+             if constexpr (DAT_t::DATA_WIDTH >= 512)
+             {
+-                flit.Data()[4]      =  uint64_t(walker.Walk32())
+-                                    | (uint64_t(walker.Walk32()) << 32);
++                flit.Data()[4] = details::Walk64(walker);
+                 
+-                flit.Data()[5]      =  uint64_t(walker.Walk32())
+-                                    | (uint64_t(walker.Walk32()) << 32);
++                flit.Data()[5] = details::Walk64(walker);
+ 
+-                flit.Data()[6]      =  uint64_t(walker.Walk32())
+-                                    | (uint64_t(walker.Walk32()) << 32);
++                flit.Data()[6] = details::Walk64(walker);
+                 
+-                flit.Data()[7]      =  uint64_t(walker.Walk32())
+-                                    | (uint64_t(walker.Walk32()) << 32);
++                flit.Data()[7] = details::Walk64(walker);
+             }
+ 
+             if constexpr (DAT_t::hasDataCheck)
+             {
+                 if constexpr (DAT_t::DATACHECK_WIDTH == 64)
+                 {
+-                    flit.DataCheck()    =  uint64_t(walker.Walk32())
+-                                        | (uint64_t(walker.Walk32()) << 32);
++                    flit.DataCheck() = details::Walk64(walker);
+                 }
+                 else
+                 {

@@ -18,5 +18,8 @@ verilog_library(
     name = "xs_cluster",
     srcs = ["xs_cluster.sv"],
     top_module = "xs_cluster",
-    deps = ["//hardware/ip/xiangshan:xsnoctop"],
+    deps = [
+        "//hardware/ip/chi:chi_pkg",
+        "//hardware/ip/xiangshan:xsnoctop",
+    ],
 )

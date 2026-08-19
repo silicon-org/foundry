@@ -1,0 +1,8 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "chi_flit_test",
+    size = "small",
+    srcs = ["chi_flit_test.cc"],
+    deps = ["//hardware/vip/chi:chi_flit"],
+)

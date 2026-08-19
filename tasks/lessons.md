@@ -104,3 +104,38 @@ more time than it should have.
   difftest *after* writing its output. Running it by hand outside the Bazel rule
   therefore produces complete artifacts and a non-zero exit, which is a good way
   to believe a build failed when it did not, or to miss that it did.
+
+## Verification
+
+- CHIron's flit serializer has never worked. `FlitAppender::Append32` omits the
+  `else` that advances `offset`, so every field that does not cross a word
+  boundary is written on top of the previous one; the crossing path advances
+  `index` twice; and the mask shifts by 32 when a field ends on a boundary. The
+  function's own `Finish()` assertion catches it on the first flit, which is
+  how you find out. `Deserialize*` is fine -- it came in the one human-authored
+  pull request the repository has merged, and the rest is unexercised. Assume
+  the same of anything else there until a test says otherwise.
+
+- Two of CHIron's twelve multi-word reads drop the `<< 32` on the high half, so
+  a REQ or SNP address decodes with its top bits OR-ed over its bottom ones.
+  General lesson: when the same idiom appears a dozen times and two of them
+  differ, the two are wrong, and routing all twelve through one helper is worth
+  more than fixing the two.
+
+- A round-trip test is weak on its own -- a packer and an unpacker wrong in the
+  same way agree with each other. Pin the bit positions first, from an
+  independent table, by setting one field to all ones and requiring exactly
+  that range to come out set. Both CHIron bugs above survived a round trip
+  during development and died to the position sweep.
+
+- The `--timing` flag is what lets the clock live in SystemVerilog, and
+  rules_verilator responds to it by compiling the generated model at
+  `-std=c++20` whatever the rest of the build uses. Two halves of one binary at
+  two standards is not a configuration worth having, so `--timing` effectively
+  decides the repository's C++ standard.
+
+- CHIron's headers are CRLF. Rewriting one with Python's `read_text()` /
+  `write_text()` silently normalises the whole file to LF and turns a six-line
+  patch into a 1900-line diff. Vendored third-party files get edited in binary
+  mode.
+

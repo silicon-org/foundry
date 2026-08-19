@@ -1,0 +1,30 @@
+# CHIron's Issue-E.b flit layer, vendored.
+#
+# See PROVENANCE.md for what is here, what was left out, and why this directory
+# breaks the repository's rule about not copying third-party sources.
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//hardware/vip/chi:__subpackages__"])
+
+licenses(["notice"])
+
+exports_files(["LICENSE"])
+
+# Only the chi_eb/ entry points are named as headers a dependent may include.
+# The chi/ files underneath are `textual_hdrs`: they have no include guard of
+# their own, they are included more than once by design, and including one
+# directly -- without the wrapper that defines CHI_ISSUE_EB_ENABLE and opens
+# namespace CHI::Eb -- produces a translation unit that compiles and means
+# something else. Splitting them this way makes the layering checkable rather
+# than conventional.
+cc_library(
+    name = "chiron",
+    hdrs = glob(["include/chi_eb/**/*.hpp"]),
+    includes = ["include"],
+    textual_hdrs = glob([
+        "include/chi/**/*.hpp",
+        "include/common/**/*.hpp",
+    ]),
+    visibility = ["//visibility:public"],
+)

@@ -1,7 +1,13 @@
 # Everything in this repository is deployed by Flux, so a Kustomization that has
-# been failing to reconcile for an hour is a change that was committed,
+# been failing to reconcile for half an hour is a change that was committed,
 # reviewed, merged -- and never applied. Git shows it as done. Nothing else
 # does.
+#
+# These read gotk_resource_info, which comes from kube-state-metrics rather than
+# from Flux: see ../../values-flux-metrics.yaml. Flux 2.9 publishes no readiness
+# metric of its own. The obvious name, gotk_reconcile_condition, existed once
+# and does not now -- rules written against it pass promtool, load into
+# Prometheus without complaint, and never fire.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -12,30 +18,51 @@ spec:
     - name: flux
       rules:
         - alert: FluxReconciliationFailing
+          # `ready` is a label rather than a value, so this counts resources
+          # carrying ready="False" instead of comparing a gauge.
           expr: |
-            max by (exported_namespace, name, kind) (
-              gotk_reconcile_condition{type="Ready",status="False"}
+            max by (exported_namespace, name, customresource_kind) (
+              gotk_resource_info{ready="False"}
             ) == 1
           for: 30m
           labels:
             severity: critical
           annotations:
-            summary: "{{ $labels.kind }}/{{ $labels.name }} has not reconciled for 30 minutes"
+            summary: "{{ $labels.customresource_kind }}/{{ $labels.name }} has not reconciled for 30 minutes"
             description: >-
               `flux get all -A` for the status, `flux logs --level=error` for
-              the reason. Until this clears, what is running does not match what
-              is in git.
+              the reason. Until this clears, what is running does not match
+              what is in git.
 
         - alert: FluxSuspended
           # Suspending is a legitimate thing to do while debugging and an easy
           # thing to forget. A day is long enough for the former and short
           # enough to catch the latter.
-          expr: max by (exported_namespace, name, kind) (gotk_suspend_status) == 1
+          expr: |
+            max by (exported_namespace, name, customresource_kind) (
+              gotk_resource_info{suspended="true"}
+            ) == 1
           for: 24h
           labels:
             severity: warning
           annotations:
-            summary: "{{ $labels.kind }}/{{ $labels.name }} has been suspended for a day"
+            summary: "{{ $labels.customresource_kind }}/{{ $labels.name }} has been suspended for a day"
             description: >-
-              Resume it with `flux resume {{ $labels.kind | toLower }}
+              Resume it with `flux resume {{ $labels.customresource_kind | toLower }}
               {{ $labels.name }}`, or delete it if it is not meant to come back.
+
+        - alert: FluxControllerErrors
+          # A different question from the two above, and worth asking
+          # separately: those say a resource is unhealthy, this says a
+          # controller is failing to process work at all. Both can be true, and
+          # either can be true alone.
+          expr: |
+            sum by (controller) (rate(controller_runtime_reconcile_errors_total{namespace="flux-system"}[10m])) > 0.2
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "The {{ $labels.controller }} controller is erroring on reconcile"
+            description: >-
+              Sustained reconcile errors. If no individual resource is alerting,
+              suspect credentials, rate limits, or the API server.

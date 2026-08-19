@@ -20,6 +20,12 @@ spec:
     - kind: ConfigMap
       name: kube-prometheus-stack-values
       valuesKey: values-kube-prometheus-stack.yaml
+    # Split out because it is 350 lines of kube-state-metrics custom-resource
+    # config that says nothing about this stack -- it is how Flux's own
+    # readiness becomes a metric at all. Merged over the file above, in order.
+    - kind: ConfigMap
+      name: flux-metrics-values
+      valuesKey: values-flux-metrics.yaml
   install:
     createNamespace: false
     # These CRDs are the reason nobody should install this chart by hand. The

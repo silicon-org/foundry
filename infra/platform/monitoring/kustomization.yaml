@@ -34,6 +34,10 @@ configMapGenerator:
     namespace: monitoring
     files:
       - values-kube-prometheus-stack.yaml
+  - name: flux-metrics-values
+    namespace: monitoring
+    files:
+      - values-flux-metrics.yaml
   - name: loki-values
     namespace: monitoring
     files:

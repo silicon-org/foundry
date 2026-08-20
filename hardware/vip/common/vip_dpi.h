@@ -3,8 +3,9 @@
 // A test is the SystemVerilog: the program it loads, the address it waits on and
 // the value it expects belong in one file with the clock and the design, not
 // split between that file and a C++ main nobody looks at twice. So the memory is
-// created, filled and watched over DPI, and the only C++ a testbench needs is
-// the evaluation loop every testbench shares.
+// created, filled and watched over DPI, and a testbench needs no C++ of its own
+// at all -- Verilator's `--main` generates the evaluation loop, and the verdict
+// crosses back through vip_test_done/vip_test_failed.
 
 #ifndef HARDWARE_VIP_COMMON_VIP_DPI_H_
 #define HARDWARE_VIP_COMMON_VIP_DPI_H_

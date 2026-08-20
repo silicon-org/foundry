@@ -28,14 +28,12 @@ module xs_cluster_tb #(
   // question.
   parameter time ClkHalfPeriod = 1ns,
 
-  // Cycles held in reset, and cycles run afterwards. Both are small: the
-  // cluster has no memory behind its CHI port yet, so once the core has asked
-  // for its first instruction and been ignored, nothing further happens.
   parameter int unsigned ResetCycles = 20,
 
-  // Generous. The program is four instructions, but the core has to come out of
-  // reset, fill a pipeline and fetch a line over a link that is being brought up
-  // at the same time.
+  // Generous. The program is six instructions and the run ends around cycle
+  // 1120, but almost all of that is before the core does anything: CoupledL2
+  // walks its whole directory to clear it, so the first fetch does not leave the
+  // cluster until about cycle 1050.
   parameter int unsigned RunCycles = 4000,
 
   // Bringing the link up is a handshake and a few credits, so if it has not
@@ -298,24 +296,13 @@ module xs_cluster_tb #(
   ////////////////////////////////////////////////////////////////////////////////////////////////
   // What this testbench establishes
   //
-  // That the cluster comes out of reset, brings both directions of its CHI link
-  // up, asks for the line its reset vector is in, and is served that line by the
-  // home node in //hardware/vip/chi. Everything between the pins and the memory
-  // is exercised: the credit layer, the DPI boundary, the flit encodings and the
-  // protocol model.
+  // The cluster leaves reset, brings its CHI link up, fetches its reset vector
+  // over it and executes the program it is served, ending with the store to
+  // ToHost. That covers the credit layer, the DPI boundary, the flit encodings
+  // and the protocol model.
   //
-  // What it does *not* yet establish is that the core executes what it was
-  // served. It does not: about thirty-five cycles after its first line arrives
-  // the core raises critical_error_o, and it does so at the same cycle whatever
-  // the program is -- including a memory filled entirely with jump-to-self, which
-  // cannot trap. The cause is a trap taken while mnstatus.NMIE is still zero,
-  // which the Smrnmi extension makes a critical error rather than a trap;
-  // reg_NMIE resets to zero in the generated RTL and only software can set it.
-  // Which trap, and what a XiangShan core needs done before its first
-  // instruction, is the next thing to find out -- see tasks/xs-cluster-tb.md.
-  //
-  // The trace-encoder port is brought out of the wrapper for exactly that
-  // investigation, and the assertions below are what a longer run will need.
+  // Executing at all took one field: the home node was leaving CHI DataCheck at
+  // zero and CoupledL2 checks it. See tasks/xs-cluster-tb.md.
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
   int unsigned cycle;
@@ -381,8 +368,8 @@ module xs_cluster_tb #(
       $fatal(1, "the home node was sent %0d requests it does not implement",
              chi_hn_unsupported(home_node));
 
-    vip_test_pass($sformatf("the CHI link came up and the core fetched %0d lines",
-                            chi_hn_reads(home_node)));
+    // Not the end of the test: being served a line says nothing about whether
+    // the core runs it. The ToHost watchpoint above is what ends the run.
   end
 
   always_ff @(posedge clk) begin

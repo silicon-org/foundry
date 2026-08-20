@@ -175,6 +175,34 @@ void ReadEchoesIdentifiers() {
   ExpectEq("read: RespErr", sent.dat[0].RespErr(), RespErrs::OK);
 }
 
+// Pins the bug that cost a day: DataCheck left at zero reads as even parity, so
+// CoupledL2 marked every line corrupt. The symptom was a hardware-error
+// exception in a 1868-module simulation; the cause is checkable in milliseconds.
+void CompDataCarriesOddByteParity() {
+  Fixture f;
+  f.node.NextReq(MakeReq(ReqOp::ReadNotSharedDirty, kBase, kLineBytes, 0x777, false));
+  const Sent sent = Drain(f.node);
+  if (sent.dat.size() != 2) {
+    Fail("DataCheck: expected two beats");
+    return;
+  }
+
+  for (unsigned beat = 0; beat < sent.dat.size(); ++beat) {
+    const Dat& flit = sent.dat[beat];
+    std::uint64_t want = 0;
+    for (unsigned i = 0; i < kBeatBytes; ++i) {
+      const auto byte = static_cast<std::uint8_t>(flit.Data()[i / 8] >> ((i % 8) * 8));
+      // Odd parity over {byte, bit}.
+      if (__builtin_parity(byte) == 0) want |= std::uint64_t{1} << i;
+    }
+    ExpectEq("DataCheck: odd parity over beat " + std::to_string(beat),
+             static_cast<std::uint64_t>(flit.DataCheck()), want);
+    // And nothing claims the bytes were already corrupt upstream.
+    ExpectEq("Poison: clear on beat " + std::to_string(beat),
+             static_cast<std::uint64_t>(flit.Poison()), 0);
+  }
+}
+
 // A read the requester may cache gets UC; one it may not gets I. Handing UC to a
 // ReadOnce would invite the requester to keep a line it is not allowed to.
 void ReadRespDependsOnTheOpcode() {
@@ -419,6 +447,7 @@ void NoSnoopsAreEverSent() {
 int main() {
   FullLineReadIsTwoBeats();
   ReadEchoesIdentifiers();
+  CompDataCarriesOddByteParity();
   ReadRespDependsOnTheOpcode();
   SubBeatReadIsOneBeatWithTheRightDataId();
   CompAckRetiresTheTransaction();

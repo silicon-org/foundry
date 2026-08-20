@@ -162,31 +162,64 @@ simulator-free C++ protocol model. See `//hardware/vip/README.md`.
       cycle 199, the core asks for the line its reset vector is in at cycle
       1048, and the home node serves it. The thousand-cycle wait is CoupledL2
       walking its directory to clear it, not the core being slow.
+- [x] **No C++ in any testbench directory.** Verilator's `--main` generates the
+      `--timing` evaluation loop, and at 5.046 it generates precisely the one
+      `sim_main.h` used to hand-write. Three `main()` files deleted; the
+      `cc_test` targets carry no `srcs` at all. The verdict moved into the
+      SystemVerilog with it -- a generated `main` always returns zero, so
+      `vip_test_failed()` is a new DPI import and `$fatal` is what fails a run.
+      Proved by planting a watchpoint that could not be satisfied and watching
+      Exit 1 come back. What is left of `//hardware/vip/common:sim_main` is the
+      `sc_time_stamp()` link stub, renamed `:verilated_shims`.
 
-### Open: the core does not execute what it is served
+### Resolved: the core does not execute what it is served
 
-About thirty-five cycles after its first line arrives, the core raises
-`critical_error_o`. What is established:
+**One field: CHI `DataCheck`.** The home node never wrote it, and CoupledL2
+checks it. `RXDAT` in the generated RTL computes, for each of the thirty-two
+bytes of a beat:
 
-- The line delivered is correct. At the pins, the first beat of the reset-vector
-  line reads `00000013 00000013 0000006f` -- the program, in order.
-- It is not the program. The failure is at the same cycle for a six-instruction
-  program, a three-instruction one, and a memory filled entirely with
-  jump-to-self, which cannot trap.
-- It is not the timer, and not the reset length. Holding `time_valid_i` low
-  changes nothing; holding reset for 2000 cycles instead of 20 changes nothing.
-- `bus_error_o` and `wfi_o` are low throughout, and the core is out of reset
-  from cycle 31.
-- The mechanism is `criticalErrorStateInCSR = ~mnstatus.NMIE & trap_valid` in
-  the generated RTL, and `reg_NMIE` resets to zero. Under Smrnmi that makes
-  *any* trap a critical error until software sets it, so what is needed is the
-  trap, not the mechanism.
-- The trace-encoder port produces nothing before the failure, so the core
-  retires no instruction at all.
+```systemverilog
+corrupt |= DataCheck[i] ^ ~^data[8*i+7 : 8*i]
+```
 
-Next: find the trap. The trace port is out of the wrapper for this; the
-remaining lever is a waveform on the front end, or finding what XiangShan's own
-boot sequence does before its first instruction.
+which is CHI's odd parity per byte. Leaving the field zero is not "not using
+it" -- it asserts *even* parity for every byte, which is wrong for any byte
+whose parity bit should be one, `0x00` among them. So `corrupt` was 1 from time
+zero, every line the L2 was served was marked corrupt, TileLink carried
+`d.corrupt` to the L1I, and the core raised a hardware-error exception
+(`ExceptionNO 19`) on the first instruction it fetched. `mnstatus.NMIE` is zero
+out of reset, so Smrnmi turned that trap into a critical error -- which is why
+the symptom was `critical_error_o` at a fixed cycle whatever the program was.
+
+The fix is `DataCheckOf()` in `//hardware/vip/chi/chi_home_node.cc`, three
+lines. The run now ends the way it was always meant to:
+
+```
+xs_cluster_tb: CHI link running at cycle 199
+xs_cluster_tb: the core fetched its reset vector at cycle 1048
+[trace 1085] group 0: pc=00080000002 itype=0 iretire=8 priv=3
+[vip] done: 0x20000000 was written 0x1
+xs_cluster_tb: done at cycle 1120
+```
+
+**How it was found**, because the method generalises. Nothing about the symptom
+pointed at the home node -- five earlier hypotheses had been eliminated by
+changing the program, the reset length and the timer, and all that established
+was that the core was not at fault. What found it was one FST of the failing run
+and walking the corrupt bit backwards through the hierarchy:
+
+| where | what |
+|---|---|
+| `NewCSR.io_fromRob_trap_valid` | one trap in the whole run, at pc `0x8000_0000` |
+| `io_robio_exception_bits_exceptionVec_19` | hardware error, not a page fault or an access fault |
+| `frontend.io_backend_cfVec_0_...` | it arrives *from the frontend*, with the fetched instruction |
+| `icache.mainPipe.s1_tlCorrupt_r` | TileLink `d.corrupt` on the refill |
+| `l2cache.slices_0.mshrCtl.mshrs_0.corrupt` | the L2 set it, and `denied` never fires |
+| `mshrs_0.io_resps_rxdat_bits_corrupt` | **constant 1 from t=0** -- not an event, a stuck signal |
+| `RXDAT.io_in_respInfo_corrupt` in the RTL | the parity expression above |
+
+The step that mattered was the second-to-last, and it was nearly missed: a
+search for "when does this rise" finds nothing on a signal that was never zero.
 
 ## M7 — Checking, properly
 

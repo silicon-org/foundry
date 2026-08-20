@@ -106,6 +106,22 @@ in a design.
 remotely on the x86 cluster, but not on the arm64 one. `espresso` is built from
 source precisely so it does not add a second such constraint.
 
+## Waveform debugging
+
+**`tsunami-serve`** is pinned like every other CLI here. It is the query engine
+behind the MCP server in `//.mcp.json`, so `bazel run //tools:bazel_env` is what
+puts a working waveform tool on `PATH`:
+
+```
+bazel run //hardware/soc/xs_cluster/tb:xs_cluster_tb_traced -- +dump +dumpfile=/tmp/xs.fst
+```
+
+then ask the `tsunami` MCP server to open `/tmp/xs.fst`.
+
+Upstream published no binaries until
+[zarubaf/tsunami#3](https://github.com/zarubaf/tsunami/pull/3); the Linux builds
+are static musl, so the pin has no glibc floor and runs on the Talos workers.
+
 ## What is deliberately not pinned here
 
 **`tailscale`.** Tailscale publishes no CLI binaries on GitHub releases; Linux

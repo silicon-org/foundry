@@ -32,6 +32,8 @@ TOOLS = {
     "talhelper": ["--version"],
     "talosctl": ["version", "--client", "--short"],
     "tofu": ["version"],
+    # Waveform query engine the debugging agents drive over MCP; see //.mcp.json.
+    "tsunami-serve": ["--version"],
 }
 
 def tool_label(name):

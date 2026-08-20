@@ -32,6 +32,10 @@ verilator_cc_library(
         # run out of memory. Splitting costs nothing at this scale.
         "--output-split",
         "20000",
+        # Verilator writes main() and the --timing loop, so no C++ lives here and the
+        # testbench is portable SystemVerilog. It decides no verdict, though, so the
+        # testbench asks vip_test_failed() and calls $fatal itself.
+        "--main",
         # Under investigation: the model does not settle at the default limit
         # of 100. Raised to tell slow settling from a genuine combinational
         # loop; if this is what makes it converge, it stays with a note saying
@@ -53,12 +57,11 @@ verilator_cc_library(
 cc_test(
     name = "xs_cluster_tb_test",
     size = "enormous",
-    srcs = ["xs_cluster_tb.cc"],
     tags = ["exclusive"],
     deps = [
         ":xs_cluster_verilated",
         "//hardware/vip/chi:chi_hn_dpi",
-        "//hardware/vip/common:sim_main",
+        "//hardware/vip/common:verilated_shims",
         "//hardware/vip/common:vip_dpi",
     ],
 )

@@ -9,7 +9,10 @@
 // On the far side of the CHI port is a chi_hn_agent: a SystemVerilog link layer
 // and, through DPI, the C++ home node in //hardware/vip/chi. The memory behind
 // it, the program in that memory and the address whose being written ends the
-// run are all set up in xs_cluster_tb.cc before the first clock edge.
+// run are all set up below, in the first initial block.
+//
+// No C++ in this directory: Verilator's `--main` generates the evaluation loop,
+// leaving only what a commercial simulator also needs.
 
 `include "chi_hn_dpi.svh"
 `include "vip_dpi.svh"
@@ -41,7 +44,7 @@ module xs_cluster_tb #(
 
   // Where the core fetches its first instruction. XiangShan's PMA makes
   // everything from 0x8000_0000 upwards cacheable and executable, which is where
-  // xs_cluster_tb.cc puts the program.
+  // the program below is loaded.
   parameter logic [47:0] ResetVector = 48'h8000_0000,
 
   // The home node this testbench creates and the agent finds.
@@ -360,6 +363,10 @@ module xs_cluster_tb #(
   always_ff @(posedge clk) begin
     if (rst_n && vip_test_done()) begin
       $display("xs_cluster_tb: done at cycle %0d", cycle);
+      // A generated main() always returns zero, so this $fatal is the only
+      // thing that can fail the test.
+      assert (!vip_test_failed())
+      else $fatal(1, "cycle %0d: the run ended on a failure", cycle);
       $finish;
     end
   end

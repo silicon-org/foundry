@@ -33,13 +33,4 @@ bool TestDone() { return done; }
 bool TestFailed() { return failed; }
 const std::string& TestVerdict() { return verdict; }
 
-int TestExitStatus() {
-  if (failed) return 1;
-  if (!done) {
-    Logger("vip")->error("the simulation ended but nothing declared the test done");
-    return 1;
-  }
-  return 0;
-}
-
 }  // namespace vip

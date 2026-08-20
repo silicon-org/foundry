@@ -37,4 +37,8 @@ import "DPI-C" function void vip_test_pass(input string why);
 // Polled by the testbench, decided by whatever noticed first.
 import "DPI-C" function bit vip_test_done();
 
+// And whether the answer was wrong. Verilator's generated main() always returns
+// zero, so only a $fatal from here can fail a run.
+import "DPI-C" function bit vip_test_failed();
+
 `endif  // VIP_DPI_SVH_

@@ -26,9 +26,6 @@ bool TestFailed();
 // Why, for the log line at the end.
 const std::string& TestVerdict();
 
-// For a testbench binary's main(), after the model has finished.
-int TestExitStatus();
-
 }  // namespace vip
 
 #endif  // HARDWARE_VIP_COMMON_TEST_CONTROL_H_

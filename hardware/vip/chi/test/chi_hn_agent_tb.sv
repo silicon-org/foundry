@@ -315,6 +315,11 @@ module chi_hn_agent_tb #(
 
     repeat (4) @(posedge clk);
     vip_test_pass($sformatf("case %s ran to its end", test_case));
+
+    // A generated main() always returns zero, so $fatal here is the only thing
+    // that can fail this test.
+    assert (!vip_test_failed())
+    else $fatal(1, "case %s failed", test_case);
     $finish;
   end
 

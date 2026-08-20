@@ -115,6 +115,31 @@ module xs_cluster_tb #(
   end
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
+  // Waveforms
+  //
+  // `$dumpvars` rather than a Verilator API, so this works on other simulators.
+  // A plusarg rather than a parameter, because wanting a waveform is a property
+  // of the run. Only the `_traced` target has tracing compiled in; elsewhere
+  // these tasks do nothing.
+  //
+  //   bazel run //hardware/soc/xs_cluster/tb:xs_cluster_tb_traced -- \
+  //       +dump +dumpfile=/tmp/xs.fst
+  //
+  // Whole hierarchy: 1868 modules, but the run is short enough that the FST is
+  // ~3 MB. Narrow the scope if a longer program changes that.
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  initial begin
+    string dumpfile;
+    if ($test$plusargs("dump")) begin
+      if (!$value$plusargs("dumpfile=%s", dumpfile)) dumpfile = "xs_cluster_tb.fst";
+      $display("xs_cluster_tb: dumping waveforms to %s", dumpfile);
+      $dumpfile(dumpfile);
+      $dumpvars(0, xs_cluster_tb);
+    end
+  end
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
   // Clock and reset
   ////////////////////////////////////////////////////////////////////////////////////////////////
 

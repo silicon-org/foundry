@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_test")
 load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 load("@rules_verilog//verilog:defs.bzl", "verilog_library")
 
@@ -16,38 +16,37 @@ verilog_library(
     ],
 )
 
+# Shared so the traced and untraced models cannot drift apart.
+VOPTS = [
+    # The generated RTL warns in thousands of places and none of it is ours
+    # to fix. The design that matters here is the wrapper, and
+    # `bazel build --config=lint //hardware/...` is where that is checked.
+    "-Wno-fatal",
+    # Without this, Verilator emits a handful of C++ files of a size that
+    # makes the compiler the bottleneck and, on a smaller machine, makes it
+    # run out of memory. Splitting costs nothing at this scale.
+    "--output-split",
+    "20000",
+    "--output-split-cfuncs",
+    "20000",
+    # Verilator writes main() and the --timing loop, so no C++ lives here and the
+    # testbench is portable SystemVerilog. It decides no verdict, though, so the
+    # testbench asks vip_test_failed() and calls $fatal itself.
+    "--main",
+    # One default timescale for every module. The generated RTL declares
+    # none, and a design whose time precision depends on which file
+    # Verilator saw first is a design whose clock period does too.
+    "--timescale",
+    "1ns/1ps",
+]
+
 # The expensive one. 139 MB of generated SystemVerilog across 1868 modules, and
 # --timing on top of it because the clock lives in the testbench.
 verilator_cc_library(
     name = "xs_cluster_verilated",
     module = ":xs_cluster_tb",
     timing = True,
-    vopts = [
-        # The generated RTL warns in thousands of places and none of it is ours
-        # to fix. The design that matters here is the wrapper, and
-        # `bazel build --config=lint //hardware/...` is where that is checked.
-        "-Wno-fatal",
-        # Without this, Verilator emits a handful of C++ files of a size that
-        # makes the compiler the bottleneck and, on a smaller machine, makes it
-        # run out of memory. Splitting costs nothing at this scale.
-        "--output-split",
-        "20000",
-        # Verilator writes main() and the --timing loop, so no C++ lives here and the
-        # testbench is portable SystemVerilog. It decides no verdict, though, so the
-        # testbench asks vip_test_failed() and calls $fatal itself.
-        "--main",
-        # Under investigation: the model does not settle at the default limit
-        # of 100. Raised to tell slow settling from a genuine combinational
-        # loop; if this is what makes it converge, it stays with a note saying
-        # what settles slowly and why.
-        # One default timescale for every module. The generated RTL declares
-        # none, and a design whose time precision depends on which file
-        # Verilator saw first is a design whose clock period does too.
-        "--timescale",
-        "1ns/1ps",
-        "--output-split-cfuncs",
-        "20000",
-    ],
+    vopts = VOPTS,
 )
 
 # Deliberately not `manual`: a testbench nobody runs is a testbench that stops
@@ -60,6 +59,36 @@ cc_test(
     tags = ["exclusive"],
     deps = [
         ":xs_cluster_verilated",
+        "//hardware/vip/chi:chi_hn_dpi",
+        "//hardware/vip/common:verilated_shims",
+        "//hardware/vip/common:vip_dpi",
+    ],
+)
+
+########################################################################################################
+# The same testbench, with waveforms
+#
+# A second model rather than a flag, so tracing never slows the test above.
+# FST because that is what tsunami reads; see //tools/README.md.
+#
+#   bazel run //hardware/soc/xs_cluster/tb:xs_cluster_tb_traced -- \
+#       +dump +dumpfile=/tmp/xs.fst
+#
+# A cc_binary, not a cc_test: the target above is what CI runs.
+########################################################################################################
+
+verilator_cc_library(
+    name = "xs_cluster_verilated_traced",
+    module = ":xs_cluster_tb",
+    timing = True,
+    trace_mode = "fst",
+    vopts = VOPTS,
+)
+
+cc_binary(
+    name = "xs_cluster_tb_traced",
+    deps = [
+        ":xs_cluster_verilated_traced",
         "//hardware/vip/chi:chi_hn_dpi",
         "//hardware/vip/common:verilated_shims",
         "//hardware/vip/common:vip_dpi",

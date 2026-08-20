@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
+#include <span>
 
 namespace vip::chi {
 namespace {
@@ -110,6 +112,19 @@ unsigned DatalessResp(unsigned opcode) {
   }
 }
 
+// One odd-parity bit per byte, as CHI defines DataCheck.
+//
+// Required, not optional: CoupledL2 checks every beat, and zero reads as *even*
+// parity rather than as "unused". Getting this wrong marks every line corrupt
+// and surfaces far away, as a hardware-error exception on the first instruction
+// fetched -- see tasks/xs-cluster-tb.md.
+Dat::datacheck_t DataCheckOf(std::span<const std::uint8_t> bytes) {
+  Dat::datacheck_t check = 0;
+  for (unsigned i = 0; i < bytes.size(); ++i)
+    if (__builtin_parity(bytes[i]) == 0) check |= Dat::datacheck_t{1} << i;
+  return check;
+}
+
 }  // namespace
 
 HomeNode::HomeNode(Config config, MemoryBackend& memory)
@@ -178,6 +193,7 @@ void HomeNode::SendCompData(const Transaction& transaction, unsigned resp) {
         value |= static_cast<std::uint64_t>(bytes[word * 8 + byte]) << (byte * 8);
       flit.Data()[word] = value;
     }
+    flit.DataCheck() = DataCheckOf(bytes);
 
     log_->trace("tx CompData txn={:#x} addr={:#x} dataid={} resp={:#x}",
                 transaction.requester_txn, at, static_cast<unsigned>(flit.DataID()), resp);

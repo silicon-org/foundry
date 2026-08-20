@@ -183,6 +183,26 @@ more time than it should have.
   scheduled, so checking in the other order reports every successful run as a
   deadlock.
 
+- **Do not hand-write that loop.** Verilator's `--main` generates it, and at
+  5.046 the generated loop is character-for-character the one above, ordering
+  and all -- `src/V3EmitCMain.cpp` emits `if (!topp->eventsPending()) break;`
+  after `eval()` exactly when `--timing` is on. So the whole of a testbench's
+  C++ was three lines nobody needed to have written. `--main` is not in
+  rules_verilator's managed-vopt reject list, so it goes straight into `vopts`;
+  the generated `V<top>__main.cpp` is swept into the static library and a
+  `cc_test` with **no `srcs` at all** links it, because `main` is undefined in
+  crt and the linker pulls the archive member.
+
+- What `--main` does not do is decide a verdict: the generated `main` always
+  returns 0. So anything riding on the exit status has to move into the
+  SystemVerilog, which is where it belonged. `$fatal` is the only thing that can
+  fail a run now -- verified by planting a watchpoint that could not be
+  satisfied and watching Exit 1 come back. Two consequences worth knowing:
+  Verilator's `gotError()` no longer fails a run, so a bare `%Error` without
+  `$fatal` passes; and the C++ deadlock detector is gone, which costs nothing
+  here because a `forever` clock never runs out of events and the real hang --
+  clock running, nothing concluding -- is a testbench timeout, not a C++ one.
+
 - A negative test needs to fail *for the stated reason*. Ours takes the expected
   message as an argument, because the first version passed on an unrelated
   assertion in a different module -- the testbench had frozen a credit signal
@@ -202,6 +222,30 @@ more time than it should have.
   any trap taken while it is zero a critical error rather than a trap. So
   `critical_error_o` early in a bring-up says "the core trapped", not "the core
   hit a hardware fault", and the interesting question is which trap.
+
+  **It was a hardware-error exception, and the cause was ours.** CHI's
+  `DataCheck` is odd parity per byte, and CoupledL2 checks it -- `RXDAT` computes
+  `corrupt |= DataCheck[i] ^ ~^data[8i+7:8i]` over all thirty-two bytes of a
+  beat. A home node that leaves the field zero is not declining to use it; it is
+  asserting *even* parity for every byte, which is wrong for `0x00` among others.
+  So every line was delivered marked corrupt, and the L1I turned that into
+  `ExceptionNO 19` on the first instruction fetched. General lesson: an optional
+  protocol field with a defined encoding is not optional if the receiver
+  implements it, and zero is a value, not an absence.
+
+- **A stuck signal has no edge, and "when did this rise" will not find it.**
+  Walking the corrupt bit back through XiangShan's hierarchy worked by asking,
+  at each level, which signals first went high and when -- until it reached one
+  that had been 1 since time zero and so reported no rising edge at all. That
+  read as "never set" and nearly ended the hunt at the level above. When a search
+  for an edge comes back empty, read the value before concluding the signal is
+  quiet.
+
+- One FST of the failing run beat five rounds of hypothesis-and-rebuild. The
+  earlier attempts changed the program, the reset length and the timer, and
+  between them established only that the core was not at fault -- which is real
+  information, and not the answer. Waveform first, next time: the run is ~1120
+  cycles and the whole-hierarchy FST of 1868 modules is 3 MB.
 
 - Test the seam, not just the two things either side of it. The link had a test
   with no protocol and the protocol had a test with no link, and the bug hunt

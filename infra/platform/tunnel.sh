@@ -47,10 +47,21 @@ if [[ -z "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
 fi
 
 # The two clusters are reached differently: the local one is a context in the
-# usual kubeconfig, the Hetzner one has a kubeconfig of its own that talhelper
-# wrote. Passing the wrong one is the single easiest way to build against the
-# cluster you did not mean, so it is decided here rather than by whatever
-# KUBECONFIG happens to be exported.
+# usual kubeconfig, the Hetzner one has a kubeconfig of its own -- committed,
+# and holding no credential, because it reaches the cluster through the
+# Tailscale operator's API server proxy. Passing the wrong one is the single
+# easiest way to build against the cluster you did not mean, so it is decided
+# here rather than by whatever KUBECONFIG happens to be exported.
+#
+# Port-forwarding is what makes the cache reachable rather than exposing the
+# frontends on the tailnet directly, and that is a constraint rather than a
+# preference: a Tailscale layer-4 proxy DNATs to a ClusterIP, and Cilium's
+# kube-proxy replacement does not translate services for traffic *forwarded
+# through* a pod. The packets leave the node masqueraded, still addressed to the
+# ClusterIP, and are routed to the internet where that address means nothing --
+# a timeout with no drop event anywhere. Grafana escapes this because an Ingress
+# proxy terminates the connection and opens its own socket, which does get
+# translated. gRPC cannot use that path: the Ingress proxies HTTP/1.1 upstream.
 if [[ "$target" == /* || "$target" == *.yaml || "$target" == */* ]]; then
   export KUBECONFIG="${BUILD_WORKSPACE_DIRECTORY}/${target#/}"
   unset_ctx=1

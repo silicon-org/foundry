@@ -62,7 +62,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
         ),
         (
             "hetzner",
-            "infra/talos/clusterconfig/kubeconfig",
+            "infra/talos/kubeconfig.tailnet",
             [
                 "buildbarn/frontend-rw:8990:8980",
                 "buildbarn/remote-asset:8991:8985",

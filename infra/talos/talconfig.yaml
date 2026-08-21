@@ -67,6 +67,7 @@ controlPlane:
 # traffic that crosses it.
 worker:
   patches:
+    - "@patches/hetzner-worker.yaml"
     - "@patches/tailscale-worker.yaml"
 
 nodes:

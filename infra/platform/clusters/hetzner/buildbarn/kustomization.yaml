@@ -50,21 +50,40 @@ patches:
         value: amd64
 
   # ccx33 is 8 dedicated cores, so one action at a time would waste most of the
-  # machine. Six rather than eight leaves headroom: the worker container also
-  # materialises inputs and uploads outputs, and a node saturated by its own
-  # build actions starves its kubelet -- which is exactly how the local cluster
-  # fell over, and it took a long time to recognise because the symptom was DNS.
+  # machine. The bound is memory rather than cores, though, which is why this is
+  # four and not eight.
+  #
+  # It was six, and six OOM-killed the runner repeatedly: a C++ action here
+  # averages ~3.3 GiB, so six of them peak past 20 GiB while the rest of the
+  # node -- monitoring, the ARC runner, storage -- needs about 10 GiB of the
+  # 30.6 GiB the machine has. Measured, not estimated: the runner climbed from
+  # 2.3 GiB to 17.4 GiB in four minutes and was killed on the way up.
+  #
+  # Raising the limit instead is not available. Anything past ~20 GiB
+  # oversubscribes the node, and a node-level OOM picks its victim by score
+  # rather than by whose fault it is -- kubelet and containerd included. Losing
+  # one action to a cgroup limit is the containable failure; this keeps it that.
+  #
+  # Four is the number to revisit if the node grows. A ccx43 is double the
+  # memory and would carry eight.
   - target:
       kind: Deployment
       name: worker
     patch: |
       - op: replace
         path: /spec/template/spec/containers/0/env/3/value
-        value: "6"
+        value: "4"
 
-  # Limits sized to the node rather than to a laptop. Six concurrent
-  # compilations need real memory, and the limits are what stop a runaway build
-  # taking the control plane with it.
+  # Limits sized to what is actually left on the node, rather than to the node's
+  # total. Everything else resident -- Prometheus, Grafana, Loki, the storage
+  # daemon, cilium -- is ~3.2 GiB, the ARC runner may add 3 GiB during CI, and
+  # the worker container beside this one may take 4 GiB. Against 30.6 GiB of
+  # capacity and a proper system reserve, that leaves the runner about 16 GiB.
+  #
+  # 20 GiB was the old value and it was arithmetic done as though the runner
+  # were the only thing on the machine: the sum of limits reached 123% of
+  # allocatable, so honouring every limit at once was impossible by
+  # construction.
   - target:
       kind: Deployment
       name: worker
@@ -80,4 +99,4 @@ patches:
         value: "4"
       - op: replace
         path: /spec/template/spec/containers/1/resources/limits/memory
-        value: 20Gi
+        value: 16Gi

@@ -56,44 +56,50 @@ module xs_cluster (
   input  logic          hart_reset_req_i,
   output logic          hart_in_reset_o,
 
-  // CHI-E.b, flattened. Carried as separate signals with upstream's widths rather
-  // than as a struct or an interface: a CHI package belongs with the interconnect
-  // that defines the address map and the node IDs, and inventing one here would
-  // fix those choices before anyone has made them.
-  output logic          chi_txsactive_o,
-  input  logic          chi_rxsactive_i,
-  output logic          chi_syscoreq_o,
-  input  logic          chi_syscoack_i,
+  // CHI-E.b, as the two link bundles //hardware/ip/chi declares.
+  //
+  // A CHI link is six channels and a handshake, and it is not valid/ready: a
+  // transmitter may send only while it holds an L-Credit, the receiver grants
+  // credits by pulsing LCRDV, and there is no ready anywhere. So the split here
+  // is by direction rather than by channel -- everything this cluster drives,
+  // and everything the interconnect drives -- and each bundle carries both the
+  // flits its side sends and the credits it returns for the flits it receives.
+  //
+  // These were thirty separate ports carrying upstream's widths, on the
+  // reasoning that a CHI package belongs with the interconnect that defines the
+  // address map and the node IDs, and that inventing one here would fix those
+  // choices before anyone had made them. The package now exists and fixes
+  // neither: it describes a specification, the address map is still nobody's,
+  // and node_id_i is still an input.
+  output chi_pkg::chi_rn_link_tx_t chi_tx_o,
+  input  chi_pkg::chi_rn_link_rx_t chi_rx_i,
 
-  output logic          chi_tx_linkactivereq_o,
-  input  logic          chi_tx_linkactiveack_i,
-  output logic          chi_tx_req_flitpend_o,
-  output logic          chi_tx_req_flitv_o,
-  output logic [161:0]  chi_tx_req_flit_o,
-  input  logic          chi_tx_req_lcrdv_i,
-  output logic          chi_tx_rsp_flitpend_o,
-  output logic          chi_tx_rsp_flitv_o,
-  output logic [72:0]   chi_tx_rsp_flit_o,
-  input  logic          chi_tx_rsp_lcrdv_i,
-  output logic          chi_tx_dat_flitpend_o,
-  output logic          chi_tx_dat_flitv_o,
-  output logic [421:0]  chi_tx_dat_flit_o,
-  input  logic          chi_tx_dat_lcrdv_i,
-
-  input  logic          chi_rx_linkactivereq_i,
-  output logic          chi_rx_linkactiveack_o,
-  input  logic          chi_rx_rsp_flitpend_i,
-  input  logic          chi_rx_rsp_flitv_i,
-  input  logic [72:0]   chi_rx_rsp_flit_i,
-  output logic          chi_rx_rsp_lcrdv_o,
-  input  logic          chi_rx_dat_flitpend_i,
-  input  logic          chi_rx_dat_flitv_i,
-  input  logic [421:0]  chi_rx_dat_flit_i,
-  output logic          chi_rx_dat_lcrdv_o,
-  input  logic          chi_rx_snp_flitpend_i,
-  input  logic          chi_rx_snp_flitv_i,
-  input  logic [114:0]  chi_rx_snp_flit_i,
-  output logic          chi_rx_snp_lcrdv_o,
+  // The trace-encoder interface, as the RISC-V efficient-trace specification
+  // defines it: up to three retirement groups per cycle, and the cause and
+  // privilege of a trap when one is taken.
+  //
+  // Brought out rather than tied off, because it is the only window into what
+  // the core is doing that does not involve a waveform. A testbench watching
+  // these can say "trapped at 0x8000_0008 with cause 2" instead of "stopped",
+  // and that difference is most of a bring-up.
+  //
+  // trace_enable_i is the encoder telling the core to produce them;
+  // trace_stall_i is the encoder telling it to hold off. A system with no
+  // encoder ties the first low and the second low too.
+  input  logic          trace_enable_i,
+  input  logic          trace_stall_i,
+  // Three groups, packed: group i occupies bit i of _valid and _ilastsize, and
+  // the i'th slice of the others.
+  output logic [2:0]    trace_valid_o,
+  output logic [149:0]  trace_iaddr_o,
+  output logic [11:0]   trace_itype_o,
+  output logic [23:0]   trace_iretire_o,
+  output logic [2:0]    trace_ilastsize_o,
+  // The trap, when itype says one was taken.
+  output logic [63:0]   trace_cause_o,
+  output logic [49:0]   trace_tval_o,
+  output logic [2:0]    trace_priv_o,
+  output logic [63:0]   trace_mstatus_o,
 
   // The IMSIC's configuration port: a 32-bit AXI4 slave through which the system
   // writes message-signalled interrupts to this hart. Narrow and low-traffic,
@@ -140,6 +146,18 @@ module xs_cluster (
   logic rst;
   assign rst = ~rst_ni;
 
+  // The generated top declares its flit ports as bare vectors, so a package
+  // whose structs were a bit wider or narrower would connect here and decode
+  // into nonsense downstream. What stops that is
+  // //hardware/ip/chi/test:chi_pkg_test, which holds the four widths XSTop
+  // declares -- 162, 73, 422, 115 -- next to the ones chi_pkg computes and the
+  // ones CHIron computes, and fails if any of the three disagree.
+  //
+  // Not checked here, and the reason is worth writing down: `$error` inside a
+  // generate block is a *warning* to Verilator, `%Warning-USERERROR`, and this
+  // repository's lint runs with warnings non-fatal. A check written that way
+  // passes whatever the widths are. See tasks/lessons.md.
+
   XSTop i_xs_top (
     // Clocks and resets: one domain, see above.
     .clock       (clk_i),
@@ -177,40 +195,40 @@ module xs_cluster (
     .io_hartResetReq        (hart_reset_req_i),
     .io_hartIsInReset       (hart_in_reset_o),
 
-    .io_chi_txsactive (chi_txsactive_o),
-    .io_chi_rxsactive (chi_rxsactive_i),
-    .io_chi_syscoreq  (chi_syscoreq_o),
-    .io_chi_syscoack  (chi_syscoack_i),
+    .io_chi_txsactive (chi_tx_o.txsactive),
+    .io_chi_rxsactive (chi_rx_i.rxsactive),
+    .io_chi_syscoreq  (chi_tx_o.syscoreq),
+    .io_chi_syscoack  (chi_rx_i.syscoack),
 
-    .io_chi_tx_linkactivereq (chi_tx_linkactivereq_o),
-    .io_chi_tx_linkactiveack (chi_tx_linkactiveack_i),
-    .io_chi_tx_req_flitpend  (chi_tx_req_flitpend_o),
-    .io_chi_tx_req_flitv     (chi_tx_req_flitv_o),
-    .io_chi_tx_req_flit      (chi_tx_req_flit_o),
-    .io_chi_tx_req_lcrdv     (chi_tx_req_lcrdv_i),
-    .io_chi_tx_rsp_flitpend  (chi_tx_rsp_flitpend_o),
-    .io_chi_tx_rsp_flitv     (chi_tx_rsp_flitv_o),
-    .io_chi_tx_rsp_flit      (chi_tx_rsp_flit_o),
-    .io_chi_tx_rsp_lcrdv     (chi_tx_rsp_lcrdv_i),
-    .io_chi_tx_dat_flitpend  (chi_tx_dat_flitpend_o),
-    .io_chi_tx_dat_flitv     (chi_tx_dat_flitv_o),
-    .io_chi_tx_dat_flit      (chi_tx_dat_flit_o),
-    .io_chi_tx_dat_lcrdv     (chi_tx_dat_lcrdv_i),
+    .io_chi_tx_linkactivereq (chi_tx_o.tx_linkactivereq),
+    .io_chi_tx_linkactiveack (chi_rx_i.tx_linkactiveack),
+    .io_chi_tx_req_flitpend  (chi_tx_o.txreq.flitpend),
+    .io_chi_tx_req_flitv     (chi_tx_o.txreq.flitv),
+    .io_chi_tx_req_flit      (chi_tx_o.txreq.flit),
+    .io_chi_tx_req_lcrdv     (chi_rx_i.txreq_lcrdv),
+    .io_chi_tx_rsp_flitpend  (chi_tx_o.txrsp.flitpend),
+    .io_chi_tx_rsp_flitv     (chi_tx_o.txrsp.flitv),
+    .io_chi_tx_rsp_flit      (chi_tx_o.txrsp.flit),
+    .io_chi_tx_rsp_lcrdv     (chi_rx_i.txrsp_lcrdv),
+    .io_chi_tx_dat_flitpend  (chi_tx_o.txdat.flitpend),
+    .io_chi_tx_dat_flitv     (chi_tx_o.txdat.flitv),
+    .io_chi_tx_dat_flit      (chi_tx_o.txdat.flit),
+    .io_chi_tx_dat_lcrdv     (chi_rx_i.txdat_lcrdv),
 
-    .io_chi_rx_linkactivereq (chi_rx_linkactivereq_i),
-    .io_chi_rx_linkactiveack (chi_rx_linkactiveack_o),
-    .io_chi_rx_rsp_flitpend  (chi_rx_rsp_flitpend_i),
-    .io_chi_rx_rsp_flitv     (chi_rx_rsp_flitv_i),
-    .io_chi_rx_rsp_flit      (chi_rx_rsp_flit_i),
-    .io_chi_rx_rsp_lcrdv     (chi_rx_rsp_lcrdv_o),
-    .io_chi_rx_dat_flitpend  (chi_rx_dat_flitpend_i),
-    .io_chi_rx_dat_flitv     (chi_rx_dat_flitv_i),
-    .io_chi_rx_dat_flit      (chi_rx_dat_flit_i),
-    .io_chi_rx_dat_lcrdv     (chi_rx_dat_lcrdv_o),
-    .io_chi_rx_snp_flitpend  (chi_rx_snp_flitpend_i),
-    .io_chi_rx_snp_flitv     (chi_rx_snp_flitv_i),
-    .io_chi_rx_snp_flit      (chi_rx_snp_flit_i),
-    .io_chi_rx_snp_lcrdv     (chi_rx_snp_lcrdv_o),
+    .io_chi_rx_linkactivereq (chi_rx_i.rx_linkactivereq),
+    .io_chi_rx_linkactiveack (chi_tx_o.rx_linkactiveack),
+    .io_chi_rx_rsp_flitpend  (chi_rx_i.rxrsp.flitpend),
+    .io_chi_rx_rsp_flitv     (chi_rx_i.rxrsp.flitv),
+    .io_chi_rx_rsp_flit      (chi_rx_i.rxrsp.flit),
+    .io_chi_rx_rsp_lcrdv     (chi_tx_o.rxrsp_lcrdv),
+    .io_chi_rx_dat_flitpend  (chi_rx_i.rxdat.flitpend),
+    .io_chi_rx_dat_flitv     (chi_rx_i.rxdat.flitv),
+    .io_chi_rx_dat_flit      (chi_rx_i.rxdat.flit),
+    .io_chi_rx_dat_lcrdv     (chi_tx_o.rxdat_lcrdv),
+    .io_chi_rx_snp_flitpend  (chi_rx_i.rxsnp.flitpend),
+    .io_chi_rx_snp_flitv     (chi_rx_i.rxsnp.flitv),
+    .io_chi_rx_snp_flit      (chi_rx_i.rxsnp.flit),
+    .io_chi_rx_snp_lcrdv     (chi_tx_o.rxsnp_lcrdv),
 
     .imsic_axi4_awready (imsic_awready_o),
     .imsic_axi4_awvalid (imsic_awvalid_i),
@@ -267,20 +285,17 @@ module xs_cluster (
     .io_dft_reset_mode      (1'b0),
     .io_dft_reset_scan_mode (1'b0),
 
-    // The trace encoder is not part of this system yet. Its inputs are tied off
-    // and its outputs deliberately left unconnected, rather than brought out to
-    // ports that nothing would read.
-    .io_traceCoreInterface_fromEncoder_enable (1'b0),
-    .io_traceCoreInterface_fromEncoder_stall  (1'b0),
-    .io_traceCoreInterface_toEncoder_cause    (),
-    .io_traceCoreInterface_toEncoder_tval     (),
-    .io_traceCoreInterface_toEncoder_priv     (),
-    .io_traceCoreInterface_toEncoder_mstatus  (),
-    .io_traceCoreInterface_toEncoder_valid    (),
-    .io_traceCoreInterface_toEncoder_iaddr    (),
-    .io_traceCoreInterface_toEncoder_itype    (),
-    .io_traceCoreInterface_toEncoder_iretire  (),
-    .io_traceCoreInterface_toEncoder_ilastsize()
+    .io_traceCoreInterface_fromEncoder_enable (trace_enable_i),
+    .io_traceCoreInterface_fromEncoder_stall  (trace_stall_i),
+    .io_traceCoreInterface_toEncoder_cause    (trace_cause_o),
+    .io_traceCoreInterface_toEncoder_tval     (trace_tval_o),
+    .io_traceCoreInterface_toEncoder_priv     (trace_priv_o),
+    .io_traceCoreInterface_toEncoder_mstatus  (trace_mstatus_o),
+    .io_traceCoreInterface_toEncoder_valid    (trace_valid_o),
+    .io_traceCoreInterface_toEncoder_iaddr    (trace_iaddr_o),
+    .io_traceCoreInterface_toEncoder_itype    (trace_itype_o),
+    .io_traceCoreInterface_toEncoder_iretire  (trace_iretire_o),
+    .io_traceCoreInterface_toEncoder_ilastsize(trace_ilastsize_o)
   );
 
 endmodule

@@ -1,0 +1,50 @@
+# CHI verification IP.
+#
+# See //hardware/vip/README.md for the layering this package sits in: this is
+# the protocol half, and the interface half is the SystemVerilog under rtl/.
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# The link configuration, the four width assertions, and pack/unpack.
+#
+# Everything else in this package and every testbench depends on this rather
+# than on CHIron directly, so that the configuration is written once.
+cc_library(
+    name = "chi_flit",
+    hdrs = ["chi_flit.h"],
+    deps = ["//hardware/vip/chi/chiron"],
+)
+
+# The protocol half of the CHI agent: what a request means and what may be said
+# in reply. No wires and no simulator, so test/chi_home_node_test.cc covers every
+# opcode it supports without building any RTL.
+cc_library(
+    name = "chi_home_node",
+    srcs = ["chi_home_node.cc"],
+    hdrs = ["chi_home_node.h"],
+    deps = [
+        ":chi_flit",
+        "//hardware/vip/common:logging",
+        "//hardware/vip/common:memory",
+    ],
+)
+
+# The DPI boundary: one packed flit per call, and the registry a test uses to
+# hand its home node to a testbench.
+cc_library(
+    name = "chi_hn_dpi",
+    srcs = ["dpi/chi_hn_dpi.cc"],
+    hdrs = ["dpi/chi_hn_dpi.h"],
+    deps = [
+        ":chi_home_node",
+        "//hardware/vip/common:logging",
+        "//hardware/vip/common:vip_dpi",
+    ],
+)
+
+filegroup(
+    name = "chi_hn_dpi_svh",
+    srcs = ["dpi/chi_hn_dpi.svh"],
+)

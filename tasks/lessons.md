@@ -104,3 +104,151 @@ more time than it should have.
   difftest *after* writing its output. Running it by hand outside the Bazel rule
   therefore produces complete artifacts and a non-zero exit, which is a good way
   to believe a build failed when it did not, or to miss that it did.
+
+## Verification
+
+- CHIron's flit serializer has never worked. `FlitAppender::Append32` omits the
+  `else` that advances `offset`, so every field that does not cross a word
+  boundary is written on top of the previous one; the crossing path advances
+  `index` twice; and the mask shifts by 32 when a field ends on a boundary. The
+  function's own `Finish()` assertion catches it on the first flit, which is
+  how you find out. `Deserialize*` is fine -- it came in the one human-authored
+  pull request the repository has merged, and the rest is unexercised. Assume
+  the same of anything else there until a test says otherwise.
+
+- Two of CHIron's twelve multi-word reads drop the `<< 32` on the high half, so
+  a REQ or SNP address decodes with its top bits OR-ed over its bottom ones.
+  General lesson: when the same idiom appears a dozen times and two of them
+  differ, the two are wrong, and routing all twelve through one helper is worth
+  more than fixing the two.
+
+- A round-trip test is weak on its own -- a packer and an unpacker wrong in the
+  same way agree with each other. Pin the bit positions first, from an
+  independent table, by setting one field to all ones and requiring exactly
+  that range to come out set. Both CHIron bugs above survived a round trip
+  during development and died to the position sweep.
+
+- The `--timing` flag is what lets the clock live in SystemVerilog, and
+  rules_verilator responds to it by compiling the generated model at
+  `-std=c++20` whatever the rest of the build uses. Two halves of one binary at
+  two standards is not a configuration worth having, so `--timing` effectively
+  decides the repository's C++ standard.
+
+- CHIron's headers are CRLF. Rewriting one with Python's `read_text()` /
+  `write_text()` silently normalises the whole file to LF and turns a six-line
+  patch into a 1900-line diff. Vendored third-party files get edited in binary
+  mode.
+
+- `$error` inside a generate block is a **warning** to Verilator --
+  `%Warning-USERERROR` -- not an error, so an elaboration-time check written
+  that way passes whatever the condition says whenever warnings are non-fatal,
+  which is everywhere in this repository. Verified by writing the check with a
+  deliberately false condition and watching the build succeed. What does fail
+  is `initial assert (...) else $fatal(...)`, at run time. Prefer putting the
+  check in a test that runs.
+
+- A SystemVerilog comment whose first word is `verilator` is a pragma. Wrapping
+  a sentence so that a line begins "// Verilator, and ..." is
+  `%Error-BADVLTPRAGMA`, from a paragraph of prose.
+
+- Verilator emits a DPI wrapper for every `import "DPI-C"` it parses, whether
+  the testbench calls it or not, so a header declaring the whole project's DPI
+  surface is an undefined symbol at link time in every testbench that
+  implements less than all of it. One header per testbench.
+
+## Simulation
+
+- `parameter time ClkPeriod = 1ns; forever #(ClkPeriod / 2) clk = ~clk;` is an
+  integer division. At a coarse enough time precision it yields zero, and
+  `forever #0` is an infinite loop in zero time -- reported, a long way from the
+  cause, as `%Error-DIDNOTCONVERGE: Inactive region did not converge`. Cost half
+  an hour of suspecting the design, and two eleven-minute rebuilds. Name a half
+  period; do not divide one.
+
+- Reading a design's combinational `ready` from a procedural block after
+  `@(posedge clk)` reads it *after* the design's own registers have updated at
+  that edge. A transmitter that was not ready at the edge looks ready just
+  afterwards, so the testbench drops `valid` believing the flit went, and it
+  did not. Drive stimulus on the falling edge, and observe a handshake through a
+  flag registered by the design's own clock. This showed up as five of six
+  channels delivering and one silently losing every flit.
+
+- `assert (...) else $error(...)` prints `%Error` and lets Verilator exit zero.
+  Only `$fatal` fails the run. For an interface invariant `$fatal` is the right
+  answer anyway -- once one is violated, everything observed afterwards is a
+  consequence rather than evidence.
+
+- A `--timing` evaluation loop must test `gotFinish()` immediately after
+  `eval()`, before asking whether events are pending. `$finish` leaves nothing
+  scheduled, so checking in the other order reports every successful run as a
+  deadlock.
+
+- **Do not hand-write that loop.** Verilator's `--main` generates it, and at
+  5.046 the generated loop is character-for-character the one above, ordering
+  and all -- `src/V3EmitCMain.cpp` emits `if (!topp->eventsPending()) break;`
+  after `eval()` exactly when `--timing` is on. So the whole of a testbench's
+  C++ was three lines nobody needed to have written. `--main` is not in
+  rules_verilator's managed-vopt reject list, so it goes straight into `vopts`;
+  the generated `V<top>__main.cpp` is swept into the static library and a
+  `cc_test` with **no `srcs` at all** links it, because `main` is undefined in
+  crt and the linker pulls the archive member.
+
+- What `--main` does not do is decide a verdict: the generated `main` always
+  returns 0. So anything riding on the exit status has to move into the
+  SystemVerilog, which is where it belonged. `$fatal` is the only thing that can
+  fail a run now -- verified by planting a watchpoint that could not be
+  satisfied and watching Exit 1 come back. Two consequences worth knowing:
+  Verilator's `gotError()` no longer fails a run, so a bare `%Error` without
+  `$fatal` passes; and the C++ deadlock detector is gone, which costs nothing
+  here because a `forever` clock never runs out of events and the real hang --
+  clock running, nothing concluding -- is a testbench timeout, not a C++ one.
+
+- A negative test needs to fail *for the stated reason*. Ours takes the expected
+  message as an argument, because the first version passed on an unrelated
+  assertion in a different module -- the testbench had frozen a credit signal
+  and three transmitters overflowed at once, which is a fault, but not the one
+  under test.
+
+- Verilating XiangShan with `--timing`: 676 s and 8187 actions the first time,
+  ~130 s for a Verilator-only change afterwards. The model runs 1000 cycles in
+  12 s. `--output-split 20000` is what keeps the C++ compiles parallel.
+
+- A XiangShan cluster's first CHI request comes about 1040 cycles after reset,
+  and that is CoupledL2 walking its directory to clear it rather than anything
+  being wrong. A bring-up testbench needs a timeout well past that or it will
+  conclude the link is dead.
+
+- `mnstatus.NMIE` resets to zero in XiangShan's generated RTL, and Smrnmi makes
+  any trap taken while it is zero a critical error rather than a trap. So
+  `critical_error_o` early in a bring-up says "the core trapped", not "the core
+  hit a hardware fault", and the interesting question is which trap.
+
+  **It was a hardware-error exception, and the cause was ours.** CHI's
+  `DataCheck` is odd parity per byte, and CoupledL2 checks it -- `RXDAT` computes
+  `corrupt |= DataCheck[i] ^ ~^data[8i+7:8i]` over all thirty-two bytes of a
+  beat. A home node that leaves the field zero is not declining to use it; it is
+  asserting *even* parity for every byte, which is wrong for `0x00` among others.
+  So every line was delivered marked corrupt, and the L1I turned that into
+  `ExceptionNO 19` on the first instruction fetched. General lesson: an optional
+  protocol field with a defined encoding is not optional if the receiver
+  implements it, and zero is a value, not an absence.
+
+- **A stuck signal has no edge, and "when did this rise" will not find it.**
+  Walking the corrupt bit back through XiangShan's hierarchy worked by asking,
+  at each level, which signals first went high and when -- until it reached one
+  that had been 1 since time zero and so reported no rising edge at all. That
+  read as "never set" and nearly ended the hunt at the level above. When a search
+  for an edge comes back empty, read the value before concluding the signal is
+  quiet.
+
+- One FST of the failing run beat five rounds of hypothesis-and-rebuild. The
+  earlier attempts changed the program, the reset length and the timer, and
+  between them established only that the core was not at fault -- which is real
+  information, and not the answer. Waveform first, next time: the run is ~1120
+  cycles and the whole-hierarchy FST of 1868 modules is 3 MB.
+
+- Test the seam, not just the two things either side of it. The link had a test
+  with no protocol and the protocol had a test with no link, and the bug hunt
+  that followed would have been an hour shorter if something had covered the
+  DPI boundary between them. The agent test that fills that gap took twenty
+  minutes to write and immediately ruled out half the hypotheses.

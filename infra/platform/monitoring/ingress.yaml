@@ -1,0 +1,38 @@
+# Grafana on the tailnet, which is what retires the port-forward.
+#
+# An Ingress rather than a `tailscale.com/expose` annotation on the Service.
+# Both work, and the difference is TLS: the annotation gives a layer-4 proxy
+# reachable as http://grafana.<tailnet>.ts.net, so a browser posts the login
+# form over plain HTTP and says so. The Ingress terminates TLS with a real
+# MagicDNS certificate, so it is https:// with no warning and no exception to
+# teach people to click through.
+#
+# Not `type: LoadBalancer`. On this cluster the Hetzner cloud controller manager
+# would see it and provision an actual public load balancer -- which is invariant
+# #4 breached by a field name.
+#
+# The device is tagged tag:k8s, from proxyConfig.defaultTags in the operator's
+# values. The policy file grants members tag:k8s and nothing else, so this is
+# reachable by anyone on the tailnet without giving them the cluster.
+#
+# Hetzner-only in practice, because monitoring/ is only selected by
+# clusters/hetzner. A local overlay would need to drop this: there is no
+# operator there, so the Ingress would be created and nothing would act on it.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  ingressClassName: tailscale
+  # defaultBackend rather than a host rule: the hostname is decided by the tls
+  # block below, which is how the Tailscale operator names the device, so a
+  # matching `host:` would be a second place to keep the same name correct.
+  defaultBackend:
+    service:
+      name: kube-prometheus-stack-grafana
+      port:
+        number: 80
+  tls:
+    - hosts:
+        - grafana

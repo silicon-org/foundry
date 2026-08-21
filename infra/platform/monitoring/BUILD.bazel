@@ -17,11 +17,16 @@ filegroup(
 
 # bazel run //infra/platform/monitoring:tunnel-hetzner
 #
-# Grafana, Prometheus and Alertmanager on localhost, for as long as it runs.
-# There is no Ingress and no LoadBalancer -- invariant #4 in
-# infra/doc/architecture.md, and Grafana is named in tailscale/README.md as
-# something the operator will publish to the tailnet once that exists. Until
-# then this is the only way in, which is the point.
+# Prometheus and Alertmanager on localhost, for as long as it runs. Grafana is
+# here too but no longer needs to be: it is on the tailnet at
+# https://grafana.pogona-gila.ts.net -- see ingress.yaml.
+#
+# The other two are deliberately not published. Grafana authenticates; Prometheus
+# and Alertmanager do not, so exposing them would put an unauthenticated read of
+# every metric in the cluster in front of anyone on the tailnet. They are also
+# reached rarely and by an administrator, which is exactly the case a tunnel
+# suits. If that changes, publish them behind the operator with auth in front,
+# not by adding two more entries here.
 #
 # Ports deliberately clear of the buildbarn tunnel's, so both can run at once.
 sh_binary(
@@ -35,7 +40,7 @@ sh_binary(
         "monitoring/kube-prometheus-stack-prometheus:9090:9090",
         "monitoring/kube-prometheus-stack-alertmanager:9093:9093",
     ],
-    env = {"TUNNEL_HINT": "Grafana on http://localhost:3000, admin password in grafana-admin.sops.yaml."},
+    env = {"TUNNEL_HINT": "Prometheus on http://localhost:9090, Alertmanager on http://localhost:9093. Grafana is on the tailnet: https://grafana.pogona-gila.ts.net"},
     data = ["@multitool//tools/kubectl"],
     deps = ["@bazel_tools//tools/bash/runfiles"],
 )

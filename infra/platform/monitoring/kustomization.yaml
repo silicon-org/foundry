@@ -23,6 +23,7 @@ resources:
   - loki.yaml
   - alloy.yaml
   - networkpolicy.yaml
+  - ingress.yaml
 # The ServiceMonitors, PodMonitors and PrometheusRules are deliberately not
 # here. They need CRDs that the HelmRelease above installs, and a Kustomization
 # is dry-run as a whole before any of it is applied -- so including them makes

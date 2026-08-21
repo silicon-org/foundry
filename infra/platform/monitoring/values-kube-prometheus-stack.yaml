@@ -102,6 +102,13 @@ grafana:
     limits: {memory: 512Mi}
 
   grafana.ini:
+    server:
+      # Grafana builds absolute links from this -- share URLs, and the "view in
+      # Grafana" link on an alert notification. Left at the default it says
+      # localhost:3000, which was true when the only way in was a port-forward
+      # and is now wrong in a way nothing reports: the UI works, and the links
+      # it hands you do not.
+      root_url: https://grafana.pogona-gila.ts.net
     analytics:
       # No call home, and no version check either. Both are outbound requests to
       # the internet, which networkpolicy.yaml does not permit -- so left on

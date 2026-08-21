@@ -1,0 +1,45 @@
+# `oauth` is deliberately absent.
+#
+# Setting oauth.clientId/clientSecret makes the chart template its own
+# operator-oauth Secret with the credential rendered inline -- which would put
+# it in git in the clear and collide with the encrypted one alongside this file.
+# The chart's own comment covers the alternative: "If unset a Secret named
+# operator-oauth must be precreated." That is operator-oauth.sops.yaml.
+
+operatorConfig:
+  # The tailnet device the operator itself becomes, and therefore the name the
+  # API server proxy answers on: tailscale-operator.pogona-gila.ts.net.
+  hostname: tailscale-operator
+
+  # Must match tagOwners in the policy file. The operator has to be an owner of
+  # tag:k8s for it to be able to tag the proxies it creates.
+  defaultTags:
+    - "tag:k8s-operator"
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+proxyConfig:
+  # What the operator stamps on proxy devices. The ACL grants tag:k8s to
+  # members, which is what lets a laptop reach Grafana and the cache frontends
+  # without granting it anything else on the cluster.
+  defaultTags: "tag:k8s"
+
+apiServerProxyConfig:
+  # The point of this release, and what removes the per-device --accept-routes
+  # step that reaching the private load balancer would otherwise need.
+  #
+  # "true" runs the proxy in-process in the operator pod, in auth mode: it
+  # authenticates the calling Tailscale identity and impersonates it into
+  # Kubernetes, so access is governed by RBAC against a real user rather than by
+  # possession of a kubeconfig holding cluster credentials. See rbac.yaml, which
+  # is what stops that user being denied everything.
+  #
+  # A ProxyGroup of type kube-apiserver would make this highly available. It is
+  # a single operator pod today, which is the right trade while the alternative
+  # to a brief outage is the break-glass firewall rule rather than nothing.
+  mode: "true"

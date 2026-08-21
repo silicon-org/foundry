@@ -20,6 +20,7 @@ KUSTOMIZE_ROOTS = [
     "infra/platform/clusters/hetzner",
     "infra/platform/clusters/local/arc",
     "infra/platform/monitoring",
+    "infra/platform/tailscale",
     "infra/platform/monitoring/observe",
 ]
 

@@ -1,0 +1,19 @@
+# Privileged, and unavoidably so.
+#
+# The operator itself would sit happily under `restricted`, but the proxy pods
+# it creates in this namespace would not: they carry NET_ADMIN so tailscaled can
+# create and configure a tailscale0 interface, and NET_ADMIN is a Pod Security
+# Standards *baseline* violation, not merely a `restricted` one. No label short
+# of `privileged` admits them.
+#
+# The containment that matters here is the tailnet ACL rather than the label.
+# Proxies are tagged tag:k8s, which the policy file grants to members and to
+# nothing else -- and unlike a namespace label, that is a rule Tailscale
+# re-checks on every policy edit.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tailscale
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: latest

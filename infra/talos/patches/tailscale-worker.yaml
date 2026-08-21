@@ -1,0 +1,31 @@
+# Tailscale on the worker, layered over the shared node config.
+#
+# Same reason as tailscale-controlplane.yaml -- without this document the node
+# never finishes booting and machined reboots it every 71 minutes. See there
+# for why these are OAuth credentials rather than an auth key, and for why the
+# two roles use separate OAuth clients rather than one shared one.
+#
+# Two things are deliberately missing, and both are because this is the node
+# that runs untrusted CI:
+#
+#   TS_ROUTES     A subnet router can observe and forward the administrative
+#                 traffic that crosses it. Making the machine that executes
+#                 pull request code the route to the private network gets the
+#                 trust boundary exactly backwards, so the control planes --
+#                 which run no workloads -- carry it instead.
+#
+#   any src right tag:foundry-worker appears in no ACL rule as a source. The
+#                 node needs none: cluster traffic rides the private network by
+#                 construction (kubelet's node IP and etcd's advertised address
+#                 are pinned to 10.0.0.0/16 in hetzner.yaml), and Tailscale's
+#                 own control and DERP traffic is not ACL-governed. The policy
+#                 file has a test asserting this that Tailscale re-checks on
+#                 every edit.
+apiVersion: v1alpha1
+kind: ExtensionServiceConfig
+name: tailscale
+environment:
+  - TS_CLIENT_ID=${TS_WORKER_CLIENT_ID}
+  - TS_CLIENT_SECRET=${TS_WORKER_CLIENT_SECRET}
+  - TS_EXTRA_ARGS=--advertise-tags=tag:foundry-worker
+  - TS_AUTH_ONCE=true

@@ -1,0 +1,51 @@
+# Tailscale on the control planes, layered over the shared node config.
+#
+# This document is why the file exists at all: the extension is baked into the
+# image with `configuration: true` in its service definition, which means Talos
+# will not finish booting until an ExtensionServiceConfig named `tailscale`
+# exists. Without one, `startAllServices` waits for it, hits BootTimeout at 70
+# minutes, and machined reboots the node -- forever, on every node, whether or
+# not anything is running. Removing the extension is not an alternative: that
+# is a new schematic ID, a new snapshot, and reinstalling every node.
+#
+# Credentials are an OAuth client rather than an auth key. An auth key expires
+# within 90 days and would sit here dead, so a node reinstalled after that
+# silently never joins the tailnet -- and an unreachable node is exactly the
+# case the tailnet exists for. The client secret does not expire, and tagged
+# devices have key expiry disabled, so nothing here needs periodic attention.
+#
+# Credentials are per role, not shared. A Tailscale OAuth client can only mint
+# an auth key carrying *every* tag it was created with -- asking for a subset is
+# refused with "requested tags are invalid or not permitted" -- so one client
+# with both node tags cannot serve both roles. The obvious workaround, an owner
+# tag that both inherit from, is worse than it looks: it would give the worker a
+# credential able to mint tag:foundry-cp, and tag:foundry-cp is what the route
+# auto-approver trusts. A compromised worker could then make itself the subnet
+# router for the private network. One client per tag means the worker's
+# credential can only ever create a tag:foundry-worker device.
+apiVersion: v1alpha1
+kind: ExtensionServiceConfig
+name: tailscale
+environment:
+  - TS_CLIENT_ID=${TS_CP_CLIENT_ID}
+  - TS_CLIENT_SECRET=${TS_CP_CLIENT_SECRET}
+
+  # Required with OAuth: the client mints its own auth key and the tag is what
+  # that key is issued against. Also what the ACL keys off -- tag:foundry-cp is
+  # granted nothing as a source, so a compromised node cannot open a connection
+  # to anything on the tailnet.
+  - TS_EXTRA_ARGS=--advertise-tags=tag:foundry-cp
+
+  # Only the control planes advertise the private network. A subnet router
+  # forwards the administrative traffic crossing it, so it must not be the node
+  # that runs untrusted CI -- see tailscale-worker.yaml, which has no routes.
+  #
+  # Nothing depends on a client having accepted this route: kubectl goes
+  # through the operator's API server proxy and talosctl addresses nodes by
+  # their own tailnet addresses. It is the break-glass path.
+  - TS_ROUTES=10.0.0.0/16
+
+  # Log in once and then reuse the state in /var/lib/tailscale, which survives
+  # reboots. The default is to re-run `tailscale up` on every start, which with
+  # an OAuth client means minting a fresh auth key each boot.
+  - TS_AUTH_ONCE=true

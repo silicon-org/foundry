@@ -59,6 +59,15 @@ patches:
 controlPlane:
   patches:
     - "@patches/hetzner-controlplane.yaml"
+    - "@patches/tailscale-controlplane.yaml"
+
+# The Tailscale config is split by role rather than shared, because the two
+# roles get different tags and only the control planes advertise a route. The
+# worker runs untrusted CI, and a subnet router carries the administrative
+# traffic that crosses it.
+worker:
+  patches:
+    - "@patches/tailscale-worker.yaml"
 
 nodes:
   - hostname: foundry-cp-1

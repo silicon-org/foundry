@@ -38,6 +38,34 @@ spec:
               scheduled anywhere. Builds, CI and the cache are all down while
               the cluster reports healthy.
 
+        - alert: FoundryContainerOOMKilled
+          # Thirty-eight of these went unnoticed, which is the point of the
+          # rule. FoundryWorkerMemoryOvercommitted below cannot see them: it
+          # compares limits to node capacity, and a container dying on its own
+          # cgroup limit while the node still has 7 GiB free is invisible to
+          # that ratio.
+          #
+          # Not container_oom_events_total, which looks like the obvious metric
+          # and reports nothing useful. It is a counter per container instance,
+          # so it resets to zero on the restart the OOM caused and increase()
+          # never sees the step. This gauge survives the restart, which is what
+          # makes it alertable.
+          expr: |
+            max by (namespace, pod, container) (
+              kube_pod_container_status_last_terminated_reason{reason="OOMKilled"}
+            ) == 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} was OOM-killed"
+            description: >-
+              The container exceeded its own memory limit. For the Buildbarn
+              runner this fails the build action that was in flight, and Bazel
+              reports it as a remote execution error naming a unix socket
+              rather than a memory problem -- so this alert is usually the
+              first honest description of what happened.
+
         - alert: FoundryWorkerMemoryOvercommitted
           # The M7 number, as an alert rather than as a note in a document.
           # Memory limits on the worker already exceed what the node has, which

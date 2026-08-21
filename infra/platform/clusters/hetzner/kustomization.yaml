@@ -7,6 +7,7 @@ resources:
   - flux-system
   - cilium.yaml
   - hcloud.yaml
+  - tailscale.yaml
   - buildbarn.yaml
   - bb-portal.yaml
   - arc.yaml

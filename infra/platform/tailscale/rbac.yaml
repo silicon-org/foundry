@@ -1,0 +1,27 @@
+# Who the API server proxy is allowed to be.
+#
+# In auth mode the proxy impersonates the calling Tailscale identity, so the
+# Kubernetes user is the tailnet login -- not a service account, and not the
+# operator. Without a binding the proxy connects, authenticates, and then denies
+# every request, which reads like a broken proxy rather than missing
+# authorisation.
+#
+# cluster-admin because this is the account that replaces the admin kubeconfig,
+# and it is bound to one named person rather than to a group. That is the whole
+# gain: access is a named identity that can be revoked in the tailnet, instead
+# of a file containing cluster CA credentials that cannot be revoked at all.
+#
+# A second, narrower binding is what to add when someone needs the cache but not
+# the cluster -- a tag or a group, bound to view.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tailscale-admin
+subjects:
+  - kind: User
+    name: florianzaruba@gmail.com
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# No top-level `namespace:` here, for the same reason as monitoring/: that
+# transformer rewrites every namespaced resource including the HelmRepository,
+# which belongs in flux-system. It would move it and leave the HelmRelease's
+# sourceRef pointing at flux-system, which kustomize does not rewrite -- so the
+# release reconciles and then fails at the chart pull with "HelmRepository
+# tailscale not found". Every resource below states its own namespace.
+resources:
+  - namespace.yaml
+  - helmrepository.yaml
+  - operator-oauth.sops.yaml
+  - rbac.yaml
+  - operator.yaml
+configMapGenerator:
+  - name: tailscale-operator-values
+    namespace: tailscale
+    files:
+      - values-operator.yaml
+generatorOptions:
+  # HelmRelease.spec.valuesFrom is not a field kustomize rewrites name
+  # references in, so a hashed name would dangle silently. Same as monitoring/
+  # and cilium/, including the caveat: helm-controller does not watch this
+  # ConfigMap, so an edit here lands as a Helm upgrade at the next reconcile
+  # rather than at once. `flux reconcile helmrelease tailscale-operator -n
+  # tailscale` skips the wait.
+  disableNameSuffixHash: true

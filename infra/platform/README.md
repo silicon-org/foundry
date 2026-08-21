@@ -18,6 +18,7 @@ Deployed:
 | `buildbarn/` | Bazel remote execution + cache. Two frontends, read-only and read-write — see its README for what that does and does not currently enforce. |
 | `arc/` | GitHub Actions runner scale set, ephemeral pods, plus its Cilium egress policy. |
 | `monitoring/` | Prometheus, Grafana, Alertmanager, Loki and Alloy. Hetzner only. Alerts are evaluated and validated; nothing delivers them yet. |
+| `tailscale/` | The node extension is configured and the tailnet carries management traffic. The operator publishes in-cluster Services and runs the API server proxy. Hetzner only. |
 | `secrets/` | Not a component: how SOPS+age works here, and the one secret created by hand. |
 | `clusters/` | Which components each cluster runs, and the few values that differ. |
 
@@ -27,7 +28,6 @@ Not deployed, and each README says why:
 |---|---|
 | `cert-manager/` | Nothing needs a certificate yet. |
 | `kyverno/` | Pod Security Standards already enforce what it was for. |
-| `tailscale/` | The Talos system extension is in the node image and idle; access is currently the break-glass firewall rule. |
 
 ## Ordering
 
@@ -58,7 +58,9 @@ each is a testable claim rather than an intention:
    writes, but the network half is **not** in place: the runner policy allows
    both frontends today. The only aspiration on this list, marked as one.
    (`buildbarn/`, `arc/`)
-4. Zero inbound management ports. Currently relaxed to one administrative
-   address while Tailscale is unconfigured. (`tailscale/`, `infra/tofu/`)
+4. Zero inbound management ports. Tailscale now carries management traffic, but
+   the break-glass rule allowing one administrative address is still open --
+   closing it is a `tofu apply`, and it should follow a human verifying tailnet
+   access rather than precede it. (`tailscale/`, `infra/tofu/`)
 5. Secrets encrypted at rest, in git and in etcd. (`secrets/`, `infra/talos/`)
 6. Break-glass documented and committed. (`infra/talos/`)

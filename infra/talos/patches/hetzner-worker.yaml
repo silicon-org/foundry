@@ -1,0 +1,25 @@
+# Worker-only overrides, layered over hetzner.yaml.
+#
+# Applied to the worker rather than to every node because the control planes are
+# 3.71 GiB machines: a reservation sized for a build node would take a fifth of
+# one and start evicting etcd's neighbours to protect a kubelet that was not
+# under pressure.
+machine:
+  kubelet:
+    extraConfig:
+      # What the node keeps for itself, outside any pod's cgroup.
+      #
+      # Talos holds back ~484 MiB by default, which is fine for a node running
+      # services and wrong for one running builds. This node compiles with six--
+      # now four -- actions at once, and the kernel's page cache, containerd and
+      # the kubelet all grow with that load. When the reserve is that thin, a
+      # container overrunning its limit does not get killed cleanly by its own
+      # cgroup; the node runs out first and the kernel OOM killer picks a victim
+      # by score, which can be containerd or the kubelet.
+      #
+      # The point of this is not to prevent the kill. It is to make sure the
+      # thing that gets killed is the action that asked for too much, which is
+      # recoverable, rather than the node, which is not.
+      systemReserved:
+        cpu: 500m
+        memory: 1Gi

@@ -90,7 +90,10 @@ tailnet whose ACLs are not ours to edit, so confirm the switcher reads
       trusts -- so the worker could make itself subnet router. Create these
       after the ACL: the tag picker reads `tagOwners`.
 - [ ] OAuth client **foundry-operator**: scopes `auth_keys` write +
-      `devices:core` write, tags `tag:k8s-operator`, `tag:k8s`
+      `devices:core` write, tag `tag:k8s-operator` **only**. Not `tag:k8s` as
+      well -- same all-or-nothing rule, and the operator needs to mint a key
+      for itself separately from the proxies'. It reaches `tag:k8s` by
+      ownership, which the ACL already grants.
 - [ ] Laptop: add the personal account alongside the work one (switching, not
       replacing)
 

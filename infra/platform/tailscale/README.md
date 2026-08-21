@@ -56,9 +56,20 @@ curl -s https://api.tailscale.com/api/v2/oauth/token \
 ```
 
 The documented alternative — an owner tag both real tags inherit from — is worse
-than it looks here. It would give the worker a credential able to mint
-`tag:foundry-cp`, and that tag is what the route auto-approver trusts, so a
+than it looks for the *nodes*. It would give the worker a credential able to
+mint `tag:foundry-cp`, and that tag is what the route auto-approver trusts, so a
 compromised worker could make itself subnet router for the private network.
+
+For the **operator** the owner tag is exactly right, and its client therefore
+carries `tag:k8s-operator` and nothing else. It needs to mint two different
+things — a key for itself, and keys for the proxies it creates — and a
+two-tag client cannot do that: it fails with
+`creating operator authkey: requested tags [tag:k8s-operator] are invalid or
+not permitted`, on startup, in a crash loop. `tag:k8s` is reached by ownership
+instead (`"tag:k8s": ["tag:k8s-operator"]` in the policy file), which is what
+the chart means by "Operator must be made owner of these tags". The difference
+from the node case is that here the extra authority is the operator's own, and
+the operator is already the thing creating proxies.
 
 ## Tags, and why the worker has its own
 

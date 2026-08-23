@@ -46,6 +46,21 @@ verilog_library(
 # The reference topology. README.md quotes its NodeIDs, its zero-load latency
 # and its saturation bound; //hardware/ip/chi_noc/nocgen:test asserts all three.
 #
+# How a device attaches to the mesh, and where the snoop's fabric header is put
+# on and taken off. `top_module`, because it has no parameter that must be set,
+# so the lint aspect can elaborate it on its own.
+verilog_library(
+    name = "chi_noc_device_port",
+    srcs = ["src/chi_noc_device_port.sv"],
+    top_module = "chi_noc_device_port",
+    deps = [
+        ":chi_noc_flit_pkg",
+        ":chi_noc_pkg",
+        "//hardware/ip/chi:chi_link",
+        "//hardware/ip/chi:chi_pkg",
+    ],
+)
+
 nocgen_topology(
     name = "mesh4x4",
     config = "//hardware/ip/chi_noc/nocgen:examples/mesh4x4.yml",

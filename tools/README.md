@@ -57,10 +57,45 @@ runs it on the staged files without paying Bazel's startup. `direnv allow`
 installs that hook by pointing `core.hooksPath` at `tools/githooks`; `git commit
 --no-verify` skips it, and the test does not.
 
-Neither formatter is fetched for the purpose. clang-format is the one inside the
-hermetic C++ toolchain, so it moves when the compiler does; buildifier is a pin
-in `multitool.lock.json` like everything else in this file. See
+No formatter is fetched for the purpose. clang-format is the one inside the
+hermetic C++ toolchain, so it moves when the compiler does; buildifier and ruff
+are pins in `multitool.lock.json` like everything else in this file. See
 `//tools/format:defs.bzl`.
+
+## Checks
+
+Two things the formatter cannot express, in `//tools/checks`:
+
+```
+bazel test //tools/checks:ruff_check_test    # unused imports, undefined names
+bazel test //tools/checks:large_files_test   # tracked files over 1 MiB
+```
+
+`ruff check` is the other half of `ruff format`: formatting settles how the code
+looks, this notices an unused import or a name that does not exist. Rules are
+selected in `//:pyproject.toml`, deliberately narrowly — a linter that argues
+with the formatter produces disagreements rather than better code.
+
+The size check exists because this repository's whole third-party strategy is
+that sources are fetched and pinned rather than vendored, so a large file
+arriving in the history is usually a mistake, and git keeps it whether or not
+anybody notices. The limit lives in `//tools/checks:defs.bzl`, and the escape
+hatch is `large-file-ok` in `.gitattributes` next to whatever needs it, so that
+an exception is a decision someone wrote down:
+
+```
+infra/platform/monitoring/dashboards/huge.json large-file-ok
+```
+
+Both are tagged `no-sandbox`, which is the same trade `format_test` makes: what
+they inspect is "every Python file" and "everything git tracks", and a list of
+`srcs` only ever holds what somebody remembered to add. A check that looks green
+because it never looked is worse than no check.
+
+`tools/githooks/pre-commit` runs both on the staged files, so neither waits for
+CI. The hook judges size against what is *staged* rather than what is on disk,
+since that is what would enter the history, and it reads the limit out of
+`defs.bzl` so the two cannot drift.
 
 ## How it fits together
 
@@ -71,6 +106,7 @@ in `multitool.lock.json` like everything else in this file. See
 | `BUILD.bazel` | Derives `:bazel_env` and `:versions` from `TOOLS`. |
 | `versions.sh` | Runs each tool and reports the version it claims. |
 | `format/` | Which formatter owns which language, and the test that enforces it. |
+| `checks/` | Lint and file size, and the limit the git hook shares with them. |
 
 `TOOLS` is the single source of truth: adding a tool means adding binaries to
 the lockfile and one line to `tools.bzl`. The PATH environment and the version

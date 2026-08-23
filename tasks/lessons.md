@@ -360,3 +360,19 @@ more time than it should have.
   cache invalidation, and in a tree that builds its own toolchains that is not a
   small thing. Prefer the attribute; if there is no attribute, prefer a
   transition; put it in `.bazelrc` only when it genuinely applies to everything.
+
+## Shell
+
+- macOS ships **bash 3.2** -- 2007, GPLv2, and Apple will not ship a newer one.
+  So no `mapfile`/`readarray`, no associative arrays, no `${x^^}`. The portable
+  form of reading NUL-separated output is the `while IFS= read -r -d ''` loop
+  that `tools/githooks/pre-commit` already used; `mapfile -d ''` looks cleaner
+  and fails only on the developer machines this repository is written on.
+
+- A file in a runfiles tree is a **symlink to** the source file, so `dirname` of
+  its path is the runfiles directory, not the source directory. Resolve the link
+  first and then take the directory; `pwd -P` on the runfiles path resolves the
+  wrong thing and yields a plausible-looking answer.
+
+- `.git` is a **file**, not a directory, inside a git worktree. A `[[ -d .git ]]`
+  guard is false in exactly the setup this repository is developed in.

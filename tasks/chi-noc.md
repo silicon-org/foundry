@@ -63,15 +63,40 @@ has to finish first.
 
 ## M2 — the crosspoint
 
-- [ ] Promote `chi_link_{tx,rx}_channel.sv` and
+- [x] Promote `chi_link_{tx,rx}_channel.sv` and
       `chi_link_activation_{req,ack}.sv` from `//hardware/vip/chi/rtl` to
-      `//hardware/ip/chi`
-- [ ] `cc_rr_arb_tree`, `cc_stream_fifo`, `cc_onehot` in the common_cells overlay
-- [ ] `chi_noc_pkg.sv`, `chi_xp_channel.sv`, `chi_xp.sv`
-- [ ] **Gate:** routing exhaustively, against M1's model
-- [ ] **Gate:** one XP looped back — credits exact, no loss, no reorder
-- [ ] **Gate:** one negative test per assertion
-- [ ] **Gate:** backpressure on one output does not block the other five
+      `//hardware/ip/chi`. The VIP keeps the two *role* modules and depends on
+      the mechanism; all 11 of its tests still pass.
+- [x] `cc_rr_arb_tree` in the common_cells overlay. `cc_stream_fifo` and
+      `cc_onehot` turned out not to be needed: the receiver's buffer *is* its
+      credit accounting, so `chi_link_rx_channel` already is the FIFO, and the
+      destination mask is produced one-hot by construction.
+- [x] `chi_noc_pkg.sv`, `chi_noc_flit_pkg.sv`, `chi_xp_channel.sv`, `chi_xp.sv`.
+      Split into two packages so the CHI issue lives in one file and the switch
+      can be built without a CHI package at all.
+- [x] **Gate passed.** Routing exhaustively: all 524,288 (position, target) pairs
+      agree with M1's model, including the NodeIDs that name a device port no
+      crosspoint has, where both must answer *nowhere*.
+- [x] **Gate passed.** One crosspoint looped back through its own link layer:
+      every legal turn, ordering per (source, destination), all-to-all, and six
+      inputs oversubscribing one output for eight times the credit count.
+- [x] **Gate passed.** One negative test per assertion, each watched failing:
+      an illegal turn, a flit addressed to no port, and an input starved past
+      its bound.
+- [x] **Gate passed.** One output stalled; the other five keep running and
+      everything arrives once it is released.
+- [x] Beyond the gates: `chi_xp_test` drives all four classes at once and checks
+      for cross-talk and for the SNP fabric header surviving, and
+      `--config=lint` now elaborates every generated topology against the real
+      crosspoint — which is how the generator and the RTL are kept from drifting
+      apart about a port list.
+
+Found on the way, and recorded in the README: a crosspoint has **26** of the 36
+turns, not 36 — four are missing because a flit arriving vertically may not leave
+horizontally, six because nothing leaves the way it came. And arbitration is
+**head-of-line**: a receiver exposes one flit at a time, so a blocked head blocks
+what is behind it. That costs throughput, not correctness, and M3 is where the
+cost gets measured rather than guessed at.
 
 ## M3 — the mesh, at flit level
 

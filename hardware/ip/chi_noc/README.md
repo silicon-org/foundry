@@ -3,11 +3,13 @@
 A mesh of crosspoints that carries CHI between request, home and slave nodes.
 
 ```
-src/chi_noc_pkg.sv     NodeID layout, directions, the per-class configuration
-src/chi_xp_channel.sv  one channel class through one crosspoint
-src/chi_xp.sv          four channel classes = one crosspoint
-src/chi_sam.sv         address -> home node
-nocgen/                the generator that wires crosspoints into a topology
+src/chi_noc_pkg.sv       ports, NodeID layout, routing. No CHI dependency.
+src/chi_noc_flit_pkg.sv  the flits, and the five numbers. The CHI issue lives here.
+src/chi_xp_channel.sv    one channel class through one crosspoint
+src/chi_xp.sv            four channel classes = one crosspoint
+src/chi_sam.sv           address -> home node (M3)
+nocgen/                  the generator that wires crosspoints into a topology
+test/                    routing against the model; the switch against itself
 ```
 
 **Transport only.** This fabric moves flits and decides nothing. It has no
@@ -95,14 +97,19 @@ which is one comparison per dimension and no table. It is minimal — every flit
 takes `|Δx| + |Δy|` hops — and it is deadlock-free, for a reason worth stating
 rather than assuming: **X is fully resolved before any Y hop is taken, so no
 flit ever turns from a Y link onto an X link.** The channel dependency graph has
-no cycle because two of its eight turns do not exist.
+no cycle because the turns that would close one do not exist.
 
-Those two turns are the fabric's central invariant, so they are checked twice:
-an assertion in `chi_xp_channel` fires if a flit arriving on North or South
-requests East or West, and M5 requires the corresponding coverage bins to be
+So a crosspoint has 26 of the 36 turns, not 36. Four are missing because a flit
+that arrived vertically may not leave horizontally, and six because nothing may
+leave by the port it arrived on -- that is a node addressing itself, or two
+nodes sharing a NodeID. `chi_noc_pkg::chi_xp_turn_legal` is the one statement of
+which is which, used by the assertion, by the tests and by M5's coverage.
+
+That invariant is checked three ways: `chi_xp_channel` asserts on it,
+`//hardware/ip/chi_noc/test` drives each kind of illegal turn and requires the
+assertion to fire, and M5 requires the corresponding coverage bins to stay
 **empty**. A turn that is illegal and never exercised and a turn that is illegal
-and quietly taken look identical in a coverage report that only counts what
-happened.
+and quietly taken look identical in a report that only counts what happened.
 
 Table-driven routing, for topologies that are not meshes, is M6 and changes only
 the route function.
@@ -119,7 +126,16 @@ Each port is a `chi_link_tx_channel` / `chi_link_rx_channel` pair, taken from
 them for the cluster testbench, and its README said at the time that they were
 "synthesisable in shape, so the same module can front real RTL later." This is
 later. Between them sits route computation per input and, per output, an
-arbiter over every (input port, buffer entry) pair that wants it.
+arbiter over every input whose **head** flit wants it.
+
+Head only, which is a real limit and not an oversight. A receiver's buffer is
+its credits -- the two are one mechanism -- and what it exposes downstream is one
+flit at a time, so an input whose head is blocked blocks everything behind it
+even when the flit behind wants a free output. Head-of-line blocking costs
+throughput and costs nothing in correctness, and the number it costs is what M3
+measures. Looking past the head means a receiver that can pop out of order,
+which is a change to `//hardware/ip/chi`, and it should be made against a
+measurement rather than a suspicion.
 
 QoS is four priority classes with round-robin inside each, which is OpenNoC's
 scheme and CHI's intent. It can starve a low-priority flit indefinitely under
@@ -136,13 +152,21 @@ becomes age-based promotion is a decision for M3, when the hotspot numbers exist
   FlitWidth  TgtIdOffset  TgtIdWidth  QosOffset  QosWidth
 ```
 
-It does not include `chi_pkg`, does not name a struct, and does not know which
-channel class it is. Everything else it needs — that opcode zero is an L-Credit
-return — `chi_pkg::chi_*_is_lcrd_return` already answers on its behalf.
+It does not name a struct and does not know which channel class it is.
+Everything else it needs — that opcode zero is an L-Credit return — is answered
+on its behalf by `chi_pkg::chi_*_is_lcrd_return` and handed in as a bit per port.
 
-`chi_xp.sv` computes those numbers from the `chi_pkg` typedefs and is the **only
-file in the fabric that depends on the CHI issue.** At the reference
-configuration they come out as:
+Opcode zero is worth dwelling on, because it is the one place a CHI rule reaches
+into an otherwise protocol-blind switch: **a flit whose opcode is zero is flow
+control, not a message**, on every channel. A testbench that builds a flit by
+setting the fields it cares about and leaving the rest at zero has built an
+L-Credit return, and the crosspoint is right to consume it and send nothing on.
+
+`chi_noc_flit_pkg.sv` computes those numbers from the `chi_pkg` typedefs and is
+the **only file in the fabric that depends on the CHI issue.** `chi_noc_pkg` --
+ports, NodeID, routing -- has no CHI dependency at all, which is what lets the
+switch be built and tested without one. At the reference configuration the
+numbers come out as:
 
 | class | FlitWidth | TgtIdOffset | QosOffset |
 |---|---:|---:|---:|
@@ -271,13 +295,24 @@ stayed put. That is a different reference topology and would get its own numbers
 bazel test //hardware/ip/chi_noc/...
 ```
 
-Routing is checked exhaustively against the generator's model, combinationally,
-with no simulation loop — the shape `//hardware/ip/common_cells/test` uses for
-`cc_lzc`, and for the same reason: a truth table settles it and a waveform does
-not. One crosspoint looped back on itself checks credits and ordering with no
-mesh in the build; a generated mesh checks delivery, deadlock freedom and the
-numbers above. Every assertion has a test that makes it fire, because an
-assertion nobody has watched fail is decoration.
+Routing is checked exhaustively against the generator's model — all 524,288
+(position, target) pairs the NodeID layout can express, combinationally, with no
+simulation loop. That is the shape `//hardware/ip/common_cells/test` uses for
+`cc_lzc` and for the same reason: a truth table settles it and a waveform does
+not. It includes the targets that name a device port no crosspoint has, where
+both statements must agree that the answer is *nowhere*.
+
+One crosspoint with its ports looped back on itself covers the rest: every legal
+turn, ordering per source and destination, six inputs oversubscribing one output
+for many times the credit count, and one output stalled while the other five keep
+running. Each of the three assertions has a test that makes it fire — an illegal
+turn, a flit addressed to no port, and an input starved past its bound — because
+an assertion nobody has watched fail is decoration.
+
+`bazel build --config=lint //hardware/...` elaborates every generated topology
+against the real crosspoint, which is what catches the generator and the RTL
+drifting apart about a port list. A golden-file test cannot see that: both sides
+of it are generated from the same description.
 
 The generator's own tests need no simulator at all and run in seconds. A bug
 should be caught by the cheapest layer that can see it.

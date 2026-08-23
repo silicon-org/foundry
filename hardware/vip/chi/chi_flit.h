@@ -83,38 +83,34 @@ using ConstFlitWords = const std::uint32_t*;
 // processor ID and a group ID at the same eight bits and tells them apart by
 // request opcode. test/chi_flit_test.cc pins that down.
 inline bool Unpack(Req& flit, ConstFlitWords bits) {
-  return chiron::Flits::DeserializeREQ<FlitConfig, FlitConn>(
-      flit, const_cast<FlitWords>(bits), Req::WIDTH);
+  return chiron::Flits::DeserializeREQ<FlitConfig, FlitConn>(flit, const_cast<FlitWords>(bits),
+                                                             Req::WIDTH);
 }
 inline bool Unpack(Rsp& flit, ConstFlitWords bits) {
-  return chiron::Flits::DeserializeRSP<FlitConfig, FlitConn>(
-      flit, const_cast<FlitWords>(bits), Rsp::WIDTH);
+  return chiron::Flits::DeserializeRSP<FlitConfig, FlitConn>(flit, const_cast<FlitWords>(bits),
+                                                             Rsp::WIDTH);
 }
 inline bool Unpack(Dat& flit, ConstFlitWords bits) {
-  return chiron::Flits::DeserializeDAT<FlitConfig, FlitConn>(
-      flit, const_cast<FlitWords>(bits), Dat::WIDTH);
+  return chiron::Flits::DeserializeDAT<FlitConfig, FlitConn>(flit, const_cast<FlitWords>(bits),
+                                                             Dat::WIDTH);
 }
 inline bool Unpack(Snp& flit, ConstFlitWords bits) {
-  return chiron::Flits::DeserializeSNP<FlitConfig, FlitConn>(
-      flit, const_cast<FlitWords>(bits), Snp::WIDTH);
+  return chiron::Flits::DeserializeSNP<FlitConfig, FlitConn>(flit, const_cast<FlitWords>(bits),
+                                                             Snp::WIDTH);
 }
 
 // Encoding. The caller's buffer must be kWordsFor<Flit> long; see above.
 inline bool Pack(const Req& flit, FlitWords bits) {
-  return chiron::Flits::SerializeREQ<FlitConfig, FlitConn>(flit, bits,
-                                                           Req::WIDTH);
+  return chiron::Flits::SerializeREQ<FlitConfig, FlitConn>(flit, bits, Req::WIDTH);
 }
 inline bool Pack(const Rsp& flit, FlitWords bits) {
-  return chiron::Flits::SerializeRSP<FlitConfig, FlitConn>(flit, bits,
-                                                           Rsp::WIDTH);
+  return chiron::Flits::SerializeRSP<FlitConfig, FlitConn>(flit, bits, Rsp::WIDTH);
 }
 inline bool Pack(const Dat& flit, FlitWords bits) {
-  return chiron::Flits::SerializeDAT<FlitConfig, FlitConn>(flit, bits,
-                                                           Dat::WIDTH);
+  return chiron::Flits::SerializeDAT<FlitConfig, FlitConn>(flit, bits, Dat::WIDTH);
 }
 inline bool Pack(const Snp& flit, FlitWords bits) {
-  return chiron::Flits::SerializeSNP<FlitConfig, FlitConn>(flit, bits,
-                                                           Snp::WIDTH);
+  return chiron::Flits::SerializeSNP<FlitConfig, FlitConn>(flit, bits, Snp::WIDTH);
 }
 
 }  // namespace vip::chi

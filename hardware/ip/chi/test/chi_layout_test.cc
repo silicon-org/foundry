@@ -59,21 +59,20 @@ void Check(int channel, const char* field, std::uint64_t decoded) {
   ++checks;
   const auto it = reported.find(field);
   if (it == reported.end()) {
-    Fail("%s.%s: decoded 0x%llx, but the package reported no such field",
-         ChannelName(channel), field, static_cast<unsigned long long>(decoded));
+    Fail("%s.%s: decoded 0x%llx, but the package reported no such field", ChannelName(channel),
+         field, static_cast<unsigned long long>(decoded));
     return;
   }
   if (it->second != decoded)
     Fail("%s.%s: package set 0x%llx, CHIron decoded 0x%llx", ChannelName(channel), field,
-         static_cast<unsigned long long>(it->second),
-         static_cast<unsigned long long>(decoded));
+         static_cast<unsigned long long>(it->second), static_cast<unsigned long long>(decoded));
   reported.erase(it);
 }
 
 void CheckNothingLeftOver(int channel) {
   for (const auto& [field, value] : reported) {
-    Fail("%s.%s: the package set it to 0x%llx and this test never checked it",
-         ChannelName(channel), field.c_str(), static_cast<unsigned long long>(value));
+    Fail("%s.%s: the package set it to 0x%llx and this test never checked it", ChannelName(channel),
+         field.c_str(), static_cast<unsigned long long>(value));
   }
   reported.clear();
 }

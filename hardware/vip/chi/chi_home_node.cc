@@ -35,10 +35,8 @@ bool IsRead(unsigned opcode) {
     case ReqOp::ReadNotSharedDirty:
     case ReqOp::ReadUnique:
     case ReqOp::MakeReadUnique:
-    case ReqOp::ReadPreferUnique:
-      return true;
-    default:
-      return false;
+    case ReqOp::ReadPreferUnique: return true;
+    default: return false;
   }
 }
 
@@ -52,10 +50,8 @@ bool ReadMayCache(unsigned opcode) {
     case ReqOp::ReadNotSharedDirty:
     case ReqOp::ReadUnique:
     case ReqOp::MakeReadUnique:
-    case ReqOp::ReadPreferUnique:
-      return true;
-    default:
-      return false;
+    case ReqOp::ReadPreferUnique: return true;
+    default: return false;
   }
 }
 
@@ -75,10 +71,8 @@ bool IsWrite(unsigned opcode) {
     case ReqOp::WriteNoSnpFull:
     case ReqOp::WriteNoSnpPtl:
     case ReqOp::WriteUniqueFull:
-    case ReqOp::WriteUniquePtl:
-      return true;
-    default:
-      return false;
+    case ReqOp::WriteUniquePtl: return true;
+    default: return false;
   }
 }
 
@@ -93,10 +87,8 @@ bool IsDataless(unsigned opcode) {
     case ReqOp::CleanShared:
     case ReqOp::CleanInvalid:
     case ReqOp::MakeInvalid:
-    case ReqOp::CleanSharedPersist:
-      return true;
-    default:
-      return false;
+    case ReqOp::CleanSharedPersist: return true;
+    default: return false;
   }
 }
 
@@ -105,10 +97,8 @@ unsigned DatalessResp(unsigned opcode) {
   switch (opcode) {
     // The requester asked for the line to itself and nobody else has it.
     case ReqOp::CleanUnique:
-    case ReqOp::MakeUnique:
-      return Resps::UC;
-    default:
-      return Resps::I;
+    case ReqOp::MakeUnique: return Resps::UC;
+    default: return Resps::I;
   }
 }
 
@@ -129,8 +119,8 @@ Dat::datacheck_t DataCheckOf(std::span<const std::uint8_t> bytes) {
 
 HomeNode::HomeNode(Config config, MemoryBackend& memory)
     : config_(std::move(config)), memory_(memory), log_(Logger(config_.name)) {
-  log_->debug("home node {} up, {}-byte lines, {}-byte beats", config_.node_id,
-              config_.line_bytes, kBeatBytes);
+  log_->debug("home node {} up, {}-byte lines, {}-byte beats", config_.node_id, config_.line_bytes,
+              kBeatBytes);
 }
 
 std::uint32_t HomeNode::AllocateDbid() {
@@ -164,8 +154,7 @@ void HomeNode::SendCompData(const Transaction& transaction, unsigned resp) {
   // full-line read is two of them; anything smaller than a beat is one, holding
   // the whole aligned region the request falls inside.
   const std::uint64_t line_base = transaction.address & ~std::uint64_t{config_.line_bytes - 1};
-  const std::uint64_t first =
-      (transaction.address & ~std::uint64_t{kBeatBytes - 1});
+  const std::uint64_t first = (transaction.address & ~std::uint64_t{kBeatBytes - 1});
   const unsigned beats = std::max(1u, transaction.size_bytes / kBeatBytes);
 
   for (unsigned beat = 0; beat < beats; ++beat) {
@@ -195,8 +184,8 @@ void HomeNode::SendCompData(const Transaction& transaction, unsigned resp) {
     }
     flit.DataCheck() = DataCheckOf(bytes);
 
-    log_->trace("tx CompData txn={:#x} addr={:#x} dataid={} resp={:#x}",
-                transaction.requester_txn, at, static_cast<unsigned>(flit.DataID()), resp);
+    log_->trace("tx CompData txn={:#x} addr={:#x} dataid={} resp={:#x}", transaction.requester_txn,
+                at, static_cast<unsigned>(flit.DataID()), resp);
     tx_dat_.push_back(flit);
   }
 }
@@ -322,9 +311,7 @@ void HomeNode::NextDat(const Dat& flit) {
   switch (opcode) {
     case DatOp::CopyBackWrData:
     case DatOp::NonCopyBackWrData:
-    case DatOp::NCBWrDataCompAck:
-      HandleWriteData(flit);
-      return;
+    case DatOp::NCBWrDataCompAck: HandleWriteData(flit); return;
     case DatOp::WriteDataCancel:
       // The requester changed its mind: the write is complete and no bytes move.
       // Legal for a copyback whose line turned out to be clean.

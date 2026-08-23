@@ -11,13 +11,13 @@
 // its first-declared field is QoS -- so QoS is at bit 0 and the flit is built
 // upwards from there. The two derivations agreeing is the point.
 
+#include "hardware/vip/chi/chi_flit.h"
+
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <type_traits>
-
-#include "hardware/vip/chi/chi_flit.h"
 
 namespace {
 
@@ -52,13 +52,11 @@ struct Field {
 
 // Naming a field costs one line: the expected position and width from the
 // specification, the two constants CHIron derived, and a setter.
-#define FIELD(FLIT, NAME, LSB, WIDTH, CONST, ACCESSOR)                        \
-  Field<FLIT> {                                                               \
-    #NAME, LSB, WIDTH, FLIT::CONST##_LSB, FLIT::CONST##_WIDTH,                \
-        [](FLIT& f, std::uint64_t v) {                                        \
-          f.ACCESSOR() =                                                        \
-              static_cast<std::decay_t<decltype(f.ACCESSOR())>>(v);              \
-        }                                                                     \
+#define FIELD(FLIT, NAME, LSB, WIDTH, CONST, ACCESSOR)                                        \
+  Field<FLIT> {                                                                               \
+    #NAME, LSB, WIDTH, FLIT::CONST##_LSB, FLIT::CONST##_WIDTH, [](FLIT& f, std::uint64_t v) { \
+      f.ACCESSOR() = static_cast<std::decay_t<decltype(f.ACCESSOR())>>(v);                    \
+    }                                                                                         \
   }
 
 // REQ, 162 bits. StashNID overlays ReturnNID, SLCRepHint overlays ReturnTxnID,
@@ -155,9 +153,7 @@ const Field<Dat> kDatFields[] = {
 };
 
 // Is bit `i` of a packed flit set?
-bool Bit(const std::uint32_t* words, std::size_t i) {
-  return (words[i / 32] >> (i % 32)) & 1u;
-}
+bool Bit(const std::uint32_t* words, std::size_t i) { return (words[i / 32] >> (i % 32)) & 1u; }
 
 // Set one field to all ones, pack, and require that exactly the bits the
 // specification assigns to it came out set. This checks the constants, the
@@ -168,16 +164,14 @@ template <typename Flit, std::size_t N>
 void CheckFieldPositions(const char* channel, const Field<Flit> (&fields)[N]) {
   for (const auto& field : fields) {
     if (field.lsb != field.actual_lsb || field.width != field.actual_width) {
-      Fail("%s.%s: specification says [%zu +: %zu], CHIron says [%zu +: %zu]",
-           channel, field.name, field.lsb, field.width, field.actual_lsb,
-           field.actual_width);
+      Fail("%s.%s: specification says [%zu +: %zu], CHIron says [%zu +: %zu]", channel, field.name,
+           field.lsb, field.width, field.actual_lsb, field.actual_width);
       continue;
     }
 
     Flit flit{};
     const std::uint64_t ones =
-        field.width >= 64 ? ~std::uint64_t{0}
-                          : (std::uint64_t{1} << field.width) - 1;
+        field.width >= 64 ? ~std::uint64_t{0} : (std::uint64_t{1} << field.width) - 1;
     field.set(flit, ones);
 
     std::uint32_t words[vip::chi::kWordsFor<Flit>] = {};
@@ -189,9 +183,8 @@ void CheckFieldPositions(const char* channel, const Field<Flit> (&fields)[N]) {
     for (std::size_t i = 0; i < Flit::WIDTH; ++i) {
       const bool expected = i >= field.lsb && i < field.lsb + field.width;
       if (Bit(words, i) != expected) {
-        Fail("%s.%s: bit %zu is %d, expected %d (field is [%zu +: %zu])",
-             channel, field.name, i, Bit(words, i) ? 1 : 0, expected ? 1 : 0,
-             field.lsb, field.width);
+        Fail("%s.%s: bit %zu is %d, expected %d (field is [%zu +: %zu])", channel, field.name, i,
+             Bit(words, i) ? 1 : 0, expected ? 1 : 0, field.lsb, field.width);
         break;
       }
     }
@@ -207,8 +200,7 @@ void CheckRoundTrip(const char* channel, const Field<Flit> (&fields)[N]) {
   std::uint64_t value = 1;
   for (const auto& field : fields) {
     const std::uint64_t mask =
-        field.width >= 64 ? ~std::uint64_t{0}
-                          : (std::uint64_t{1} << field.width) - 1;
+        field.width >= 64 ? ~std::uint64_t{0} : (std::uint64_t{1} << field.width) - 1;
     field.set(sent, (value * 0x9E3779B97F4A7C15ull) & mask);
     ++value;
   }
@@ -236,8 +228,7 @@ void CheckRoundTrip(const char* channel, const Field<Flit> (&fields)[N]) {
   }
   for (std::size_t i = 0; i < (Flit::WIDTH + 31) / 32; ++i) {
     if (words[i] != again[i]) {
-      Fail("%s: round trip changed word %zu: 0x%08x -> 0x%08x", channel, i,
-           words[i], again[i]);
+      Fail("%s: round trip changed word %zu: 0x%08x -> 0x%08x", channel, i, words[i], again[i]);
       return;
     }
   }
@@ -268,8 +259,8 @@ void CheckLpidAliasesTagGroupID() {
     Fail("REQ.TagGroupID: unpacked 0x%x, expected 0xa5",
          static_cast<unsigned>(received.TagGroupID()));
   if (static_cast<unsigned>(received.LPID()) != (0xA5 & 0x1F))
-    Fail("REQ.LPID: unpacked 0x%x, expected 0x%x",
-         static_cast<unsigned>(received.LPID()), 0xA5 & 0x1F);
+    Fail("REQ.LPID: unpacked 0x%x, expected 0x%x", static_cast<unsigned>(received.LPID()),
+         0xA5 & 0x1F);
 }
 
 // A flit is only accepted at exactly its own width. The DPI layer passes a
@@ -278,12 +269,10 @@ void CheckLpidAliasesTagGroupID() {
 void CheckWidthIsEnforced() {
   Rsp flit{};
   std::uint32_t words[vip::chi::kWordsFor<Rsp>] = {};
-  if (vip::chi::chiron::Flits::SerializeRSP<vip::chi::FlitConfig,
-                                            vip::chi::FlitConn>(flit, words,
-                                                                Rsp::WIDTH + 1))
+  if (vip::chi::chiron::Flits::SerializeRSP<vip::chi::FlitConfig, vip::chi::FlitConn>(
+          flit, words, Rsp::WIDTH + 1))
     Fail("RSP: Pack accepted a wrong bit length");
-  if (vip::chi::chiron::Flits::DeserializeRSP<vip::chi::FlitConfig,
-                                              vip::chi::FlitConn>(
+  if (vip::chi::chiron::Flits::DeserializeRSP<vip::chi::FlitConfig, vip::chi::FlitConn>(
           flit, words, Rsp::WIDTH - 1))
     Fail("RSP: Unpack accepted a wrong bit length");
 }
@@ -312,9 +301,7 @@ int main() {
       "CHI flit layer: REQ %zu, RSP %zu, DAT %zu, SNP %zu bits; "
       "%zu field positions checked, four round trips clean\n",
       Req::WIDTH, Rsp::WIDTH, Dat::WIDTH, Snp::WIDTH,
-      sizeof(kReqFields) / sizeof(*kReqFields) +
-          sizeof(kRspFields) / sizeof(*kRspFields) +
-          sizeof(kDatFields) / sizeof(*kDatFields) +
-          sizeof(kSnpFields) / sizeof(*kSnpFields));
+      sizeof(kReqFields) / sizeof(*kReqFields) + sizeof(kRspFields) / sizeof(*kRspFields) +
+          sizeof(kDatFields) / sizeof(*kDatFields) + sizeof(kSnpFields) / sizeof(*kSnpFields));
   return 0;
 }

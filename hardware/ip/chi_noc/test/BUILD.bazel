@@ -223,4 +223,5 @@ verilator_cc_library(
     "throughput_transpose",
     "throughput_complement",
     "throughput_hotspot",
+    "throughput_neighbour",
 ]]

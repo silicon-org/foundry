@@ -174,15 +174,24 @@ It costs EUR 5.93/month more (`cp-1` stays a `cx23`) and uses a second permanent
 slot, so until the limit is raised there is room for two elastic workers rather
 than three. Both are noise against EUR 149.71.
 
-- [ ] Create `foundry-worker-2` as a `cx43` (8 vCPU, 16 GB, EUR 17.29/mo), no
-      user-data, then `apply-config` -- 135 s to Ready, measured
-- [ ] Shrink the Buildbarn worker to fit 16 GB alongside the services and the
-      ARC runner: concurrency 2, runner ~6 GiB. This is P2's small class arriving
-      early, because a 20 GiB limit on a 16 GB node is a node-level OOM waiting
-      for a build.
-- [ ] Drain `worker-1`; watch the CAS volume detach and reattach -- the slowest
-      and most failure-prone step
-- [ ] Delete `worker-1`
+**Done 2026-08-23.** EUR 155.64/month becomes EUR 81.05 (`cp-1` 5.93 + `cpx42`
+75.12), a saving of EUR 74.59 with elastic capacity still to be added on top.
+Less than the EUR 17.29 node the plan first assumed, because that type cannot
+be allocated -- see the note on the create step.
+
+- [x] Create `foundry-worker-2`. `cx43` turned out to be unavailable -- every
+      shared-vCPU type in the *previous* generation is, but the current
+      `cpx12/22/32/42/52/62` line is not. Took a **`cpx42`, 8 vCPU / 16 GB, EUR
+      75.12/mo**. No user-data, then `apply-config`: Ready at +153 s.
+- [x] Shrank the Buildbarn worker to concurrency 2 and a 6 GiB runner
+- [x] Drained `worker-1`. All four volumes -- CAS, Prometheus, Loki, Postgres --
+      detached and reattached without intervention.
+
+      One trap worth recording: draining evicts the Tailscale operator, and the
+      operator *is* the API server proxy that `kubectl` was connecting through,
+      so the drain severs its own connection halfway. Finish it against the
+      control plane's own address instead.
+- [x] Deleted `worker-1`
 
 Consequence to accept knowingly: heavy builds then need an elastic node, which
 is manual until P3. CI stays red on that one action either way, so this changes

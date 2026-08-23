@@ -74,15 +74,14 @@ nodes:
     controlPlane: true
     installDisk: /dev/sda
 
-  - hostname: foundry-worker-1
-    ipAddress: 10.0.1.21
-    controlPlane: false
-    installDisk: /dev/sda
-
-  # Elastic. Created on demand and deleted when idle, so unlike every other node
-  # here it is not expected to exist. Listed anyway because talhelper is what
-  # renders its machine config, and an autoscaled node has to receive that config
-  # from user-data rather than from someone running apply-config.
+  # The always-on worker: a cpx42 carrying the services, the ARC runner and a
+  # small Buildbarn worker. It replaced a ccx33 that cost EUR 149.71/month to be
+  # idle 94% of the time and could not build the one action that needed it.
+  #
+  # Elastic workers are added beside this one and deleted when idle. They are
+  # not listed here: talhelper renders one config per node, and an autoscaled
+  # node cannot wait for someone to run apply-config -- see tasks/autoscaling.md
+  # P3, which is the piece still unsolved.
   - hostname: foundry-worker-2
     ipAddress: 10.0.1.22
     controlPlane: false

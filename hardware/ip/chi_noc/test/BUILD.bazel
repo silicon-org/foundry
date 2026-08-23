@@ -55,11 +55,22 @@ cc_test(
 # The switch itself, with its ports wired to nothing but itself.
 ################################################################################
 
+# The monitor the testbench binds into the switch. Not a design: it is here and
+# not in //hardware/ip/chi_noc/src so that nothing shipped carries it.
+verilog_library(
+    name = "chi_xp_channel_cov",
+    srcs = ["chi_xp_channel_cov.sv"],
+    deps = ["//hardware/ip/chi_noc:chi_noc_pkg"],
+)
+
 verilog_library(
     name = "chi_xp_channel_tb",
     srcs = ["chi_xp_channel_tb.sv"],
     top_module = "chi_xp_channel_tb",
-    deps = ["//hardware/ip/chi_noc:chi_xp"],
+    deps = [
+        ":chi_xp_channel_cov",
+        "//hardware/ip/chi_noc:chi_xp",
+    ],
 )
 
 verilator_cc_library(
@@ -96,6 +107,7 @@ verilator_cc_library(
     "backpressure",
     "qos",
     "credit",
+    "coverage",
 ]]
 
 # The negative cases. Each drives the switch with something no correct

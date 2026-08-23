@@ -130,9 +130,42 @@ first, not a substitute for raising the limit.
 ## Milestones
 
 ### M1 - Prove the mechanism
-- [ ] One elastic node, created by hand, joins via user-data machine config
+
+**Attempted 2026-08-23. User-data does not deliver the machine config, and that
+blocks the design until it is solved.**
+
+| server | type | config delivery | result |
+|---|---|---|---|
+| foundry-worker-1 | ccx33 | `talosctl apply-config` by hand | works, in production |
+| foundry-worker-2 | ccx43 | `--user-data-from-file` | Talos API never listens |
+| foundry-worker-2 | ccx33 | `--user-data-from-file` | Talos API never listens |
+
+Same snapshot, same generated config file, two server types -- so the variable
+is user-data, not the machine. In both failures the host booted far enough to
+take a private address and answer ICMP, but nothing ever listened on 50000. Not
+maintenance mode either: from inside the private network the port was *closed*
+while `10.0.1.11:50000` and `10.0.1.21:50000` answered from the same probe pod.
+It never reached the tailnet, so the extension never started, so the
+configuration never applied.
+
+Why is not yet known, and the next step needs the Hetzner console -- an
+interactive step. Worth checking there first:
+
+- whether Talos panics or drops to maintenance without a listener
+- whether it is mid-install: applying a config makes Talos install over the disk
+  it booted from, and a failure there would look exactly like this
+- whether the metadata service serves the user-data verbatim, or the CLI wraps it
+
+If user-data cannot be made to work, the alternatives, cheapest first: a
+controller that applies the config over the Talos API once a node boots into
+maintenance mode (keeps `apply-config`, loses "no moving parts"); `talos.config=`
+as a kernel argument, which needs a custom image or PXE; or SideroLink/Omni,
+which is a much larger dependency.
+
+- [ ] Establish why user-data does not apply, from the console
 - [ ] **Measure cold start**: create -> boot -> join -> worker registers. The
-      whole design assumes this is minutes, not tens of minutes.
+      whole design assumes this is minutes, not tens of minutes. Not yet
+      measured, because no elastic node has ever joined.
 - [ ] Measure CAS throughput with the worker genuinely off-node
 
 ### M2 - Shrink the floor

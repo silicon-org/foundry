@@ -212,6 +212,26 @@ Shippable on its own: full capability, manual scaling.
 - [ ] Verify a large action *queues* rather than landing on the small worker
 - [ ] Document the manual path: create a node, `apply-config`, 135 s to Ready
 
+### Two things P2 established that the plan had not anticipated
+
+**A large worker must serve small actions too.** Routing only the heavy action
+to the large class left a 16-core node idle for a whole build while a
+2-concurrency worker ground through ten thousand compiles -- 557 actions against
+zero, measured mid-build. Buildbarn's `runners` is a list, so one pod
+advertises both classes over the same socket: eight small and one large.
+
+**Elastic nodes must be tainted.** With only a nodeSelector on the large
+worker, nothing stops other pods landing on the elastic node -- the small worker
+did, immediately, when Flux restarted it. That matters twice over:
+cluster-autoscaler will not delete a node whose pods it cannot evict, so an
+untainted elastic node is not disposable, and workloads that belong on the
+always-on node end up churning when it goes away.
+
+**One generic machine config serves every elastic node.** `foundry-worker-3`
+joined under the hostname Hetzner gave its server, because the config carries no
+`HostnameConfig` document. That is what makes the pre-configured snapshot below
+viable: one image, no per-node rendering, nothing to apply after boot.
+
 ### P3 - Automate provisioning
 
 The one unsolved piece. `cluster-autoscaler` creates a server; something must

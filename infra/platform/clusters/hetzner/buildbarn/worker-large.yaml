@@ -134,3 +134,13 @@ spec:
           name: buildbarn-config
       nodeSelector:
         foundry.dev/pool: build
+      # Elastic nodes carry a matching taint, so this is the only workload that
+      # can land on one. Without it the scheduler puts arbitrary pods -- the
+      # small worker included, observed -- on a machine that is about to be
+      # deleted, and cluster-autoscaler will not delete a node whose pods it
+      # cannot evict. The taint is what makes the node genuinely disposable.
+      tolerations:
+        - key: foundry.dev/pool
+          operator: Equal
+          value: build
+          effect: NoSchedule

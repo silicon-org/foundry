@@ -74,7 +74,15 @@ patches:
         path: /spec/template/spec/containers/0/env/3/value
         value: "2"
 
-  # Limits sized to what is actually left on the node. Everything else resident
+  # Sized for the 16 GB always-on node, not for a build machine. This worker
+  # exists to serve the common run -- a cache walk that executes about three
+  # actions -- and deliberately cannot run the heavy ones: those declare
+  # size=large and wait for an elastic node. See tasks/autoscaling.md.
+  #
+  # The node also carries ~3.2 GiB of services and the ARC runner's 3 GiB, so
+  # this is what is left rather than what a build would like.
+  #
+  # Previously sized for a 30 GB dedicated node. Everything else resident
   # -- Prometheus, Grafana, Loki, the storage daemon, cilium -- is ~3.2 GiB, the
   # ARC runner may add 3 GiB during CI, and the node now keeps 1 GiB for itself.
   # Against 30.6 GiB of capacity that leaves about 23 GiB.
@@ -96,10 +104,10 @@ patches:
         value: "1"
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 2Gi
+        value: 1Gi
       - op: replace
         path: /spec/template/spec/containers/1/resources/requests/cpu
         value: "4"
       - op: replace
         path: /spec/template/spec/containers/1/resources/limits/memory
-        value: 20Gi
+        value: 6Gi

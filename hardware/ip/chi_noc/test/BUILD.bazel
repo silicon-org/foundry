@@ -225,3 +225,52 @@ verilator_cc_library(
     "throughput_hotspot",
     "throughput_neighbour",
 ]]
+
+################################################################################
+# Real CHI transactions across the mesh: eight requesters, four home nodes.
+################################################################################
+
+verilog_library(
+    name = "chi_noc_system_tb",
+    srcs = ["chi_noc_system_tb.sv"],
+    hdrs = [
+        "//hardware/vip/chi:chi_hn_dpi_svh",
+        "//hardware/vip/chi:chi_rn_dpi_svh",
+        "//hardware/vip/common:vip_dpi_svh",
+    ],
+    top_module = "chi_noc_system_tb",
+    deps = [
+        "//hardware/ip/chi_noc:chi_noc_device_port",
+        "//hardware/ip/chi_noc:mesh4x4",
+        "//hardware/vip/chi/rtl:chi_hn_core",
+        "//hardware/vip/chi/rtl:chi_rn_core",
+    ],
+)
+
+verilator_cc_library(
+    name = "chi_noc_system_verilated",
+    module = ":chi_noc_system_tb",
+    timing = True,
+    vopts = [
+        "-Wall",
+        "-Wno-fatal",
+        "-Wno-UNUSEDPARAM",
+        "-Wno-SYNCASYNCNET",
+        "--assert",
+        "--main",
+        "--timescale",
+        "1ns/1ps",
+    ],
+)
+
+cc_test(
+    name = "chi_noc_system_test",
+    size = "medium",
+    deps = [
+        ":chi_noc_system_verilated",
+        "//hardware/vip/chi:chi_hn_dpi",
+        "//hardware/vip/chi:chi_rn_dpi",
+        "//hardware/vip/common:verilated_shims",
+        "//hardware/vip/common:vip_dpi",
+    ],
+)

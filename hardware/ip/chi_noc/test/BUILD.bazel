@@ -163,3 +163,64 @@ cc_test(
         "//hardware/vip/common:verilated_shims",
     ],
 )
+
+################################################################################
+# The reference mesh, driven at every device port.
+################################################################################
+
+verilog_library(
+    name = "chi_noc_mesh_tb",
+    srcs = ["chi_noc_mesh_tb.sv"],
+    top_module = "chi_noc_mesh_tb",
+    deps = ["//hardware/ip/chi_noc:mesh4x4"],
+)
+
+verilator_cc_library(
+    name = "chi_noc_mesh_verilated",
+    module = ":chi_noc_mesh_tb",
+    timing = True,
+    vopts = [
+        "-Wall",
+        "-Wno-fatal",
+        "-Wno-UNUSEDPARAM",
+        "-Wno-SYNCASYNCNET",
+        "--assert",
+        "--main",
+        "--timescale",
+        "1ns/1ps",
+    ],
+)
+
+# Correctness and liveness, which are quick.
+[cc_test(
+    name = "chi_noc_mesh_{}_test".format(case),
+    size = "medium",
+    args = ["+case={}".format(case)],
+    deps = [
+        ":chi_noc_mesh_verilated",
+        "//hardware/vip/common:verilated_shims",
+    ],
+) for case in [
+    "all_pairs",
+    "latency",
+    "all_classes",
+    "uniform",
+    "stall",
+]]
+
+# Saturation, under each traffic pattern. Slower, because a throughput number
+# needs a steady state to measure and a steady state needs flits.
+[cc_test(
+    name = "chi_noc_mesh_{}_test".format(case),
+    size = "large",
+    args = ["+case={}".format(case)],
+    deps = [
+        ":chi_noc_mesh_verilated",
+        "//hardware/vip/common:verilated_shims",
+    ],
+) for case in [
+    "throughput_uniform",
+    "throughput_transpose",
+    "throughput_complement",
+    "throughput_hotspot",
+]]

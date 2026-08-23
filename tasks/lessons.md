@@ -287,3 +287,76 @@ more time than it should have.
   attribute they sit above, so nothing comes detached, but a hand-curated
   `MODULE.bazel` will churn on first contact.
 
+- A whole-tree formatter and a long-lived branch are a bad pair. `style: format
+  the tree` formatted the tree *as it was*; rebasing it onto forty files that
+  arrived from another branch leaves those unformatted, and nothing says so until
+  the format test runs. Rebase first, format second — the reverse silently
+  formats a tree that is about to change.
+
+- rules_lint honours `.gitattributes`. `format.sh` runs `git check-attr
+  rules-lint-ignored linguist-generated gitlab-generated` and skips a file when
+  any of the three is `set` or `true`; `disable_git_attribute_checks` turns that
+  off and defaults to False. It is the supported way to keep the formatter off a
+  vendored tree, and for `hardware/vip/chi/chiron` it earns its keep twice:
+  reformatting would break the patches in `chiron/patches/` *and* normalise the
+  CRLF that the lesson above this one is about.
+
+## Python
+
+- A **virtual** uv project's `[project].dependencies` are locked and reachable by
+  nothing. aspect_rules_py's uv extension materialises a Bazel target only for
+  packages a *dependency group* pulls in, so with `[tool.uv] package = false`
+  the runtime deps resolve into `uv.lock` and then `@pypi//jinja2` does not
+  exist. Symptom is a missing target, which reads like a typo. Put everything in
+  `[dependency-groups]`.
+
+- Choosing a dependency group is a **build flag**
+  (`@aspect_rules_py//uv/private/constraints/dep_group:dep_group`), and each
+  package is `target_compatible_with` the groups that name it. So two groups
+  means a configuration transition on every target that uses the second one, and
+  the error when the flag is unset is "didn't satisfy constraint
+  @@platforms//:incompatible" -- which says nothing about dependency groups. One
+  group, set in //.bazelrc, unless there is a real reason for two.
+
+- `default_build_dependencies` on `uv.project()` may only name packages the
+  lockfile resolves. `build` and `setuptools` are not implicit; without them
+  every package whose lock entry carries an sdist alongside its wheels fails
+  with "No module named build", from a venv the extension builds and nobody
+  asked for.
+
+- rules_py 2.0.0-alpha.6 builds **pydantic-core from its sdist even though the
+  lockfile has a wheel for the interpreter in use**, and then wants maturin --
+  a Rust toolchain, to validate a YAML file. `[tool.uv] no-build = true` does not
+  prevent it; uv records the sdist either way and rules_py picks it. Confirmed
+  by bisecting with a two-target probe: jinja2 + pyyaml built fine, pydantic
+  alone failed. The fix that stuck was not using pydantic. Worth re-testing on a
+  later alpha, and worth remembering as the general shape: in this repository a
+  Python dependency with a compiled extension is a dependency on a toolchain,
+  and should be argued for rather than assumed.
+
+- Pin `requires-python` to one minor version, not a range. A range makes uv
+  resolve for every version in it, which widens the set of packages rules_py
+  thinks it may have to build from source. uv then rewrites `>=3.13,<3.14` as
+  `==3.13.*` in the lock, so a test that asserts the spelling fails; assert the
+  property. The version to pin to is whichever python-build-standalone
+  aspect_rules_py fetches -- 3.13 at 2.0.0-alpha.6, visible as
+  `aspect_rules_py++python_interpreters+python_3_13_*` in the external directory.
+
+- A py_binary's `main` runs as a *script*, not as `python -m pkg`, so it has no
+  parent package and `from .config import ...` raises "attempted relative import
+  with no known parent package". With `imports` pointing at the directory above
+  the package, an absolute import works from both.
+
+- Setting a Starlark build setting in `//.bazelrc` changes the configuration of
+  **every** target, not just the ones that read it: the flag becomes part of the
+  configuration hash, output paths gain an `-ST-<hash>` component, and nothing
+  in the tree is cached any more. Done here to select a uv dependency group, it
+  turned a one-second Python test into a from-source rebuild of Verilator, twice
+  -- 510 seconds against the 10,650 action-cache hits the same command gets with
+  the flag removed. rules_py's venv rules take `dep_group` as a per-target
+  attribute, which is the mechanism to reach for.
+
+  General form: a repository-wide flag to satisfy one target is a repository-wide
+  cache invalidation, and in a tree that builds its own toolchains that is not a
+  small thing. Prefer the attribute; if there is no attribute, prefer a
+  transition; put it in `.bazelrc` only when it genuinely applies to everything.

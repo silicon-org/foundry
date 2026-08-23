@@ -37,12 +37,6 @@ env:
 
 jobs:
   cluster:
-    # checks: write is what lets the test summary land on the commit. Scoped to
-    # this job rather than raised at the top of the file, so the weekly upstream
-    # job keeps the read-only token it has always had.
-    permissions:
-      contents: read
-      checks: write
     # A fork's pull request never reaches this job. workflow_dispatch is
     # included because triggering it requires write access, the same bar as
     # pushing a branch here. Excluded on schedule: the weekly run exists to ask
@@ -121,42 +115,74 @@ jobs:
 
       # Which test failed, on the commit, instead of ten thousand lines of log.
       #
-      # bazel-testlogs is a symlink into the output base and the publisher does
-      # not follow it, so the XML is copied out with a flattened name -- the
-      # target label, which is what you actually want to read in the summary.
+      # Collected here and published by the `report` job rather than here,
+      # because the publisher is a Docker container action and these runners
+      # have no Docker daemon -- deliberately: they are rootless pods under a
+      # `restricted` Pod Security Standard, which is invariant #2. Worth knowing
+      # how that fails, because it is not a step failure: GitHub pre-pulls
+      # container actions during job *setup*, so an unrunnable one skips every
+      # step in the job, including the build, and reports a job that never ran
+      # as a failure of the thing it never reached.
       #
-      # `if: always()` because the interesting case is the one where the step
-      # above failed.
+      # bazel-testlogs is a symlink into the output base, so -L is required, and
+      # the tree is preserved because the path is the target label and that is
+      # what makes the summary readable.
       - name: Collect test results
         if: always()
         run: |
-          mkdir -p test-results
           logs="$(bazel info bazel-testlogs)"
           find -L "$logs" -name test.xml -print0 | while IFS= read -r -d '' f; do
             rel="${f#"$logs"/}"
-            cp "$f" "test-results/${rel%/test.xml}.xml"
-          done | true
-          ls test-results | head -50
+            mkdir -p "test-results/$(dirname "$rel")"
+            cp "$f" "test-results/$rel"
+          done
+          echo "collected $(find test-results -name '*.xml' 2>/dev/null | wc -l) result files"
 
-      # A check run rather than a PR comment: it shows on the commit and does
-      # not accumulate one comment per push.
-      #
-      # This reports *test* outcomes. A target that fails to build produces no
-      # XML at all, so a red build with a green test summary means the failure
-      # was a compile -- read the log for those.
-      - name: Publish test results
+      - name: Upload test results
         if: always()
-        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2.24.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          files: test-results/**/*.xml
-          check_name: Tests
-          comment_mode: off
-          action_fail: false
+          name: test-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
       # --redact: findings must never be echoed into a public build log.
       # Not a Bazel target because it reads git history rather than the tree.
       - name: Secret scan
         run: bazel run --config=ci $BES //tools:secret-scan -- git --redact --no-banner
+
+  # The test summary, on a hosted runner because the publisher needs Docker and
+  # our own runners deliberately have none. Nothing untrusted runs here: it
+  # consumes XML this repository's own build produced, and a fork's pull request
+  # never gets this far because `cluster` does not run for one.
+  report:
+    needs: cluster
+    if: always() && needs.cluster.result != 'skipped'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: test-results
+          path: test-results
+        continue-on-error: true
+
+      # action_fail is off: `cluster` already failed the build if anything
+      # broke, and a second red check for the same event says nothing new.
+      #
+      # This reports *test* outcomes only. A target that fails to compile
+      # produces no XML, so a red build beside a green summary means the failure
+      # was a build failure -- read the log for those.
+      - uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2.24.0
+        if: hashFiles('test-results/**/*.xml') != ''
+        with:
+          files: test-results/**/*.xml
+          check_name: Tests
+          comment_mode: off
+          action_fail: false
 
   # Can the pinned toolchain still be obtained from the internet?
   #

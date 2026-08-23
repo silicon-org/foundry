@@ -7,6 +7,9 @@ kind: Kustomization
 resources:
   - ../../../buildbarn
   - storage-volume.yaml
+  # The large size class. Only this cluster has one: the local cluster is a
+  # laptop, and an action needing 24 GiB has nowhere to go there either way.
+  - worker-large.yaml
 patches:
   # The cache sized to the volume this cluster has, rather than to the laptop the
   # base config describes. 56 of the 62.8 GiB the filesystem reports, leaving room
@@ -101,13 +104,13 @@ patches:
     patch: |
       - op: replace
         path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: "1"
+        value: 500m
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/memory
         value: 1Gi
       - op: replace
         path: /spec/template/spec/containers/1/resources/requests/cpu
-        value: "4"
+        value: "2"
       - op: replace
         path: /spec/template/spec/containers/1/resources/limits/memory
         value: 6Gi

@@ -1,0 +1,128 @@
+# The large size class: one worker, on an elastic node, for the actions that no
+# always-on machine here can run.
+#
+# A near-copy of ../../../buildbarn/worker.yaml rather than a patch of it,
+# because kustomize cannot include one resource twice. The cost is real -- a
+# change to the base does not reach this file -- so keep the two in step by
+# hand, and prefer changing the base where a change applies to both.
+#
+# What differs, and why:
+#
+#   SIZE=large              the class this worker serves. Actions asking for it
+#                           wait until one of these exists, which is the whole
+#                           mechanism -- see config/worker.jsonnet.
+#   nodeSelector pool=build lands only on an elastic node. There is deliberately
+#                           no such node most of the time.
+#   replicas: 0             nothing runs until something scales it. In P4 this
+#                           field is *removed* rather than set, so KEDA owns it
+#                           and Flux never fights the scaler for it.
+#   runner limit 44Gi       the elaboration peaks at 24.24 GiB, measured. The
+#                           headroom is deliberate: the previous three attempts
+#                           all measured a ceiling rather than a peak, because a
+#                           limit that kills the process hides what it wanted.
+#   concurrency 6           six of these fit beside a 24 GiB action on a 64 GB
+#                           node; more would not.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-large
+  namespace: buildbarn
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: worker-large
+  template:
+    metadata:
+      labels:
+        app: worker-large
+    spec:
+      initContainers:
+      - name: runner-installer
+        image: ghcr.io/buildbarn/bb-runner-installer@sha256:e102ade0952f9a6f98fc91e6b88da4c08e2354f561f8aed8de7d8d3ae18b283f
+        volumeMounts:
+        - name: bb
+          mountPath: /bb
+      - name: volume-init
+        image: busybox@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+        command:
+        - sh
+        - -c
+        - mkdir -pm 0777 /worker/build && mkdir -pm 0777 /worker/cache && chmod 0777 /worker
+        volumeMounts:
+        - name: worker
+          mountPath: /worker
+      containers:
+      - name: worker
+        image: ghcr.io/buildbarn/bb-worker@sha256:49ccaa7e3e298ebdf4b31f43d207bb72b7b36636cfd8b4c8e73adc10e1693505
+        args:
+        - /config/worker.jsonnet
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: ISA
+          # amd64, hardcoded rather than patched. This file exists only in the
+          # Hetzner overlay, so the architecture is not a variable here -- and
+          # the overlay's ISA patch selects the `worker` Deployment by name, so
+          # it never reaches this one. Inheriting the base's arm64 would
+          # register a worker for an architecture it cannot execute.
+          value: amd64
+        - name: RUNNER_CONCURRENCY
+          value: '6'
+        - name: SIZE
+          value: large
+        ports:
+        - name: metrics
+          containerPort: 9980
+        resources:
+          requests:
+            cpu: 500m
+            memory: 256Mi
+          limits:
+            memory: 2Gi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+        - name: worker
+          mountPath: /worker
+      - name: runner
+        image: gcc@sha256:5e927c284bf55a7dc796262e311a0703344f62f41f5621eb56843111b1d37e15
+        command:
+        - /bb/bb_runner
+        - /config/runner.jsonnet
+        securityContext:
+          allowPrivilegeEscalation: false
+        resources:
+          requests:
+            cpu: '2'
+            memory: 256Mi
+          limits:
+            memory: 44Gi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+        - name: worker
+          mountPath: /worker
+        - name: bb
+          mountPath: /bb
+          readOnly: true
+      volumes:
+      - name: bb
+        emptyDir: {}
+      - name: worker
+        emptyDir: {}
+      - name: config
+        configMap:
+          name: buildbarn-config
+      nodeSelector:
+        foundry.dev/pool: build

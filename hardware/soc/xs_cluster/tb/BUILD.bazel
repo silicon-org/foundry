@@ -44,6 +44,12 @@ VOPTS = [
 # --timing on top of it because the clock lives in the testbench.
 verilator_cc_library(
     name = "xs_cluster_verilated",
+    # Measured at 24.24 GiB peak, which no always-on node here has. This routes
+    # it to a worker that only exists while such work is queued; without it the
+    # action lands on the small worker and is OOM-killed, reported as
+    # "dial unix /worker/runner: connection refused" from the container that
+    # survived. See tasks/autoscaling.md.
+    exec_properties = {"size": "large"},
     module = ":xs_cluster_tb",
     timing = True,
     vopts = VOPTS,

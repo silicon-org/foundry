@@ -48,10 +48,21 @@ local common = import 'common.libsonnet';
       // start rather than registering as an architecture it cannot execute --
       // which would be far worse, since actions would be scheduled to it and
       // then fail in ways that look like compiler bugs.
+      //
+      // `size` is what routes the heavy actions. A worker serves exactly one
+      // class, and an action asking for a class no worker serves waits rather
+      // than running somewhere too small -- which is the point: the elaboration
+      // in //hardware/soc/xs_cluster/tb needs 24.24 GiB, measured, and no
+      // always-on node here will ever have that. Attempting it on the small
+      // worker does not produce a slow build, it produces an OOM kill reported
+      // as a lost unix socket.
+      //
+      // Sorted lexicographically, as above: ISA < OSFamily < size.
       platform: {
         properties: [
           { name: 'ISA', value: std.extVar('ISA') },
           { name: 'OSFamily', value: 'linux' },
+          { name: 'size', value: std.extVar('SIZE') },
         ],
       },
       workerId: {

@@ -24,6 +24,11 @@ platform(
     exec_properties = {
         "OSFamily": "linux",
         "ISA": "arm64",
+        # The size class a worker must advertise to receive this action. Every
+        # action asks for "small" unless a target overrides it, because almost
+        # every action is small: a representative CI run served 6928 from cache
+        # and executed three.
+        "size": "small",
     },
 )
 
@@ -36,5 +41,9 @@ platform(
     exec_properties = {
         "OSFamily": "linux",
         "ISA": "amd64",
+        # See linux_arm64. A target that needs more says so with
+        # exec_properties = {"size": "large"}, which overrides this one key and
+        # sends it to a worker that only exists while such work is queued.
+        "size": "small",
     },
 )

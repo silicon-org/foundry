@@ -75,6 +75,11 @@ spec:
             # Cloud overlays raise it to suit the node they actually have.
             - name: RUNNER_CONCURRENCY
               value: "1"
+            # Which size class this worker serves. Unset is a jsonnet evaluation
+            # error, so a worker refuses to start rather than registering for a class
+            # it cannot actually run -- the same guard as ISA.
+            - name: SIZE
+              value: small
           ports:
             # The only port the worker exposes. It dials the scheduler rather
             # than being dialled, so this exists purely so a PodMonitor can

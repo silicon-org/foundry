@@ -23,7 +23,7 @@ module chi_noc_mesh_tb #(
     // Matches the fabric's: a device link with fewer credits than the
     // crosspoints have would be the bottleneck, and would be measuring the
     // testbench rather than the mesh.
-    parameter int unsigned Credits = 8,
+    parameter int unsigned Credits = 10,
 
     // Flits per source for the throughput and pattern cases. Enough that the
     // measurement is of steady state rather than of filling the pipes -- and
@@ -205,8 +205,30 @@ module chi_noc_mesh_tb #(
   localparam int unsigned FloorHotspot = 60;  // measured 66, against a ceiling of 125
   localparam int unsigned FloorNeighbour = 950;  // measured 1000 -- line rate
 
-  // The simulator's $urandom is per-process, which is what we want here:
-  // sixteen injectors picking independently.
+  // Flits sent by each source, which is what indexes the uniform pattern below.
+  int unsigned sent_by[Devices];
+
+  // Where the n'th flit from `src` goes, under uniform random traffic.
+  //
+  // A hash of (source, flit number) rather than a draw from $urandom, and the
+  // difference matters for measurement rather than for realism. $urandom is
+  // consumed once per *attempt*, so how far each source advances through the
+  // sequence depends on how often the design accepts a flit -- which means two
+  // configurations under comparison see two different traffic patterns, and a
+  // sweep reads as noise. Indexing by the flit number instead gives every
+  // configuration identical traffic, and holds a waiting flit's destination
+  // still instead of redrawing it every cycle.
+  function automatic int unsigned uniform_dest(int unsigned src, int unsigned n);
+    automatic logic [31:0] h = (32'(src) * 32'h9E3779B1) ^ (32'(n) * 32'h85EBCA6B);
+    automatic int unsigned d;
+    h = h ^ (h >> 15);
+    h = h * 32'hC2B2AE35;
+    h = h ^ (h >> 13);
+    // Over everything but itself: a device addressing its own NodeID is the
+    // `self` case in chi_xp_channel_tb, not traffic.
+    d = {1'b0, h[30:0]} % (Devices - 1);
+    return (d >= src) ? d + 1 : d;
+  endfunction
   // No device ever addresses itself. That is not a per-pattern detail: a NodeID
   // is a device, so a flit addressed to its own source is a node talking to
   // itself, which `chi_xp_channel` asserts on and is right to. Two of the four
@@ -240,12 +262,7 @@ module chi_noc_mesh_tb #(
       end
       PatternComplement: return Devices - 1 - src;
       PatternHotspot:    return hotspot_target;
-      default: begin
-        // Uniform over everything but itself: a device addressing its own
-        // NodeID is the `self` case in chi_xp_channel_tb, not traffic.
-        d = $urandom_range(Devices - 2, 0);
-        return (d >= src) ? d + 1 : d;
-      end
+      default: return uniform_dest(src, sent_by[src]);
     endcase
   endfunction
 
@@ -360,6 +377,7 @@ module chi_noc_mesh_tb #(
       inj_remaining[d] = 0;
       inj_dst[d] = 0;
       inj_fixed_dst[d] = 1'b0;
+      sent_by[d] = 0;
 
       forever begin
         @(negedge clk);
@@ -386,6 +404,7 @@ module chi_noc_mesh_tb #(
 
           if (req_inject_ready[d]) begin
             next_seq[pair(d, inj_dst[d])] = next_seq[pair(d, inj_dst[d])] + 1;
+            sent_by[d]++;
             inj_remaining[d]--;
             sent_count++;
           end
@@ -425,6 +444,66 @@ module chi_noc_mesh_tb #(
         end
       end
     end
+  endfunction
+
+  // The busiest directed link's load, counted in flows, for a pattern whose
+  // destinations are fixed.
+  //
+  // Every source injects at the same rate, so a link carrying `n` flows
+  // saturates when that rate reaches `1/n`. This is the bound that actually
+  // applies to a permutation, and quoting the *uniform* network bound at one
+  // instead -- which this did until it was computed -- makes a fabric running
+  // at exactly its theoretical maximum look like it is failing.
+  function automatic int unsigned busiest_link_flows();
+    // Per crosspoint, per *direction*. East out of a cell and west out of the
+    // same cell are different links and never share capacity, so counting them
+    // in one bin halves every answer -- which is what it did until it was
+    // checked against the control, whose bound has to be 1.0 by construction.
+    int unsigned load[SizeY][SizeX][4];
+    int unsigned worst;
+    int unsigned sx, sy, dx, dy, cx, cy;
+
+    for (int unsigned y = 0; y < SizeY; y++) begin
+      for (int unsigned x = 0; x < SizeX; x++) begin
+        for (int unsigned d = 0; d < 4; d++) load[y][x][d] = 0;
+      end
+    end
+
+    for (int unsigned s = 0; s < Devices; s++) begin
+      sx = {29'd0, chi_noc_node_x(DeviceNodeId[s])};
+      sy = {29'd0, chi_noc_node_y(DeviceNodeId[s])};
+      dx = {29'd0, chi_noc_node_x(DeviceNodeId[destination(s)])};
+      dy = {29'd0, chi_noc_node_y(DeviceNodeId[destination(s)])};
+
+      cx = sx;
+      cy = sy;
+      while (cx != dx) begin
+        if (dx > cx) begin
+          load[cy][cx][CHI_XP_EAST]++;
+          cx++;
+        end else begin
+          load[cy][cx][CHI_XP_WEST]++;
+          cx--;
+        end
+      end
+      while (cy != dy) begin
+        if (dy > cy) begin
+          load[cy][cx][CHI_XP_NORTH]++;
+          cy++;
+        end else begin
+          load[cy][cx][CHI_XP_SOUTH]++;
+          cy--;
+        end
+      end
+    end
+
+    worst = 1;
+    for (int unsigned y = 0; y < SizeY; y++) begin
+      for (int unsigned x = 0; x < SizeX; x++) begin
+        for (int unsigned d = 0; d < 4; d++) if (load[y][x][d] > worst) worst = load[y][x][d];
+      end
+    end
+    return worst;
   endfunction
 
   // How many device ports the current pattern actually aims at. Aggregate
@@ -596,17 +675,23 @@ module chi_noc_mesh_tb #(
         drain();
         expect_all_delivered();
 
-        // Two ceilings, and the lower one binds. The network's comes from
-        // nocgen. The other is ejection: a destination takes one flit a cycle,
-        // so a pattern that aims everything at a few of them cannot exceed
-        // `destinations / devices` however good the fabric is.
+        // Three ceilings, and the lowest binds.
+        //
+        //   ejection  a destination takes one flit a cycle, so a pattern aimed
+        //             at a few of them cannot exceed destinations/devices
+        //   links     for a fixed pattern, the busiest link's share of the flows
+        //   network   nocgen's, computed for uniform traffic
         //
         // Counting distinct destinations rather than special-casing hotspot,
-        // because the count is what actually matters and hotspot's is not one:
-        // the self-addressing guard sends the target's own traffic elsewhere,
-        // making it two.
+        // because the count is what matters and hotspot's is not one: the
+        // self-addressing guard sends the target's own traffic elsewhere.
         ceiling = 1000 * distinct_destinations() / Devices;
         if (ceiling > SaturationBoundPerMille) ceiling = SaturationBoundPerMille;
+        // Uniform redraws every flit, so it has no fixed set of flows and no
+        // link bound of its own beyond the network's.
+        if (pattern != PatternUniform && (1000 / busiest_link_flows()) < ceiling) begin
+          ceiling = 1000 / busiest_link_flows();
+        end
 
         case (pattern)
           PatternTranspose:  floor = FloorTranspose;

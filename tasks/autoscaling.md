@@ -131,12 +131,44 @@ first, not a substitute for raising the limit.
 
 ### M1 - Prove the mechanism
 
-**Attempted 2026-08-23. User-data does not deliver the machine config, and that
-blocks the design until it is solved.**
+**Completed 2026-08-23 via a two-step bootstrap. User-data does not work; the
+config must be applied after the node reaches maintenance mode.**
+
+### Results
+
+| measurement | value |
+|---|---|
+| cold start, create to `Ready` | **135 s** (maintenance at 44 s, config applied at 64 s, tailnet at 85 s) |
+| Verilator peak, untruncated | **24.24 GiB** |
+| CAS traffic, worker genuinely off-node, concurrency 6 | peak **34 MB/s** out, 17 MB/s in, 6.8 GB total |
+| PR 4 on a 64 GB node | **green** -- 17/17 tests, 1031 s |
+
+Cold start validates the design: minutes, not tens of minutes.
+
+**24.24 GiB is the number every earlier decision was missing.** The ccx33 has
+30.6 GB, of which ~1.1 goes to the system reserve, ~3.2 to resident services, up
+to 3 to the ARC runner and 2 to the worker container -- leaving about 21 GiB.
+The action needs 24. It was never going to fit at *any* concurrency, including
+one. Tuning `RUNNER_CONCURRENCY` from 6 to 4 to 2 was rearranging deck chairs,
+and only a limit high enough not to kill the process could reveal that -- which
+is exactly what a too-small limit prevents.
+
+Minimum viable build node: ~25 GiB for the runner plus ~10 for everything else,
+so **35 GB absolute floor, 64 GB with any headroom**.
+
+The network extrapolation in the section below was pessimistic. Measured
+off-node at concurrency 6 the CAS moved 34 MB/s, so ~91 MB/s at concurrency 16 --
+under a 1 Gbit link rather than past it. A local CAS cache is not urgent.
+
+### User-data does not work
+
+| server | type | config delivery | result |
+|---|---|---|---|
 
 | server | type | config delivery | result |
 |---|---|---|---|
 | foundry-worker-1 | ccx33 | `talosctl apply-config` by hand | works, in production |
+| foundry-worker-2 | ccx43 | none, then `apply-config` | **works -- maintenance mode at 44 s** |
 | foundry-worker-2 | ccx43 | `--user-data-from-file` | Talos API never listens |
 | foundry-worker-2 | ccx33 | `--user-data-from-file` | Talos API never listens |
 

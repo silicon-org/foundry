@@ -40,3 +40,13 @@ key.txt
 .env
 .env.*
 .claude/settings.local.json
+
+# Python. The interpreter and every package come from Bazel, so none of this is
+# a dependency -- it is what the tools leave behind when they run outside it.
+# `uv run` builds .venv for iterating without Bazel; note it resolves against
+# //:pyproject.toml, so it can disagree with the build if the pins move.
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/

@@ -1,0 +1,53 @@
+# The repository's Python dependencies, in one place.
+#
+# One project and one lockfile for the whole tree rather than one per generator,
+# so that two generators cannot resolve different versions of jinja and produce
+# RTL that differs for a reason nobody can see. //MODULE.bazel feeds this to
+# aspect_rules_py's uv extension; nothing here is installed by hand.
+#
+# Everything is in one dependency *group* and `dependencies` is empty. Neither
+# is stylistic:
+#
+#   - This project is virtual -- it is a set of Bazel targets, not a wheel --
+#     and rules_py materialises a Bazel target only for packages a *group* pulls
+#     in. Anything under `[project].dependencies` lands in the lockfile and is
+#     reachable by nothing.
+#   - rules_py makes a package available only under the groups that name it, and
+#     choosing a group is a build flag (see //.bazelrc). A second group would
+#     therefore need a configuration transition on every target that used it,
+#     to buy a separation this repository does not want anyway.
+#
+# `dev` rather than a name of our own, because uv installs it by default, so
+# `uv run` outside Bazel sees the same packages the build does.
+#
+# Deliberately not pydantic. Its pydantic-core is a Rust extension, and although
+# the lockfile has a wheel for this interpreter, rules_py builds it from the
+# sdist and then wants maturin -- a Rust toolchain in the dependency graph of an
+# RTL generator, to validate a YAML file. nocgen/config.py does the validation in
+# plain dataclasses instead, and says more useful things when it fails.
+[project]
+name = "foundry"
+version = "0.0.0"
+description = "Generators that write RTL, and the tests that check them."
+# Exactly the interpreter aspect_rules_py fetches, not a range. A range makes
+# uv resolve for every version in it, and rules_py then wants to build from
+# source any package missing a wheel for *any* of them -- which for
+# pydantic-core means a Rust toolchain, for a wheel that exists.
+requires-python = ">=3.13,<3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    # Not imported by anything here. They are what MODULE.bazel names as
+    # `default_build_dependencies`, and that setting can only reference packages
+    # the lockfile resolves.
+    "build>=1.2",
+    "setuptools>=75",
+    "jinja2>=3.1",
+    "pytest>=8.3",
+    "pyyaml>=6.0",
+]
+
+[tool.uv]
+# Not an installable package: the generators are Bazel targets, not wheels.
+package = false

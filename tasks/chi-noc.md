@@ -55,11 +55,11 @@ has to finish first.
       README's numbers (NodeIDs, 2.5 mean hops, 3H+4, 1.0 saturation, the 12/16
       link spread) asserted against the code that produces them.
 
-Left for later, deliberately: **no Python formatter**. //tools/format covers C,
-C++ and Starlark, and the tree now has Python it does not look at -- which is the
-exact trap `tasks/lessons.md` records for `foo.BUILD.bazel`. Adding ruff means
-pinning it in //tools/multitool.lock.json and is a repository-wide decision
-rather than part of this milestone.
+- [x] Python is covered by the tooling: ruff pinned in
+      //tools/multitool.lock.json, `ruff format` in //tools/format, `ruff check`
+      and a 1 MiB file-size limit in //tools/checks, and all of it in
+      tools/githooks/pre-commit. Each check watched failing before being
+      believed.
 
 ## M2 — the crosspoint
 

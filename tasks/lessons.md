@@ -456,3 +456,18 @@ more time than it should have.
   target's own traffic goes elsewhere -- and the improved design correctly
   exceeded a bound that was never right. Compute a ceiling from what the test
   actually does, not from what the pattern is called.
+
+- Two protocol models should be wired to **each other** before either is wired to
+  a design. The request node and the home node were written months apart and
+  agree about which identifier a CompAck carries only because a test with no
+  simulator in it says so. Getting that test green first is what made the system
+  test a statement about the fabric: eight requesters, four home nodes and
+  sixteen crosspoints is far too many candidates for "who misunderstood CHI".
+
+- A requester with several transactions in flight will issue a read of a line
+  whose write has not landed, and CHI does not order two independent
+  transactions to one address. The read is served from memory that has not been
+  written and comes back as the fill byte -- which looks exactly like a fabric
+  that lost the data. Worth recognising: `0xFF` at the *second beat* of a line
+  is a race, not a routing bug. A test that means to read what it wrote has to
+  phase the two.

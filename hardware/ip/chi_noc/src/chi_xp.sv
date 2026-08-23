@@ -31,7 +31,7 @@ module chi_xp
     // width of RSP and so cost six times as much per credit. Nothing yet argues
     // for spending that difference, and a per-class depth is a knob to add when
     // something does.
-    parameter int unsigned Credits = 6
+    parameter int unsigned Credits = 8
 ) (
     input logic clk_i,
     input logic rst_ni,

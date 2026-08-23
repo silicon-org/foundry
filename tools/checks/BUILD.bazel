@@ -10,9 +10,22 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load(":defs.bzl", "MAX_FILE_BYTES")
 
 # Reaching outside the sandbox, so: never cached, never sent to a worker.
+#
+# no-remote-exec is the one that keeps it off a worker, and it is the one that
+# was missing. The other three describe caching and sandboxing and say nothing
+# about where the action runs, so under --config=hetzner these were dispatched
+# to Buildbarn and failed there with "is not the source tree -- the marker did
+# not resolve out of the execroot".
+#
+# That is the right failure: remotely, runfiles are copies the worker
+# materialised, so the marker resolves inside the execroot. Locally they are
+# symlinks into the real tree, which is what workspace_root.sh needs. "Locally"
+# in CI means the Actions runner, where actions/checkout has just produced a
+# git tree -- so these still run on every push, just not on a worker.
 _LOCAL = [
     "external",
     "no-cache",
+    "no-remote-exec",
     "no-sandbox",
 ]
 

@@ -1,23 +1,31 @@
 #!/usr/bin/env bash
-# Formats the staged files, and refuses the commit if that changed any of them.
+# Formats the staged files, then runs the checks that are cheap enough to run
+# on every commit: file size, and `ruff check` on staged Python.
 #
 # Installed by `.envrc`, so `direnv allow` is the only setup step. `git commit
-# --no-verify` skips it; //tools/format:format_test does not, which is the
-# division of labour -- this hook is a convenience, CI is the check.
+# --no-verify` skips all of it; //tools/format:format_test and //tools/checks do
+# not, which is the division of labour -- this hook is a convenience, CI is the
+# check.
 #
 # Formatting rather than merely checking is deliberate: a hook that tells you to
 # run a command is a hook that costs two commits. This one leaves the corrected
-# files in the working tree, so the fix is `git add` and commit again.
+# files in the working tree, so the fix is `git add` and commit again. The two
+# checks below cannot fix anything, so they only report.
 set -euo pipefail
 
-# The bazel_env symlink first: it is the same target, without paying Bazel's
-# startup for what is usually two files. Falls back to `bazel run` for anyone
-# who has not run `bazel run //tools:bazel_env` yet.
-formatter=bazel-out/bazel_env-opt/bin/tools/bazel_env/bin/format
-if [[ -x "$formatter" ]]; then
-  format=("$formatter")
+# The bazel_env symlinks first: same targets, without paying Bazel's startup for
+# what is usually two files. Falls back to `bazel run` for anyone who has not run
+# `bazel run //tools:bazel_env` yet.
+bin=bazel-out/bazel_env-opt/bin/tools/bazel_env/bin
+if [[ -x "$bin/format" ]]; then
+  format=("$bin/format")
 else
   format=(bazel run --ui_event_filters=-info,-stdout --noshow_progress //tools/format --)
+fi
+if [[ -x "$bin/ruff" ]]; then
+  ruff=("$bin/ruff")
+else
+  ruff=(bazel run --ui_event_filters=-info,-stdout --noshow_progress @multitool//tools/ruff --)
 fi
 
 # Added and modified only. A deleted file has nothing to format, and passing no
@@ -31,6 +39,8 @@ if [[ ${#staged[@]} -eq 0 ]]; then
   exit 0
 fi
 
+status=0
+
 "${format[@]}" "${staged[@]}"
 
 # Compare against the index rather than HEAD, so that a file staged in part is
@@ -41,5 +51,45 @@ if ! git diff --quiet -- "${staged[@]}"; then
   git diff --stat -- "${staged[@]}" >&2
   echo >&2
   echo >&2 "Stage them and commit again:  git add -u && git commit"
-  exit 1
+  status=1
 fi
+
+# Size, against what is *staged* rather than what is on disk, since that is what
+# would enter the history. See //tools/checks for the reasoning and the escape
+# hatch; the limit is read from there so the two cannot drift.
+limit=$(sed -n 's/^MAX_FILE_BYTES = \([0-9]*\).*/\1/p' tools/checks/defs.bzl)
+oversized=()
+for file in "${staged[@]}"; do
+  size=$(git cat-file -s ":${file}" 2>/dev/null || echo 0)
+  if ((size > limit)) &&
+    [[ "$(git check-attr large-file-ok -- "$file" | sed 's/.*: //')" != "set" ]]; then
+    oversized+=("$(printf '%10d  %s' "$size" "$file")")
+  fi
+done
+if ((${#oversized[@]} > 0)); then
+  echo >&2
+  echo >&2 "Staged files above ${limit} bytes:"
+  printf '%s\n' "${oversized[@]}" >&2
+  echo >&2
+  echo >&2 "Fetch it in //MODULE.bazel and pin it by hash, or generate it in the"
+  echo >&2 "build. If it genuinely belongs in git, say so in .gitattributes:"
+  echo >&2
+  echo >&2 "    path/to/file large-file-ok"
+  status=1
+fi
+
+# Lint the staged Python. The formatter has already run `ruff format` over these;
+# this is the half that notices an unused import or a name that does not exist.
+python=()
+for file in "${staged[@]}"; do
+  [[ "$file" == *.py ]] && python+=("$file")
+done
+if [[ ${#python[@]} -gt 0 ]]; then
+  if ! "${ruff[@]}" check --no-cache --force-exclude "${python[@]}"; then
+    echo >&2
+    echo >&2 "ruff check failed. Some of it is fixable:  ruff check --fix"
+    status=1
+  fi
+fi
+
+exit "$status"

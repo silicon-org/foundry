@@ -1,0 +1,5 @@
+# The vendored CHIron subset is upstream's, and stays byte-for-byte upstream's:
+# hardware/vip/chi/chiron/patches/ applies against these files, and refresh.sh
+# re-derives them. rules-lint-ignored keeps //tools/format off them, which also
+# protects their CRLF line endings. linguist-vendored is for GitHub's benefit.
+hardware/vip/chi/chiron/** -linguist-detectable linguist-vendored rules-lint-ignored

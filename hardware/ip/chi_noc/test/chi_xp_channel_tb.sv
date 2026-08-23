@@ -189,6 +189,22 @@ module chi_xp_channel_tb #(
     );
   end
 
+  // What the switch did, counted, without the switch carrying any of it. See
+  // chi_xp_channel_cov.sv; the `coverage` case is what judges the result.
+  bind chi_xp_channel chi_xp_channel_cov #(
+      .Ports     (chi_noc_pkg::CHI_XP_PORTS),
+      .PrioBits  (PrioBits),
+      .PortEnable(PortEnable)
+  ) i_cov (
+      .clk_i,
+      .rst_ni,
+      .in_valid(in_valid),
+      .in_ready(in_ready),
+      .in_dest (in_dest),
+      .in_prio (in_prio),
+      .grant   (grant)
+  );
+
   ////////////////////////////////////////////////////////////////////////////////////////////////
   // The scoreboard
   //
@@ -336,6 +352,72 @@ module chi_xp_channel_tb #(
         end
       end
     end
+  endfunction
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  // The verdict on coverage
+  //
+  // Two halves, and the second is the one worth having. Every bin the switch
+  // can reach must be non-zero, or the suite did not exercise what it claims
+  // to. Every bin it cannot reach must be zero, or the switch did something it
+  // is not allowed to and no other check would have noticed.
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  function automatic void check_coverage();
+    int unsigned holes = 0;
+
+    // Turns. Twenty-six exist; the other ten are the deadlock argument.
+    for (int unsigned s = 0; s < Ports; s++) begin
+      for (int unsigned d = 0; d < Ports; d++) begin
+        if (chi_xp_turn_legal(s, d)) begin
+          if (i_dut.i_cov.turn[s][d] == 0) begin
+            $display("uncovered: no flit ever went from port %0d to port %0d", s, d);
+            holes++;
+          end
+        end else if (i_dut.i_cov.turn[s][d] != 0) begin
+          $fatal(1, "port %0d to port %0d is not a turn this switch has, and %0d flits took it",
+                 s, d, i_dut.i_cov.turn[s][d]);
+        end
+      end
+    end
+
+    // Contention. One through five: a device output is the only one every other
+    // port can reach, and a port may not reach itself, so five is the most that
+    // can ever ask at once.
+    for (int unsigned n = 1; n <= 5; n++) begin
+      if (i_dut.i_cov.contention[n] == 0) begin
+        $display("uncovered: no grant was ever taken with %0d inputs asking", n);
+        holes++;
+      end
+    end
+    if (i_dut.i_cov.contention[6] != 0) begin
+      $fatal(1, "a grant was taken with six inputs asking, and a port cannot ask for itself");
+    end
+
+    // QoS. The upper triangle is priority working; the lower triangle is
+    // priority not working, and must be empty.
+    for (int unsigned w = 0; w < 4; w++) begin
+      for (int unsigned l = 0; l < 4; l++) begin
+        if (w >= l) begin
+          if (i_dut.i_cov.qos_win[w][l] == 0) begin
+            $display("uncovered: class %0d never won an output against class %0d", w, l);
+            holes++;
+          end
+        end else if (i_dut.i_cov.qos_win[w][l] != 0) begin
+          $fatal(1, "class %0d won %0d times against class %0d, which outranks it", w,
+                 i_dut.i_cov.qos_win[w][l], l);
+        end
+      end
+    end
+
+    // Backpressure reached the inputs.
+    if (i_dut.i_cov.stalled[CHI_XP_WEST] == 0) begin
+      $display("uncovered: no input was ever held up by a full output");
+      holes++;
+    end
+
+    if (holes != 0) $fatal(1, "%0d required bins are empty", holes);
+    $display("coverage: every reachable bin hit, every unreachable one empty");
   endfunction
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -499,6 +581,71 @@ module chi_xp_channel_tb #(
         raw_drive[CHI_XP_WEST] = 1'b1;
         repeat (100) @(posedge clk);
         $fatal(1, "a flit addressed to no port was not noticed");
+      end
+
+      // Every bin the switch is supposed to reach, reached; every bin it is not
+      // supposed to reach, empty. One case rather than a merge across runs,
+      // because a merged report is a file nobody reads and a failing test is
+      // not.
+      "coverage": begin
+        // Every legal turn, one flit at a time.
+        for (int unsigned s = 0; s < Ports; s++) begin
+          for (int unsigned d = 0; d < Ports; d++) begin
+            if (chi_xp_turn_legal(s, d)) begin
+              send(s, d, 2);
+              drain(20);
+            end
+          end
+        end
+
+        // Contention at a device output, which is the only kind every other
+        // port can reach: five inputs, so grants happen with one through five
+        // asking at once.
+        for (int unsigned s = 0; s < Ports; s++) begin
+          if (chi_xp_turn_legal(s, CHI_XP_P0)) begin
+            inj_dst[s] = CHI_XP_P0;
+            inj_qos[s] = 4'h8;
+            inj_remaining[s] = 64;
+          end
+        end
+        for (int unsigned s = 0; s < Ports; s++) begin
+          while (inj_remaining[s] != 0) @(posedge clk);
+        end
+        drain();
+
+        // Every ordered pair of QoS classes contending for one output, and
+        // every class against itself. Two inputs at a time so the pair is the
+        // pair rather than whatever four sources happened to produce.
+        for (int unsigned hi = 0; hi < 4; hi++) begin
+          for (int unsigned lo = 0; lo <= hi; lo++) begin
+            inj_dst[CHI_XP_WEST] = CHI_XP_P0;
+            inj_qos[CHI_XP_WEST] = 4'(hi * 4);
+            inj_remaining[CHI_XP_WEST] = 24;
+
+            inj_dst[CHI_XP_P1] = CHI_XP_P0;
+            inj_qos[CHI_XP_P1] = 4'(lo * 4);
+            inj_remaining[CHI_XP_P1] = 24;
+
+            while (inj_remaining[CHI_XP_WEST] != 0 || inj_remaining[CHI_XP_P1] != 0) begin
+              @(posedge clk);
+            end
+            drain();
+          end
+        end
+
+        // Backpressure, so that an input is seen holding a flit it cannot
+        // place. Without this the stalled bins stay empty and the suite would
+        // never have pushed on a full output.
+        eject_stall[CHI_XP_EAST] = 1'b1;
+        inj_dst[CHI_XP_WEST] = CHI_XP_EAST;
+        inj_remaining[CHI_XP_WEST] = 32;
+        repeat (200) @(posedge clk);
+        eject_stall = '0;
+        while (inj_remaining[CHI_XP_WEST] != 0) @(posedge clk);
+        drain();
+
+        expect_all_delivered();
+        check_coverage();
       end
 
       // An output stalled for longer than anything legitimate, with an input

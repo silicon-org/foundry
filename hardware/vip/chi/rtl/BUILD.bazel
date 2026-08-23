@@ -1,4 +1,9 @@
-# The CHI link layer: flow control, and nothing about what a flit means.
+# The two ends of a CHI link, as an agent plays them.
+#
+# The flow control itself moved to //hardware/ip/chi:chi_link once
+# //hardware/ip/chi_noc started building crosspoints out of it. What stays here
+# is the part that is a *role* rather than a mechanism: which end asks for
+# activation, which end grants credits for which channels.
 #
 # See //hardware/vip/README.md for the layering, and chi_link_hn.sv for why the
 # interface and the protocol are separate modules in separate languages.
@@ -13,14 +18,13 @@ package(default_visibility = ["//visibility:public"])
 verilog_library(
     name = "chi_link",
     srcs = [
-        "chi_link_activation_ack.sv",
-        "chi_link_activation_req.sv",
         "chi_link_hn.sv",
         "chi_link_rn.sv",
-        "chi_link_rx_channel.sv",
-        "chi_link_tx_channel.sv",
     ],
-    deps = ["//hardware/ip/chi:chi_pkg"],
+    deps = [
+        "//hardware/ip/chi:chi_link",
+        "//hardware/ip/chi:chi_pkg",
+    ],
 )
 
 # The agent: the link, plus the DPI calls that join it to the C++ home node.

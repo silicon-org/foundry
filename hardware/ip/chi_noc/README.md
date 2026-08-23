@@ -381,5 +381,44 @@ against the real crosspoint, which is what catches the generator and the RTL
 drifting apart about a port list. A golden-file test cannot see that: both sides
 of it are generated from the same description.
 
-The generator's own tests need no simulator at all and run in seconds. A bug
-should be caught by the cheapest layer that can see it.
+And the protocol, once there is something to speak it: eight request nodes and
+four home nodes attached through device ports, running reads, writes and
+dataless requests across the mesh, with every byte written checked to have
+landed where it was addressed. The two models are checked against *each other*
+first, with no simulator at all, so a failure with the mesh between them is the
+mesh's.
+
+The generator's own tests need no simulator and run in seconds. A bug should be
+caught by the cheapest layer that can see it.
+
+## What says the tests are enough
+
+A suite that passes proves the cases in it work. What says the cases were the
+right ones is a set of bins, collected by a monitor **bound** into
+`chi_xp_channel` so the design carries no verification code, and checked in one
+run by `chi_xp_channel_coverage_test`:
+
+| bin | required |
+|---|---|
+| turn `[in][out]` | all 26 legal turns hit; all 10 illegal ones **empty** |
+| contention `[n]` | a grant taken with 1..5 inputs asking; 6 **empty** |
+| `qos_win[w][l]` | every `w ≥ l` hit; every `w < l` **empty** |
+| `stalled[p]` | an input held a flit it could not place |
+
+The empty half is the half worth having. A turn that is illegal and never taken
+and a turn that is illegal and quietly taken look identical in a report that
+only counts what happened — and `qos_win[w][l]` for `w < l` is the direct
+statement that a lower-priority flit never beat a higher-priority one to an
+output, which no other check makes.
+
+Both halves have been watched failing: removing the QoS stimulus names the empty
+bins, and a count planted in a forbidden one fires with the turn named.
+
+Three things are deliberately not binned, and the file says so where the bins
+are: per-channel-class turns, because the switch cannot tell which class it is
+and four copies of one piece of evidence is not four pieces; every turn in every
+crosspoint of a mesh, because whether every path works is what
+`chi_noc_mesh_all_pairs_test` establishes directly over all 240 of them; and
+L-Credit exhaustion and link activation, which belong to the link layer and are
+driven against it by `//hardware/vip/chi/test`. A bin that cannot be reached by
+construction should not sit in a list of bins that must be.

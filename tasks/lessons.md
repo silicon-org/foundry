@@ -471,3 +471,30 @@ more time than it should have.
   that lost the data. Worth recognising: `0xFF` at the *second beat* of a line
   is a race, not a routing bug. A test that means to read what it wrote has to
   phase the two.
+
+- `bind` works under Verilator 5 and is the right way to collect coverage: the
+  monitor names the target module's internal signals in its port list, so the
+  design carries no verification code and every instance is observed without
+  anyone remembering to connect one. The alternative -- adding outputs for the
+  benefit of a testbench -- puts verification in the design and is visible in
+  synthesis.
+
+- The half of a coverage list that earns its keep is the bins that must stay
+  **empty**. A turn that is illegal and never taken and a turn that is illegal
+  and quietly taken are the same row in a report that counts only what happened.
+  Two of the strongest checks in this fabric are of that shape: no flit ever
+  took one of the ten turns that do not exist, and no lower-priority flit ever
+  beat a higher-priority one to an output.
+
+- A bin that cannot be reached by construction does not belong in a list of bins
+  that must be hit. The plan asked for credit-exhaustion and link-activation
+  coverage of the fabric; the fabric ties its links to RUN on purpose, so those
+  are link-layer bins with their own tests. Carrying them anyway would mean
+  either a permanently failing gate or a waiver, and a waiver is a bin nobody
+  reads.
+
+- Counters in a monitor take **blocking** assignments. Several grants land in one
+  cycle and `count <= count + 1` twice in a cycle increments once, because both
+  read the same value -- the same trap as the earlier scoreboard, in a place
+  where the usual non-blocking rule buys nothing because none of it is design
+  state.

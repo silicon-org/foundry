@@ -160,11 +160,36 @@ hazard is cache work, not fabric work.
 
 ## M5 — coverage
 
-- [ ] Turn coverage per XP per class, with the illegal turns required *empty*
-- [ ] Credit counters at 0 and at maximum
-- [ ] QoS class against QoS class; N-way contention for N = 2..6
-- [ ] Activation and deactivation crossed with in-flight traffic
-- [ ] **Gate:** a test that fails on any empty required bin
+- [x] A monitor **bound** into `chi_xp_channel`, so the design carries no
+      verification code and every instance is observed without anyone
+      remembering to connect one. A bind's port list may name the target's
+      internals, which is the only way to see decisions the switch never puts
+      on a port.
+- [x] Turn coverage: all 26 legal turns hit, all 10 illegal ones **empty** —
+      the 26/10 split the README claims, now confirmed by counting rather than
+      by argument.
+- [x] N-way contention 1..5, and 6 required empty: a device output is the only
+      one every other port can reach, and a port cannot ask for itself, so five
+      is the most that can ever contend.
+- [x] QoS: every `w >= l` pair hit, every `w < l` pair **empty**. That second
+      half is the direct statement that a lower-priority flit never beat a
+      higher-priority one to an output, which nothing else checks.
+- [x] Backpressure reached an input.
+- [x] **Gate passed**, and both halves watched failing: removing the QoS
+      stimulus names the empty bins; a count planted in a forbidden bin fires
+      with the turn named.
+
+Not binned, deliberately, and argued where the bins are: per-channel-class
+turns (the switch cannot tell which class it is, so four sets would be four
+copies of one piece of evidence — `chi_xp_test` and `all_classes` cover the
+wiring); every turn in every crosspoint of a mesh (SystemVerilog cannot index a
+hierarchical name, and `all_pairs` answers the question better by delivering
+down all 240 paths); and credit exhaustion and link activation, which are
+link-layer properties with their own tests in `//hardware/vip/chi/test`.
+
+Credit and activation are worth being explicit about: the fabric ties its links
+to RUN by design, so those bins **cannot** be reached here. A bin that is
+unreachable by construction does not belong in a list of bins that must be hit.
 
 ## M6 — a topology that is not a mesh *(stretch)*
 

@@ -36,10 +36,16 @@ module chi_xp_channel
     // in a credit-based receiver those are one number, because a credit is the
     // promise of somewhere to put the flit it will bring.
     //
-    // Four sustains a flit per cycle at the per-stage budget the README sets
-    // out: a credit takes three cycles to come back, so three would just keep
-    // up and four has one to spare.
-    parameter int unsigned Credits = 4,
+    // **Measured**, not budgeted: the credit round trip is five cycles, so a
+    // link sustains `min(1, Credits/5)` of line rate and anything below five
+    // underruns even with nothing in its way. Four -- which this was, on a
+    // guess -- ran an idle link at exactly 80%.
+    //
+    // Six rather than five so that there is a cycle of slack. The round trip is
+    // a property of the current pipeline; if a register is ever added to the
+    // credit path, five would quietly go back under line rate and six would
+    // not. See //hardware/ip/chi_noc/README.md for the measurement.
+    parameter int unsigned Credits = 6,
 
     // QoS priority classes, taken from the top bits of QoS. Four is OpenNoC's
     // choice and CHI's intent.

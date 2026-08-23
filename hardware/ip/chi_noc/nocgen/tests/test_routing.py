@@ -140,3 +140,29 @@ def test_direction_encoding_matches_the_rtl_order():
     assert [int(d) for d in Direction] == [0, 1, 2, 3, 4, 5]
     assert int(Direction.EAST) == 0
     assert int(Direction.P0) == 4
+
+
+def test_a_nodeid_can_name_a_device_port_that_cannot_exist():
+    """The port field is three bits; a crosspoint has two device ports.
+
+    So some NodeIDs address nothing, and both statements of routing have to say
+    so the same way: `route_mask` is zero and `chi_xp_route` shifts off the end
+    of a six-bit mask. `chi_xp_channel` asserts on it, because a flit with
+    nowhere to go blocks its input for ever.
+    """
+    from nocgen.routing import route_mask
+
+    here = Target(x=1, y=1, port=0)
+    assert route_mask(1, 1, here) == 1 << Direction.P0
+    assert route_mask(1, 1, Target(x=1, y=1, port=1)) == 1 << Direction.P1
+    for port in range(2, 8):
+        assert route_mask(1, 1, Target(x=1, y=1, port=port)) == 0
+
+    # Off-mesh in X or Y still routes: it is a hop away, and whether anything is
+    # there is the generator's business, checked at config time.
+    assert route_mask(1, 1, Target(x=2, y=1, port=7)) == 1 << Direction.EAST
+
+
+def test_route_refuses_a_target_it_cannot_deliver():
+    with pytest.raises(ValueError, match="which no crosspoint has"):
+        route(1, 1, Target(x=1, y=1, port=5))

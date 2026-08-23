@@ -1,0 +1,165 @@
+# The crosspoint, checked at the cheapest layer that can see each property.
+#
+# Routing first, combinationally and exhaustively, because it is a truth table
+# and a waveform would not settle it. Then the switch itself, with its ports
+# looped back on each other and no mesh in the build.
+
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
+load("@rules_verilog//verilog:defs.bzl", "verilog_library")
+
+# Every (position, target) the reference NodeID layout can express, as the model
+# answers it. A build output: half a megabyte that nobody reviews and that is
+# always current with routing.py.
+genrule(
+    name = "route_table",
+    outs = ["route_table.bin"],
+    cmd = "$(execpath //hardware/ip/chi_noc/nocgen:route_table) --out $@",
+    tools = ["//hardware/ip/chi_noc/nocgen:route_table"],
+)
+
+verilog_library(
+    name = "chi_noc_route_dut",
+    srcs = ["chi_noc_route_dut.sv"],
+    top_module = "chi_noc_route_dut",
+    deps = ["//hardware/ip/chi_noc:chi_noc_pkg"],
+)
+
+verilator_cc_library(
+    name = "chi_noc_route_verilated",
+    module = ":chi_noc_route_dut",
+    vopts = [
+        "-Wall",
+        "-Wno-fatal",
+        "-Wno-UNUSEDPARAM",
+    ],
+)
+
+cc_test(
+    name = "chi_noc_route_test",
+    size = "small",
+    srcs = ["chi_noc_route_test.cc"],
+    args = ["$(rootpath :route_table.bin)"],
+    data = [":route_table.bin"],
+    deps = [
+        ":chi_noc_route_verilated",
+        # The one symbol Verilator's runtime references and never calls. Reaching
+        # into //hardware/vip for it is the pattern //hardware/ip/chi/test
+        # already uses: a testbench is a testbench wherever it lives.
+        "//hardware/vip/common:verilated_shims",
+    ],
+)
+
+################################################################################
+# The switch itself, with its ports wired to nothing but itself.
+################################################################################
+
+verilog_library(
+    name = "chi_xp_channel_tb",
+    srcs = ["chi_xp_channel_tb.sv"],
+    top_module = "chi_xp_channel_tb",
+    deps = ["//hardware/ip/chi_noc:chi_xp"],
+)
+
+verilator_cc_library(
+    name = "chi_xp_channel_verilated",
+    module = ":chi_xp_channel_tb",
+    timing = True,
+    vopts = [
+        "-Wall",
+        "-Wno-fatal",
+        "-Wno-UNUSEDPARAM",
+        # A testbench's reset is read both asynchronously and synchronously; in
+        # design code that mixture is a warning worth having.
+        "-Wno-SYNCASYNCNET",
+        # The assertions in the switch and in the link layer are the verdict.
+        "--assert",
+        "--main",
+        "--timescale",
+        "1ns/1ps",
+    ],
+)
+
+[cc_test(
+    name = "chi_xp_channel_{}_test".format(case),
+    size = "small",
+    args = ["+case={}".format(case)],
+    deps = [
+        ":chi_xp_channel_verilated",
+        "//hardware/vip/common:verilated_shims",
+    ],
+) for case in [
+    "route",
+    "order",
+    "all_to_all",
+    "backpressure",
+    "qos",
+    "credit",
+]]
+
+# The negative cases. Each drives the switch with something no correct
+# neighbour would produce; passing means the switch failed to notice, and the
+# expected text means it noticed for the right reason.
+cc_binary(
+    name = "chi_xp_channel",
+    deps = [
+        ":chi_xp_channel_verilated",
+        "//hardware/vip/common:verilated_shims",
+    ],
+)
+
+[sh_test(
+    name = "chi_xp_channel_{}_test".format(case),
+    size = "small",
+    srcs = ["expect_failure.sh"],
+    args = [
+        "$(rootpath :chi_xp_channel)",
+        expected,
+        "+case={}".format(case),
+    ],
+    data = [":chi_xp_channel"],
+) for case, expected in [
+    # A flit from the north (port 2) asking to go east (port 0).
+    ("bad_turn", "flit from port 2 took the illegal turn to 0"),
+    ("nowhere", "addressed to a disabled port"),
+    ("starved", "unserved for 4096 cycles"),
+    # A device on P0 (port 4) addressing its own NodeID.
+    ("self", "flit from port 4 took the illegal turn to 4"),
+]]
+
+################################################################################
+# The whole crosspoint: four classes, and the wiring around them.
+################################################################################
+
+verilog_library(
+    name = "chi_xp_tb",
+    srcs = ["chi_xp_tb.sv"],
+    top_module = "chi_xp_tb",
+    deps = ["//hardware/ip/chi_noc:chi_xp"],
+)
+
+verilator_cc_library(
+    name = "chi_xp_verilated",
+    module = ":chi_xp_tb",
+    timing = True,
+    vopts = [
+        "-Wall",
+        "-Wno-fatal",
+        "-Wno-UNUSEDPARAM",
+        "-Wno-SYNCASYNCNET",
+        "--assert",
+        "--main",
+        "--timescale",
+        "1ns/1ps",
+    ],
+)
+
+cc_test(
+    name = "chi_xp_test",
+    size = "small",
+    deps = [
+        ":chi_xp_verilated",
+        "//hardware/vip/common:verilated_shims",
+    ],
+)

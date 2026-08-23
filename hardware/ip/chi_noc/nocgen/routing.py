@@ -75,24 +75,45 @@ class Target:
         return layout.encode(self.x, self.y, self.port)
 
 
+def route_mask(my_x: int, my_y: int, target: Target) -> int:
+    """The port a flit at (my_x, my_y) leaves by, as a one-hot mask.
+
+    Zero means *nowhere*, and that case is real rather than defensive: the
+    NodeID port field is three bits while a crosspoint has two device ports, so
+    a NodeID can name a device port that cannot exist. `chi_xp_route` answers
+    such a target with an all-zero mask too -- `1 << 6` falls off the end of a
+    six-bit mask -- and `chi_xp_channel` asserts on it, because a flit with
+    nowhere to go would sit at the head of an input for ever.
+
+    This is the primitive, and the RTL is compared against it directly. `route`
+    below is the same function for callers who know the target is real.
+    """
+    if target.x > my_x:
+        return 1 << Direction.EAST
+    if target.x < my_x:
+        return 1 << Direction.WEST
+    if target.y > my_y:
+        return 1 << Direction.NORTH
+    if target.y < my_y:
+        return 1 << Direction.SOUTH
+
+    bit = int(Direction.P0) + target.port
+    return (1 << bit) if bit < len(Direction) else 0
+
+
 def route(my_x: int, my_y: int, target: Target) -> Direction:
     """The port a flit at (my_x, my_y) leaves by.
 
-    Deliberately total: every input has an answer, because a crosspoint has no
-    way to refuse a flit and dropping one silently is the failure mode this
-    whole fabric exists to not have. A target off the mesh still yields a
-    direction; that it is off the mesh is the generator's business, checked at
-    config time, not something to discover a hop at a time.
+    Total for every target a crosspoint can actually deliver to, because a
+    crosspoint has no way to refuse a flit and dropping one silently is the
+    failure mode this whole fabric exists not to have. A target that names a
+    device port the crosspoint does not have is not one of those, and raises
+    rather than picking something.
     """
-    if target.x > my_x:
-        return Direction.EAST
-    if target.x < my_x:
-        return Direction.WEST
-    if target.y > my_y:
-        return Direction.NORTH
-    if target.y < my_y:
-        return Direction.SOUTH
-    return device_port(target.port)
+    mask = route_mask(my_x, my_y, target)
+    if mask == 0:
+        raise ValueError(f"{target} names device port {target.port}, which no crosspoint has")
+    return Direction(mask.bit_length() - 1)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)

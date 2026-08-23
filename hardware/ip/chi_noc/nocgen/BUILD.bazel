@@ -72,3 +72,15 @@ py_pytest_test(
         "@pypi//pyyaml",
     ],
 )
+
+# The routing model, serialised for //hardware/ip/chi_noc/test to check the RTL
+# against. Separate from :nocgen because it emits a test fixture rather than a
+# design, and nothing in a build wants it by accident.
+py_binary(
+    name = "route_table",
+    srcs = ["route_table.py"],
+    dep_group = "dev",
+    imports = [".."],
+    main = "route_table.py",
+    deps = [":lib"],
+)

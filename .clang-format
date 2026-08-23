@@ -1,0 +1,16 @@
+# Google's C++ style, with two departures, both chosen by measuring the diff
+# against the code that was already here rather than by preference.
+#
+# ColumnLimit 100 is where this code already sits: the longest line in the tree
+# is 106 and three files exceed 100, so 80 would have rewritten 479 lines where
+# 100 rewrites 238. Hand-wrapped 80-column comment prose is unaffected either
+# way -- clang-format breaks a comment that is too long, it never joins ones
+# that are short.
+#
+# AllowShortCaseLabelsOnASingleLine keeps `case kReq: return "REQ";`, which the
+# switch statements here are written in throughout, and takes the reformatting
+# from 238 lines to 195.
+---
+BasedOnStyle: Google
+ColumnLimit: 100
+AllowShortCaseLabelsOnASingleLine: true

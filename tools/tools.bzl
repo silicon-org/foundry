@@ -13,6 +13,10 @@ so `//tools:versions` never depends on a network or a cluster.
 TOOLS = {
     "age": ["--version"],
     "age-keygen": ["--version"],
+    # The Starlark formatter behind //tools/format. Pinned here rather than
+    # pulled in as a bazel_dep so that one mechanism reports every tool version
+    # and one command bumps them all.
+    "buildifier": ["--version"],
     "cilium": ["version", "--client"],
     "flux": ["--version"],
     "gitleaks": ["version"],

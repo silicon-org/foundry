@@ -1,0 +1,50 @@
+# Checks that look at the source tree rather than at build outputs.
+#
+# Both are tagged no-sandbox, which is the same trade //tools/format:format_test
+# makes and for the same reason: what they inspect is "every Python file" and
+# "everything git tracks", and neither is a list of srcs. A list only ever holds
+# what somebody remembered to add, which for a check is the failure mode that
+# matters -- it looks green because it never looked.
+
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":defs.bzl", "MAX_FILE_BYTES")
+
+# Reaching outside the sandbox, so: never cached, never sent to a worker.
+_LOCAL = [
+    "external",
+    "no-cache",
+    "no-sandbox",
+]
+
+sh_test(
+    name = "large_files_test",
+    size = "small",
+    srcs = ["large_files.sh"],
+    args = [
+        "$(rlocationpath //:MODULE.bazel)",
+        str(MAX_FILE_BYTES),
+    ],
+    data = [
+        "workspace_root.sh",
+        "//:MODULE.bazel",
+    ],
+    tags = _LOCAL,
+    deps = ["@bazel_tools//tools/bash/runfiles"],
+)
+
+sh_test(
+    name = "ruff_check_test",
+    size = "small",
+    srcs = ["ruff_check.sh"],
+    args = [
+        "$(rlocationpath //:MODULE.bazel)",
+        "$(rlocationpath @multitool//tools/ruff)",
+    ],
+    data = [
+        "workspace_root.sh",
+        "//:MODULE.bazel",
+        "@multitool//tools/ruff",
+    ],
+    tags = _LOCAL,
+    deps = ["@bazel_tools//tools/bash/runfiles"],
+)

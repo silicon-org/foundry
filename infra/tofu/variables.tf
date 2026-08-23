@@ -60,10 +60,22 @@ variable "talos_snapshot_id" {
 # Sizing. These are variables rather than literals so that growing the cluster
 # is a value change and not a rewrite -- the point at which one control plane
 # becomes three should not be an editing exercise.
+# One, deliberately, and the description below still tells the truth about what
+# that costs: a single etcd member survives nothing, and losing it means
+# restoring from a snapshot rather than failing over.
+#
+# It is one anyway because the project's server limit is the binding constraint.
+# Four servers is the ceiling, and spending three of them on quorum leaves no
+# room for the elastic workers in tasks/autoscaling.md -- which are the whole
+# point. Redundancy that prevents the cluster from doing its job is not
+# redundancy worth having at this size.
+#
+# Take an etcd snapshot before anything that touches the control plane:
+#   talosctl etcd snapshot <file>
 variable "control_plane_count" {
   description = "Control planes. Three for a real etcd quorum; one is a demo that survives nothing."
   type        = number
-  default     = 3
+  default     = 1
 
   validation {
     condition     = var.control_plane_count % 2 == 1

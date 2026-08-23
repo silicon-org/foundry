@@ -44,8 +44,6 @@ allowSchedulingOnControlPlanes: false
 # do not survive destroying the primary IPs themselves.
 additionalApiServerCertSans:
   - 178.105.1.30
-  - 46.224.107.25
-  - 178.104.185.153
 
 cniConfig:
   name: none
@@ -73,16 +71,6 @@ worker:
 nodes:
   - hostname: foundry-cp-1
     ipAddress: 10.0.1.11
-    controlPlane: true
-    installDisk: /dev/sda
-
-  - hostname: foundry-cp-2
-    ipAddress: 10.0.1.12
-    controlPlane: true
-    installDisk: /dev/sda
-
-  - hostname: foundry-cp-3
-    ipAddress: 10.0.1.13
     controlPlane: true
     installDisk: /dev/sda
 

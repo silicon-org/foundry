@@ -17,6 +17,13 @@ module chi_link_rx_channel #(
 
   // Credits granted, and so also the depth of the buffer behind them. The
   // specification caps this at 15.
+  //
+  // **Five is the floor for line rate**, measured rather than budgeted: a
+  // credit takes five cycles to be granted, spent, and granted again, so a link
+  // runs at `min(1, Credits/5)` of one flit per cycle no matter how idle
+  // everything around it is. Four gives exactly 80%. Whatever a caller picks,
+  // it should pick it against that number and not against the buffer size it
+  // feels like paying for.
   parameter int unsigned Credits = 4
 ) (
   input  logic clk_i,

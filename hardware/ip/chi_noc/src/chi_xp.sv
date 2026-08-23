@@ -23,9 +23,15 @@ module chi_xp
     parameter logic [CHI_XP_PORTS-1:0] PortEnable = '1,
 
     // L-Credits per input port per class, which is also the buffer depth behind
-    // them. One number for all four classes: they are independent in every way
-    // that matters for deadlock, and nothing yet argues for different depths.
-    parameter int unsigned Credits = 4
+    // them. Six because the credit round trip is five cycles and a link below
+    // that underruns; see chi_xp_channel, where the number is explained, and
+    // the README, where it is measured.
+    //
+    // One number for all four classes, although DAT flits are six times the
+    // width of RSP and so cost six times as much per credit. Nothing yet argues
+    // for spending that difference, and a per-class depth is a knob to add when
+    // something does.
+    parameter int unsigned Credits = 6
 ) (
     input logic clk_i,
     input logic rst_ni,

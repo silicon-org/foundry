@@ -1,0 +1,7 @@
+# Commits that changed formatting and nothing else. `git blame` skips them
+# here on GitHub automatically; locally it needs telling once:
+#
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: format the tree
+029b043e54c4fa4505044f7d923ca8defa9875b0

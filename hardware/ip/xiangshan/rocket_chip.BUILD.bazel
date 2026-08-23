@@ -31,8 +31,8 @@ chisel_library(
     resources = glob(["src/main/resources/**"]),
     deps = [
         ":macros",
-        "@cde//:cde",
-        "@hardfloat//:hardfloat",
+        "@cde",
+        "@hardfloat",
         "@xs_maven//:com_lihaoyi_mainargs_2_13",
         "@xs_maven//:org_json4s_json4s_jackson_2_13",
     ],

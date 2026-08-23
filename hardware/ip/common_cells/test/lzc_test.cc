@@ -37,8 +37,7 @@ int failures = 0;
 
 void Check(const char* what, uint32_t input, int expected, int actual) {
   if (expected == actual) return;
-  std::printf("FAIL %s(0x%02x): expected %d, got %d\n", what, input, expected,
-              actual);
+  std::printf("FAIL %s(0x%02x): expected %d, got %d\n", what, input, expected, actual);
   ++failures;
 }
 
@@ -76,7 +75,6 @@ int main(int argc, char** argv) {
     std::printf("%d failures across %d input vectors\n", failures, 1 << kWidth);
     return 1;
   }
-  std::printf("cc_lzc: all %d input vectors correct in both modes\n",
-              1 << kWidth);
+  std::printf("cc_lzc: all %d input vectors correct in both modes\n", 1 << kWidth);
   return 0;
 }

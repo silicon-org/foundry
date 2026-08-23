@@ -12,5 +12,5 @@ package(default_visibility = ["//visibility:public"])
 chisel_library(
     name = "utility",
     srcs = glob(["src/main/scala/**/*.scala"]),
-    deps = ["@rocket_chip//:rocket_chip"],
+    deps = ["@rocket_chip"],
 )

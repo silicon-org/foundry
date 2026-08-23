@@ -15,8 +15,8 @@ chisel_library(
     resource_strip_prefix = "src/main/resources",
     resources = glob(["src/main/resources/**"]),
     deps = [
-        "@openncb//:openncb",
-        "@rocket_chip//:rocket_chip",
-        "@utility//:utility",
+        "@openncb",
+        "@rocket_chip",
+        "@utility",
     ],
 )

@@ -34,16 +34,16 @@ chisel_library(
     resources = glob(["src/main/resources/**"]),
     deps = [
         ":macros",
-        "@chisel_aia//:chisel_aia",
-        "@chisel_iopmp//:chisel_iopmp",
-        "@difftest//:difftest",
-        "@rocket_chip//:rocket_chip",
-        "@utility//:utility",
+        "@chisel_aia",
+        "@chisel_iopmp",
+        "@difftest",
+        "@rocket_chip",
+        "@utility",
         "@xs_maven//:io_circe_circe_generic_extras_2_13",
         "@xs_maven//:io_circe_circe_yaml_2_13",
         "@xs_maven//:org_scalatest_scalatest_2_13",
-        "@xscache//:xscache",
-        "@yunsuan//:yunsuan",
+        "@xscache",
+        "@yunsuan",
     ],
 )
 

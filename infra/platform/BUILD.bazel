@@ -41,8 +41,8 @@ sh_test(
     srcs = ["promtool_test.sh"],
     args = ["$(rlocationpath @multitool//tools/promtool)"] + PROMETHEUS_RULES,
     data = [
-        "@multitool//tools/promtool",
         "//infra/platform/monitoring:manifests",
+        "@multitool//tools/promtool",
     ],
 )
 
@@ -52,11 +52,11 @@ sh_test(
     srcs = ["kustomize_test.sh"],
     args = ["$(rlocationpath @multitool//tools/kubectl)"] + KUSTOMIZE_ROOTS,
     data = [
-        "@multitool//tools/kubectl",
+        "//infra/platform/bb-portal:manifests",
         "//infra/platform/buildbarn:manifests",
         "//infra/platform/cilium:manifests",
         "//infra/platform/hcloud:manifests",
-        "//infra/platform/bb-portal:manifests",
         "//infra/platform/monitoring:manifests",
+        "@multitool//tools/kubectl",
     ] + glob(["**/*.yaml"]),
 )

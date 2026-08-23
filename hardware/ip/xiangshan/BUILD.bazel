@@ -64,6 +64,10 @@ alias(
 # references that no synthesis flow can follow.
 xiangshan_verilog(
     name = "xsnoctop_verilog",
+    # One file, and named XSTop.sv even in this configuration: upstream gives the
+    # NoC top the same desiredName as the SoC top, which is also why its Makefile
+    # says XSTop for both. The module inside is XSNoCTop's.
+    outs = ["XSTop.sv"],
     config = "XSNoCTopConfig",
     firtool_opts = [
         "-O=release",
@@ -72,10 +76,6 @@ xiangshan_verilog(
         "--default-layer-specialization=disable",
         "--ignore-read-enable-mem",
     ],
-    # One file, and named XSTop.sv even in this configuration: upstream gives the
-    # NoC top the same desiredName as the SoC top, which is also why its Makefile
-    # says XSTop for both. The module inside is XSNoCTop's.
-    outs = ["XSTop.sv"],
 )
 
 verilog_library(

@@ -13,7 +13,7 @@ chisel_library(
     name = "chisel_aia",
     srcs = glob(["src/main/scala/**/*.scala"]),
     deps = [
-        "@rocket_chip//:rocket_chip",
-        "@utility//:utility",
+        "@rocket_chip",
+        "@utility",
     ],
 )

@@ -40,7 +40,7 @@ sh_binary(
         "monitoring/kube-prometheus-stack-prometheus:9090:9090",
         "monitoring/kube-prometheus-stack-alertmanager:9093:9093",
     ],
-    env = {"TUNNEL_HINT": "Prometheus on http://localhost:9090, Alertmanager on http://localhost:9093. Grafana is on the tailnet: https://grafana.pogona-gila.ts.net"},
     data = ["@multitool//tools/kubectl"],
+    env = {"TUNNEL_HINT": "Prometheus on http://localhost:9090, Alertmanager on http://localhost:9093. Grafana is on the tailnet: https://grafana.pogona-gila.ts.net"},
     deps = ["@bazel_tools//tools/bash/runfiles"],
 )

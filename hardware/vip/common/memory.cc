@@ -55,8 +55,7 @@ void SparseMemory::Watch(std::uint64_t address, std::size_t bytes, WriteObserver
 void SparseMemory::NotifyWatchers(std::uint64_t address, std::size_t bytes) {
   if (watchpoints_.empty()) return;
   for (const Watchpoint& watch : watchpoints_) {
-    const bool overlaps =
-        address < watch.address + watch.bytes && watch.address < address + bytes;
+    const bool overlaps = address < watch.address + watch.bytes && watch.address < address + bytes;
     if (!overlaps) continue;
     std::vector<std::uint8_t> value(watch.bytes);
     Read(watch.address, value);

@@ -44,20 +44,17 @@ void vip_mem_load_word(void* handle, std::uint64_t address, std::uint32_t word) 
 // store lands and the log says what arrived rather than what was eventually
 // found.
 void vip_mem_expect_write(void* handle, std::uint64_t address, std::uint32_t expected) {
-  Memory(handle)->Watch(address, 4,
-                        [address, expected](std::uint64_t, std::span<const std::uint8_t> value) {
-                          std::uint32_t written = 0;
-                          for (unsigned i = 0; i < 4; ++i)
-                            written |= static_cast<std::uint32_t>(value[i]) << (i * 8);
-                          if (written != expected) {
-                            vip::SetTestFailed(
-                                fmt::format("{:#x} was written {:#x}, expected {:#x}", address,
-                                            written, expected));
-                            return;
-                          }
-                          vip::SetTestDone(
-                              fmt::format("{:#x} was written {:#x}", address, written));
-                        });
+  Memory(handle)->Watch(
+      address, 4, [address, expected](std::uint64_t, std::span<const std::uint8_t> value) {
+        std::uint32_t written = 0;
+        for (unsigned i = 0; i < 4; ++i) written |= static_cast<std::uint32_t>(value[i]) << (i * 8);
+        if (written != expected) {
+          vip::SetTestFailed(
+              fmt::format("{:#x} was written {:#x}, expected {:#x}", address, written, expected));
+          return;
+        }
+        vip::SetTestDone(fmt::format("{:#x} was written {:#x}", address, written));
+      });
 }
 
 std::uint32_t vip_mem_read_word(void* handle, std::uint64_t address) {
@@ -68,9 +65,13 @@ std::uint32_t vip_mem_read_word(void* handle, std::uint64_t address) {
   return word;
 }
 
-void vip_test_pass(const char* why) { vip::SetTestDone(why == nullptr ? "the testbench finished" : why); }
+void vip_test_pass(const char* why) {
+  vip::SetTestDone(why == nullptr ? "the testbench finished" : why);
+}
 
-void vip_test_fail(const char* why) { vip::SetTestFailed(why == nullptr ? "the testbench failed" : why); }
+void vip_test_fail(const char* why) {
+  vip::SetTestFailed(why == nullptr ? "the testbench failed" : why);
+}
 
 unsigned char vip_test_done() { return vip::TestDone() ? 1 : 0; }
 

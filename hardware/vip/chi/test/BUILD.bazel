@@ -1,5 +1,10 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_test")
 
+# The link layer, against its own mirror image, with no design in the build.
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
+load("@rules_verilog//verilog:defs.bzl", "verilog_library")
+
 cc_test(
     name = "chi_flit_test",
     size = "small",
@@ -17,11 +22,6 @@ cc_test(
         "//hardware/vip/common:memory",
     ],
 )
-
-# The link layer, against its own mirror image, with no design in the build.
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
-load("@rules_verilog//verilog:defs.bzl", "verilog_library")
 
 verilog_library(
     name = "chi_link_loopback_tb",

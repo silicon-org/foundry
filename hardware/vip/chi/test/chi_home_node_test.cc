@@ -468,6 +468,7 @@ int main() {
     std::printf("%d failures\n", failures);
     return 1;
   }
-  std::printf("chi::HomeNode: reads, writes, dataless requests and the error paths all as stated\n");
+  std::printf(
+      "chi::HomeNode: reads, writes, dataless requests and the error paths all as stated\n");
   return 0;
 }

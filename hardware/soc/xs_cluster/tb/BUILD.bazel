@@ -79,6 +79,7 @@ cc_test(
 
 verilator_cc_library(
     name = "xs_cluster_verilated_traced",
+    module = ":xs_cluster_tb",
     # Built on request, never by `//...`, and that is a memory bound rather than
     # tidiness. Verilating this model is a single process over 139 MB of
     # SystemVerilog and it needs more than 16 GiB on its own; the traced variant
@@ -91,7 +92,6 @@ verilator_cc_library(
     # Nothing is lost: this exists for `bazel run ... -- +dump`, which names it
     # explicitly.
     tags = ["manual"],
-    module = ":xs_cluster_tb",
     timing = True,
     trace_mode = "fst",
     vopts = VOPTS,

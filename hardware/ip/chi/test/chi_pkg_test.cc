@@ -121,8 +121,7 @@ std::string ChironOpcodeName(int channel, int opcode) {
       const auto& info = snp_decoder.Decode(opcode);
       return info.IsValid() ? info.GetName() : "";
     }
-    default:
-      return "";
+    default: return "";
   }
 }
 
@@ -153,8 +152,7 @@ void chi_expect_flit_width(int channel, int width) {
   const int want = ChironFlitWidth(channel);
   if (width == want) return;
   char message[256];
-  std::snprintf(message, sizeof(message),
-                "%s flit: chi_pkg says %d bits, CHIron says %d",
+  std::snprintf(message, sizeof(message), "%s flit: chi_pkg says %d bits, CHIron says %d",
                 ChannelName(channel), width, want);
   Fail(message);
 }
@@ -168,8 +166,7 @@ void chi_check_opcode(int channel, int opcode, const char* name) {
 
   char message[256];
   if (ours.empty()) {
-    std::snprintf(message, sizeof(message),
-                  "%s 0x%02x: CHIron has %s, chi_pkg defines nothing",
+    std::snprintf(message, sizeof(message), "%s 0x%02x: CHIron has %s, chi_pkg defines nothing",
                   ChannelName(channel), opcode, theirs.c_str());
     Fail(message);
     return;

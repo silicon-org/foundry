@@ -85,6 +85,12 @@ def render_package(network: Network, source: str) -> str:
         for region in network.address_map.regions
     ]
 
+    # Latency is `per_hop * hops + overhead`, so the two coefficients travel
+    # rather than a single number for one hop count -- a testbench can then check
+    # every pair rather than the average.
+    at_zero = network.zero_load_latency(0)
+    at_one = network.zero_load_latency(1)
+
     return env.get_template("noc_pkg.sv.jinja").render(
         network=network,
         cfg=network.config,
@@ -93,6 +99,10 @@ def render_package(network: Network, source: str) -> str:
         max_interleave=max_interleave,
         addr_width=addr_width,
         nid=lambda value: _sv_literal(width, value),
+        latency_per_hop=at_one - at_zero,
+        latency_overhead=at_zero,
+        saturation_per_mille=round(network.saturation_bound * 1000),
+        mean_hops_per_mille=round(network.mean_hops * 1000),
     )
 
 
@@ -119,6 +129,11 @@ def render_netlist(network: Network, source: str) -> str:
             out.append(_DIR_NAME[direction])
         return out
 
+    order = {port.device.name: index for index, port in enumerate(network.ports)}
+
+    def device_index(port) -> int:
+        return order[port.device.name]
+
     def enable_bits(xp: Crosspoint) -> str:
         """Port-enable parameter, MSB first, so the literal reads P1 down to East."""
         bits = xp.port_enable(network.config.device_ports)
@@ -133,6 +148,7 @@ def render_netlist(network: Network, source: str) -> str:
         links=links,
         dangling=dangling,
         enable_bits=enable_bits,
+        device_index=device_index,
         dir_name=lambda index: _DIR_NAME[Direction(Direction.P0 + index)],
     )
 

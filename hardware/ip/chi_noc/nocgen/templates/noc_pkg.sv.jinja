@@ -34,8 +34,36 @@ package {{ network.name }}_noc_pkg;
 
 {% for port in network.ports %}
   // {{ port.device.kind }} at ({{ port.device.x }}, {{ port.device.y }}) P{{ port.device.port }}
+  localparam int unsigned {{ port.device.name | upper }}_INDEX = {{ loop.index0 }};
   localparam logic [NodeIdWidth-1:0] {{ port.device.name | upper }}_NODE_ID = {{ nid(port.node_id) }};
 {% endfor %}
+
+  // Every device's NodeID, in index order, so a testbench can pick a target
+  // without knowing any of their names.
+  localparam logic [NodeIdWidth-1:0] DeviceNodeId [NumDevices] = '{
+{% for port in network.ports %}
+      {{ nid(port.node_id) }}{{ "," if not loop.last }}  // {{ port.device.name }}
+{% endfor %}
+  };
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  // What this topology should manage
+  //
+  // Computed by nocgen from the topology itself rather than quoted from a
+  // textbook that assumed a different one, and asserted by
+  // //hardware/ip/chi_noc/test. A document that drifts from the design is worse
+  // than no document, so these are the document.
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // Zero-load latency is `LatencyPerHop * hops + LatencyOverhead` cycles.
+  localparam int unsigned LatencyPerHop = {{ latency_per_hop }};
+  localparam int unsigned LatencyOverhead = {{ latency_overhead }};
+
+  // Flits per cycle per device, per channel class, in parts per thousand.
+  // Integer because SystemVerilog localparams are, and a ratio of counted flits
+  // to counted cycles is what a testbench can actually measure.
+  localparam int unsigned SaturationBoundPerMille = {{ saturation_per_mille }};
+  localparam int unsigned MeanHopsPerMille = {{ mean_hops_per_mille }};
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   // System Address Map

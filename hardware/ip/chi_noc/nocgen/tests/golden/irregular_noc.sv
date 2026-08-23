@@ -21,21 +21,20 @@ module irregular_noc
   input  logic clk_i,
   input  logic rst_ni,
 
-  // rnf0: RN-F at (0, 0) P0, NodeID 11'h000
-  input  chi_xp_port_t rnf0_rx_i,
-  output chi_xp_port_t rnf0_tx_o,
-  // rnf1: RN-F at (0, 0) P1, NodeID 11'h001
-  input  chi_xp_port_t rnf1_rx_i,
-  output chi_xp_port_t rnf1_tx_o,
-  // hnf0: HN-F at (2, 0) P0, NodeID 11'h100
-  input  chi_xp_port_t hnf0_rx_i,
-  output chi_xp_port_t hnf0_tx_o,
-  // hnf1: HN-F at (2, 1) P0, NodeID 11'h108
-  input  chi_xp_port_t hnf1_rx_i,
-  output chi_xp_port_t hnf1_tx_o,
-  // snf0: SN-F at (0, 1) P0, NodeID 11'h008
-  input  chi_xp_port_t snf0_rx_i,
-  output chi_xp_port_t snf0_tx_o
+  // One entry per device, indexed by the `<NAME>_INDEX` localparams in
+  // irregular_noc_pkg. An array rather than a port per device, because
+  // a testbench has to be able to drive all of them the same way and a name
+  // cannot be indexed; the localparams keep integration explicit, so a wire goes
+  // to `dev_rx_i[irregular_noc_pkg::RNF0_INDEX]`
+  // and not to `dev_rx_i[3]`.
+  //
+  //   rnf0   RN-F  at (0, 0) P0, NodeID 11'h000
+  //   rnf1   RN-F  at (0, 0) P1, NodeID 11'h001
+  //   hnf0   HN-F  at (2, 0) P0, NodeID 11'h100
+  //   hnf1   HN-F  at (2, 1) P0, NodeID 11'h108
+  //   snf0   SN-F  at (0, 1) P0, NodeID 11'h008
+  input  chi_xp_port_t [4:0] dev_rx_i,
+  output chi_xp_port_t [4:0] dev_tx_o
 );
 
   // Indexed [y][x][direction]. `rx` is what a crosspoint is given, `tx` what it
@@ -87,16 +86,21 @@ module irregular_noc
   // Device ports
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  assign xp_rx[0][0][CHI_XP_P0] = rnf0_rx_i;
-  assign rnf0_tx_o = xp_tx[0][0][CHI_XP_P0];
-  assign xp_rx[0][0][CHI_XP_P1] = rnf1_rx_i;
-  assign rnf1_tx_o = xp_tx[0][0][CHI_XP_P1];
-  assign xp_rx[0][2][CHI_XP_P0] = hnf0_rx_i;
-  assign hnf0_tx_o = xp_tx[0][2][CHI_XP_P0];
-  assign xp_rx[1][0][CHI_XP_P0] = snf0_rx_i;
-  assign snf0_tx_o = xp_tx[1][0][CHI_XP_P0];
-  assign xp_rx[1][2][CHI_XP_P0] = hnf1_rx_i;
-  assign hnf1_tx_o = xp_tx[1][2][CHI_XP_P0];
+  // rnf0
+  assign xp_rx[0][0][CHI_XP_P0] = dev_rx_i[0];
+  assign dev_tx_o[0] = xp_tx[0][0][CHI_XP_P0];
+  // rnf1
+  assign xp_rx[0][0][CHI_XP_P1] = dev_rx_i[1];
+  assign dev_tx_o[1] = xp_tx[0][0][CHI_XP_P1];
+  // hnf0
+  assign xp_rx[0][2][CHI_XP_P0] = dev_rx_i[2];
+  assign dev_tx_o[2] = xp_tx[0][2][CHI_XP_P0];
+  // snf0
+  assign xp_rx[1][0][CHI_XP_P0] = dev_rx_i[4];
+  assign dev_tx_o[4] = xp_tx[1][0][CHI_XP_P0];
+  // hnf1
+  assign xp_rx[1][2][CHI_XP_P0] = dev_rx_i[3];
+  assign dev_tx_o[3] = xp_tx[1][2][CHI_XP_P0];
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   // Crosspoints

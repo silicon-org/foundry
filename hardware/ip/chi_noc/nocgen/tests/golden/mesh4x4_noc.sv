@@ -21,54 +21,31 @@ module mesh4x4_noc
   input  logic clk_i,
   input  logic rst_ni,
 
-  // rnf0: RN-F at (0, 0) P0, NodeID 11'h000
-  input  chi_xp_port_t rnf0_rx_i,
-  output chi_xp_port_t rnf0_tx_o,
-  // rnf1: RN-F at (1, 0) P0, NodeID 11'h080
-  input  chi_xp_port_t rnf1_rx_i,
-  output chi_xp_port_t rnf1_tx_o,
-  // rnf2: RN-F at (2, 0) P0, NodeID 11'h100
-  input  chi_xp_port_t rnf2_rx_i,
-  output chi_xp_port_t rnf2_tx_o,
-  // rnf3: RN-F at (3, 0) P0, NodeID 11'h180
-  input  chi_xp_port_t rnf3_rx_i,
-  output chi_xp_port_t rnf3_tx_o,
-  // hnf0: HN-F at (0, 1) P0, NodeID 11'h008
-  input  chi_xp_port_t hnf0_rx_i,
-  output chi_xp_port_t hnf0_tx_o,
-  // hnf1: HN-F at (1, 1) P0, NodeID 11'h088
-  input  chi_xp_port_t hnf1_rx_i,
-  output chi_xp_port_t hnf1_tx_o,
-  // hnf2: HN-F at (2, 1) P0, NodeID 11'h108
-  input  chi_xp_port_t hnf2_rx_i,
-  output chi_xp_port_t hnf2_tx_o,
-  // hnf3: HN-F at (3, 1) P0, NodeID 11'h188
-  input  chi_xp_port_t hnf3_rx_i,
-  output chi_xp_port_t hnf3_tx_o,
-  // snf0: SN-F at (0, 2) P0, NodeID 11'h010
-  input  chi_xp_port_t snf0_rx_i,
-  output chi_xp_port_t snf0_tx_o,
-  // rni0: RN-I at (1, 2) P0, NodeID 11'h090
-  input  chi_xp_port_t rni0_rx_i,
-  output chi_xp_port_t rni0_tx_o,
-  // hni0: HN-I at (2, 2) P0, NodeID 11'h110
-  input  chi_xp_port_t hni0_rx_i,
-  output chi_xp_port_t hni0_tx_o,
-  // snf1: SN-F at (3, 2) P0, NodeID 11'h190
-  input  chi_xp_port_t snf1_rx_i,
-  output chi_xp_port_t snf1_tx_o,
-  // rnf4: RN-F at (0, 3) P0, NodeID 11'h018
-  input  chi_xp_port_t rnf4_rx_i,
-  output chi_xp_port_t rnf4_tx_o,
-  // rnf5: RN-F at (1, 3) P0, NodeID 11'h098
-  input  chi_xp_port_t rnf5_rx_i,
-  output chi_xp_port_t rnf5_tx_o,
-  // rnf6: RN-F at (2, 3) P0, NodeID 11'h118
-  input  chi_xp_port_t rnf6_rx_i,
-  output chi_xp_port_t rnf6_tx_o,
-  // rnf7: RN-F at (3, 3) P0, NodeID 11'h198
-  input  chi_xp_port_t rnf7_rx_i,
-  output chi_xp_port_t rnf7_tx_o
+  // One entry per device, indexed by the `<NAME>_INDEX` localparams in
+  // mesh4x4_noc_pkg. An array rather than a port per device, because
+  // a testbench has to be able to drive all of them the same way and a name
+  // cannot be indexed; the localparams keep integration explicit, so a wire goes
+  // to `dev_rx_i[mesh4x4_noc_pkg::RNF0_INDEX]`
+  // and not to `dev_rx_i[3]`.
+  //
+  //   rnf0   RN-F  at (0, 0) P0, NodeID 11'h000
+  //   rnf1   RN-F  at (1, 0) P0, NodeID 11'h080
+  //   rnf2   RN-F  at (2, 0) P0, NodeID 11'h100
+  //   rnf3   RN-F  at (3, 0) P0, NodeID 11'h180
+  //   hnf0   HN-F  at (0, 1) P0, NodeID 11'h008
+  //   hnf1   HN-F  at (1, 1) P0, NodeID 11'h088
+  //   hnf2   HN-F  at (2, 1) P0, NodeID 11'h108
+  //   hnf3   HN-F  at (3, 1) P0, NodeID 11'h188
+  //   snf0   SN-F  at (0, 2) P0, NodeID 11'h010
+  //   rni0   RN-I  at (1, 2) P0, NodeID 11'h090
+  //   hni0   HN-I  at (2, 2) P0, NodeID 11'h110
+  //   snf1   SN-F  at (3, 2) P0, NodeID 11'h190
+  //   rnf4   RN-F  at (0, 3) P0, NodeID 11'h018
+  //   rnf5   RN-F  at (1, 3) P0, NodeID 11'h098
+  //   rnf6   RN-F  at (2, 3) P0, NodeID 11'h118
+  //   rnf7   RN-F  at (3, 3) P0, NodeID 11'h198
+  input  chi_xp_port_t [15:0] dev_rx_i,
+  output chi_xp_port_t [15:0] dev_tx_o
 );
 
   // Indexed [y][x][direction]. `rx` is what a crosspoint is given, `tx` what it
@@ -169,38 +146,54 @@ module mesh4x4_noc
   // Device ports
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  assign xp_rx[0][0][CHI_XP_P0] = rnf0_rx_i;
-  assign rnf0_tx_o = xp_tx[0][0][CHI_XP_P0];
-  assign xp_rx[0][1][CHI_XP_P0] = rnf1_rx_i;
-  assign rnf1_tx_o = xp_tx[0][1][CHI_XP_P0];
-  assign xp_rx[0][2][CHI_XP_P0] = rnf2_rx_i;
-  assign rnf2_tx_o = xp_tx[0][2][CHI_XP_P0];
-  assign xp_rx[0][3][CHI_XP_P0] = rnf3_rx_i;
-  assign rnf3_tx_o = xp_tx[0][3][CHI_XP_P0];
-  assign xp_rx[1][0][CHI_XP_P0] = hnf0_rx_i;
-  assign hnf0_tx_o = xp_tx[1][0][CHI_XP_P0];
-  assign xp_rx[1][1][CHI_XP_P0] = hnf1_rx_i;
-  assign hnf1_tx_o = xp_tx[1][1][CHI_XP_P0];
-  assign xp_rx[1][2][CHI_XP_P0] = hnf2_rx_i;
-  assign hnf2_tx_o = xp_tx[1][2][CHI_XP_P0];
-  assign xp_rx[1][3][CHI_XP_P0] = hnf3_rx_i;
-  assign hnf3_tx_o = xp_tx[1][3][CHI_XP_P0];
-  assign xp_rx[2][0][CHI_XP_P0] = snf0_rx_i;
-  assign snf0_tx_o = xp_tx[2][0][CHI_XP_P0];
-  assign xp_rx[2][1][CHI_XP_P0] = rni0_rx_i;
-  assign rni0_tx_o = xp_tx[2][1][CHI_XP_P0];
-  assign xp_rx[2][2][CHI_XP_P0] = hni0_rx_i;
-  assign hni0_tx_o = xp_tx[2][2][CHI_XP_P0];
-  assign xp_rx[2][3][CHI_XP_P0] = snf1_rx_i;
-  assign snf1_tx_o = xp_tx[2][3][CHI_XP_P0];
-  assign xp_rx[3][0][CHI_XP_P0] = rnf4_rx_i;
-  assign rnf4_tx_o = xp_tx[3][0][CHI_XP_P0];
-  assign xp_rx[3][1][CHI_XP_P0] = rnf5_rx_i;
-  assign rnf5_tx_o = xp_tx[3][1][CHI_XP_P0];
-  assign xp_rx[3][2][CHI_XP_P0] = rnf6_rx_i;
-  assign rnf6_tx_o = xp_tx[3][2][CHI_XP_P0];
-  assign xp_rx[3][3][CHI_XP_P0] = rnf7_rx_i;
-  assign rnf7_tx_o = xp_tx[3][3][CHI_XP_P0];
+  // rnf0
+  assign xp_rx[0][0][CHI_XP_P0] = dev_rx_i[0];
+  assign dev_tx_o[0] = xp_tx[0][0][CHI_XP_P0];
+  // rnf1
+  assign xp_rx[0][1][CHI_XP_P0] = dev_rx_i[1];
+  assign dev_tx_o[1] = xp_tx[0][1][CHI_XP_P0];
+  // rnf2
+  assign xp_rx[0][2][CHI_XP_P0] = dev_rx_i[2];
+  assign dev_tx_o[2] = xp_tx[0][2][CHI_XP_P0];
+  // rnf3
+  assign xp_rx[0][3][CHI_XP_P0] = dev_rx_i[3];
+  assign dev_tx_o[3] = xp_tx[0][3][CHI_XP_P0];
+  // hnf0
+  assign xp_rx[1][0][CHI_XP_P0] = dev_rx_i[4];
+  assign dev_tx_o[4] = xp_tx[1][0][CHI_XP_P0];
+  // hnf1
+  assign xp_rx[1][1][CHI_XP_P0] = dev_rx_i[5];
+  assign dev_tx_o[5] = xp_tx[1][1][CHI_XP_P0];
+  // hnf2
+  assign xp_rx[1][2][CHI_XP_P0] = dev_rx_i[6];
+  assign dev_tx_o[6] = xp_tx[1][2][CHI_XP_P0];
+  // hnf3
+  assign xp_rx[1][3][CHI_XP_P0] = dev_rx_i[7];
+  assign dev_tx_o[7] = xp_tx[1][3][CHI_XP_P0];
+  // snf0
+  assign xp_rx[2][0][CHI_XP_P0] = dev_rx_i[8];
+  assign dev_tx_o[8] = xp_tx[2][0][CHI_XP_P0];
+  // rni0
+  assign xp_rx[2][1][CHI_XP_P0] = dev_rx_i[9];
+  assign dev_tx_o[9] = xp_tx[2][1][CHI_XP_P0];
+  // hni0
+  assign xp_rx[2][2][CHI_XP_P0] = dev_rx_i[10];
+  assign dev_tx_o[10] = xp_tx[2][2][CHI_XP_P0];
+  // snf1
+  assign xp_rx[2][3][CHI_XP_P0] = dev_rx_i[11];
+  assign dev_tx_o[11] = xp_tx[2][3][CHI_XP_P0];
+  // rnf4
+  assign xp_rx[3][0][CHI_XP_P0] = dev_rx_i[12];
+  assign dev_tx_o[12] = xp_tx[3][0][CHI_XP_P0];
+  // rnf5
+  assign xp_rx[3][1][CHI_XP_P0] = dev_rx_i[13];
+  assign dev_tx_o[13] = xp_tx[3][1][CHI_XP_P0];
+  // rnf6
+  assign xp_rx[3][2][CHI_XP_P0] = dev_rx_i[14];
+  assign dev_tx_o[14] = xp_tx[3][2][CHI_XP_P0];
+  // rnf7
+  assign xp_rx[3][3][CHI_XP_P0] = dev_rx_i[15];
+  assign dev_tx_o[15] = xp_tx[3][3][CHI_XP_P0];
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   // Crosspoints

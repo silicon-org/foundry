@@ -33,37 +33,93 @@ package mesh4x4_noc_pkg;
   localparam int unsigned NumDevices = 16;
 
   // RN-F at (0, 0) P0
+  localparam int unsigned RNF0_INDEX = 0;
   localparam logic [NodeIdWidth-1:0] RNF0_NODE_ID = 11'h000;
   // RN-F at (1, 0) P0
+  localparam int unsigned RNF1_INDEX = 1;
   localparam logic [NodeIdWidth-1:0] RNF1_NODE_ID = 11'h080;
   // RN-F at (2, 0) P0
+  localparam int unsigned RNF2_INDEX = 2;
   localparam logic [NodeIdWidth-1:0] RNF2_NODE_ID = 11'h100;
   // RN-F at (3, 0) P0
+  localparam int unsigned RNF3_INDEX = 3;
   localparam logic [NodeIdWidth-1:0] RNF3_NODE_ID = 11'h180;
   // HN-F at (0, 1) P0
+  localparam int unsigned HNF0_INDEX = 4;
   localparam logic [NodeIdWidth-1:0] HNF0_NODE_ID = 11'h008;
   // HN-F at (1, 1) P0
+  localparam int unsigned HNF1_INDEX = 5;
   localparam logic [NodeIdWidth-1:0] HNF1_NODE_ID = 11'h088;
   // HN-F at (2, 1) P0
+  localparam int unsigned HNF2_INDEX = 6;
   localparam logic [NodeIdWidth-1:0] HNF2_NODE_ID = 11'h108;
   // HN-F at (3, 1) P0
+  localparam int unsigned HNF3_INDEX = 7;
   localparam logic [NodeIdWidth-1:0] HNF3_NODE_ID = 11'h188;
   // SN-F at (0, 2) P0
+  localparam int unsigned SNF0_INDEX = 8;
   localparam logic [NodeIdWidth-1:0] SNF0_NODE_ID = 11'h010;
   // RN-I at (1, 2) P0
+  localparam int unsigned RNI0_INDEX = 9;
   localparam logic [NodeIdWidth-1:0] RNI0_NODE_ID = 11'h090;
   // HN-I at (2, 2) P0
+  localparam int unsigned HNI0_INDEX = 10;
   localparam logic [NodeIdWidth-1:0] HNI0_NODE_ID = 11'h110;
   // SN-F at (3, 2) P0
+  localparam int unsigned SNF1_INDEX = 11;
   localparam logic [NodeIdWidth-1:0] SNF1_NODE_ID = 11'h190;
   // RN-F at (0, 3) P0
+  localparam int unsigned RNF4_INDEX = 12;
   localparam logic [NodeIdWidth-1:0] RNF4_NODE_ID = 11'h018;
   // RN-F at (1, 3) P0
+  localparam int unsigned RNF5_INDEX = 13;
   localparam logic [NodeIdWidth-1:0] RNF5_NODE_ID = 11'h098;
   // RN-F at (2, 3) P0
+  localparam int unsigned RNF6_INDEX = 14;
   localparam logic [NodeIdWidth-1:0] RNF6_NODE_ID = 11'h118;
   // RN-F at (3, 3) P0
+  localparam int unsigned RNF7_INDEX = 15;
   localparam logic [NodeIdWidth-1:0] RNF7_NODE_ID = 11'h198;
+
+  // Every device's NodeID, in index order, so a testbench can pick a target
+  // without knowing any of their names.
+  localparam logic [NodeIdWidth-1:0] DeviceNodeId [NumDevices] = '{
+      11'h000,  // rnf0
+      11'h080,  // rnf1
+      11'h100,  // rnf2
+      11'h180,  // rnf3
+      11'h008,  // hnf0
+      11'h088,  // hnf1
+      11'h108,  // hnf2
+      11'h188,  // hnf3
+      11'h010,  // snf0
+      11'h090,  // rni0
+      11'h110,  // hni0
+      11'h190,  // snf1
+      11'h018,  // rnf4
+      11'h098,  // rnf5
+      11'h118,  // rnf6
+      11'h198  // rnf7
+  };
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  // What this topology should manage
+  //
+  // Computed by nocgen from the topology itself rather than quoted from a
+  // textbook that assumed a different one, and asserted by
+  // //hardware/ip/chi_noc/test. A document that drifts from the design is worse
+  // than no document, so these are the document.
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // Zero-load latency is `LatencyPerHop * hops + LatencyOverhead` cycles.
+  localparam int unsigned LatencyPerHop = 2;
+  localparam int unsigned LatencyOverhead = 4;
+
+  // Flits per cycle per device, per channel class, in parts per thousand.
+  // Integer because SystemVerilog localparams are, and a ratio of counted flits
+  // to counted cycles is what a testbench can actually measure.
+  localparam int unsigned SaturationBoundPerMille = 1000;
+  localparam int unsigned MeanHopsPerMille = 2500;
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   // System Address Map

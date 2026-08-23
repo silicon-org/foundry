@@ -1,2 +1,7 @@
 # Root package. Build targets live in //tools, //infra and (later) the design
 # trees; nothing belongs here.
+
+# The one exception, and it is not a build target. //tools/format:format_test
+# formats the whole tree rather than a list of sources, and needs a file in the
+# root directory to find the root by.
+exports_files(["MODULE.bazel"])

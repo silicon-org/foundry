@@ -104,3 +104,36 @@ more time than it should have.
   difftest *after* writing its output. Running it by hand outside the Bazel rule
   therefore produces complete artifacts and a non-zero exit, which is a good way
   to believe a build failed when it did not, or to miss that it did.
+
+## Formatting
+
+- rules_lint picks a language's files with GitHub Linguist's patterns, and
+  Linguist knows `BUILD.bazel` but not `foo.BUILD.bazel` — the name a BUILD file
+  takes when it is written for an external repository. In a repository whose
+  whole third-party strategy is `<name>.BUILD.bazel` overlays, that is most of
+  the Starlark, skipped in silence. The check looked green because it never
+  looked. Patched in `//tools/format:patches/`; the pattern list already carries
+  `*.MODULE.bazel`, so the fix is one word.
+
+  The general form: a formatter that selects files by pattern will quietly not
+  cover a naming convention nobody upstream has heard of. Count the files it
+  reports against the files the tool reports when run by hand, once, at the
+  start.
+
+- Two modules using the same module extension disagree if one marks it a dev
+  dependency and the other does not: rules_multitool sorts every hub tag into
+  `root_module_direct_deps` or `root_module_direct_dev_deps` by
+  `is_dev_dependency`, which is False for any non-root module, and Bazel refuses
+  a name appearing in both lists. Adding aspect_rules_lint therefore forced
+  rules_multitool to stop being a dev dependency here. The error names the
+  extension and not the second module that started using it.
+
+- `**kwargs` cannot be passed in a BUILD file, only in a `.bzl`. A dict shared
+  between two macro calls — the formatter and the test that checks it — has to
+  live in a `.bzl` and be spread there.
+
+- buildifier reads `MODULE.bazel` as a module file and applies BUILD-file rules
+  to it: multi-argument extension tag calls get one argument per line, and rule
+  attributes are sorted into its canonical order. Comments move with the
+  attribute they sit above, so nothing comes detached, but a hand-curated
+  `MODULE.bazel` will churn on first contact.

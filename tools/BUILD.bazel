@@ -9,9 +9,15 @@ exports_files([
 
 # `bazel run //tools:bazel_env` + `direnv allow` puts every pinned tool on PATH,
 # so interactive kubectl/talosctl/tofu match exactly what the build uses.
+#
+# `format` joins them although it is a Bazel target rather than a pinned binary:
+# githooks/pre-commit runs it on every commit, and going through `bazel run`
+# there would pay Bazel's startup for what is usually two files.
 bazel_env(
     name = "bazel_env",
-    tools = {name: tool_label(name) for name in TOOLS},
+    tools = {name: tool_label(name) for name in TOOLS} | {
+        "format": "//tools/format",
+    },
 )
 
 # Proof that every tool runs through Bazel at a pinned version.
@@ -19,7 +25,11 @@ sh_binary(
     name = "versions",
     srcs = ["versions.sh"],
     args = [
-        "{}:{}:$(rlocationpath {})".format(name, ",".join(version_args), tool_label(name))
+        "{}:{}:$(rlocationpath {})".format(
+            name,
+            ",".join(version_args),
+            tool_label(name),
+        )
         for name, version_args in TOOLS.items()
     ],
     data = [tool_label(name) for name in TOOLS],

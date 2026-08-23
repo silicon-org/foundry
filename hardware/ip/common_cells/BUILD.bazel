@@ -18,3 +18,8 @@ alias(
     name = "cc_lzc",
     actual = "@common_cells//:cc_lzc",
 )
+
+alias(
+    name = "cc_rr_arb_tree",
+    actual = "@common_cells//:cc_rr_arb_tree",
+)

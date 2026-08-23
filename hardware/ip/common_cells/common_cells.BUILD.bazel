@@ -30,3 +30,23 @@ verilog_library(
     ]),
     deps = [":cc_pkg"],
 )
+
+# Round-robin arbiter, as a tree. Every crosspoint output in
+# //hardware/ip/chi_noc is one of these: N inputs want the port, one gets it,
+# and the rotation is what keeps the loser from being a loser forever.
+#
+# Depends on cc_lzc, which is what FairArb uses to find the next unserved
+# request rather than merely advancing the pointer -- the difference between
+# even throughput and even throughput only when every input is busy.
+verilog_library(
+    name = "cc_rr_arb_tree",
+    srcs = ["src/cc_rr_arb_tree.sv"],
+    hdrs = glob([
+        "include/*.svh",
+        "include/common_cells/*.svh",
+        # registers.svh includes common_cells/deprecated/registers.svh, so the
+        # glob has to reach a directory further down than the other cells need.
+        "include/common_cells/deprecated/*.svh",
+    ]),
+    deps = [":cc_lzc"],
+)

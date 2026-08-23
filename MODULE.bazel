@@ -32,11 +32,26 @@ bazel_dep(name = "llvm", version = "0.8.17")
 # Mac is the entire reason for a zero-sysroot toolchain -- without it, adding
 # x86 would have meant finding a Linux machine to build on.
 llvm_toolchain = use_extension("@llvm//extensions:toolchain.bzl", "toolchain")
-llvm_toolchain.exec(arch = "aarch64", os = "macos")
-llvm_toolchain.exec(arch = "aarch64", os = "linux")
-llvm_toolchain.exec(arch = "x86_64", os = "linux")
-llvm_toolchain.target(arch = "aarch64", os = "linux")
-llvm_toolchain.target(arch = "x86_64", os = "linux")
+llvm_toolchain.exec(
+    arch = "aarch64",
+    os = "macos",
+)
+llvm_toolchain.exec(
+    arch = "aarch64",
+    os = "linux",
+)
+llvm_toolchain.exec(
+    arch = "x86_64",
+    os = "linux",
+)
+llvm_toolchain.target(
+    arch = "aarch64",
+    os = "linux",
+)
+llvm_toolchain.target(
+    arch = "x86_64",
+    os = "linux",
+)
 use_repo(llvm_toolchain, "llvm_toolchains")
 
 register_toolchains("@llvm_toolchains//:all")
@@ -69,7 +84,6 @@ http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "ht
 http_archive(
     name = "common_cells",
     build_file = "//hardware/ip/common_cells:common_cells.BUILD.bazel",
-    sha256 = "df7e2086e59d144ccd9bee2196778fdf23dfec803affd0273c6f69f56c5f5b46",
     # Anchors the include search path. rules_verilog derives -I from each
     # header's directory, but its `includes` attribute is computed from
     # ctx.label.package and ignores an external repository's root, so it emits a
@@ -77,6 +91,7 @@ http_archive(
     # "common_cells/assertions.svh", so the search path has to be include/ --
     # and an empty header sitting there produces exactly that. Worth upstreaming.
     patch_cmds = ["touch include/_incdir_anchor.svh"],
+    sha256 = "df7e2086e59d144ccd9bee2196778fdf23dfec803affd0273c6f69f56c5f5b46",
     strip_prefix = "common_cells-2.0.0-beta.3",
     url = "https://github.com/pulp-platform/common_cells/archive/refs/tags/v2.0.0-beta.3.tar.gz",
 )
@@ -112,17 +127,6 @@ register_toolchains("//hardware/ip/xiangshan:transitive_classpath")
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     name = "xs_maven",
-    # Google's mirror of Maven Central ahead of Central itself, which is not a
-    # preference so much as a rate limit. Fetching fifty artifacts from one
-    # cluster IP earns "429 Too Many Requests" from Central, and a repository
-    # fetch that is refused is a build that fails rather than one that slows
-    # down. The mirror is a GCS bucket and does not throttle; Central stays as
-    # the fallback, and as the authority if the two ever disagree -- the lock
-    # file's checksums are what make that safe.
-    repositories = [
-        "https://maven-central.storage-download.googleapis.com/maven2",
-        "https://repo1.maven.org/maven2",
-    ],
     artifacts = [
         "org.chipsalliance:chisel_2.13:7.13.0",
         "org.chipsalliance:chisel-plugin_2.13.18:7.13.0",
@@ -138,6 +142,17 @@ maven.install(
         "org.scalatest:scalatest_2.13:3.2.19",
     ],
     lock_file = "//hardware/ip/xiangshan:maven_install.json",
+    # Google's mirror of Maven Central ahead of Central itself, which is not a
+    # preference so much as a rate limit. Fetching fifty artifacts from one
+    # cluster IP earns "429 Too Many Requests" from Central, and a repository
+    # fetch that is refused is a build that fails rather than one that slows
+    # down. The mirror is a GCS bucket and does not throttle; Central stays as
+    # the fallback, and as the authority if the two ever disagree -- the lock
+    # file's checksums are what make that safe.
+    repositories = [
+        "https://maven-central.storage-download.googleapis.com/maven2",
+        "https://repo1.maven.org/maven2",
+    ],
 )
 use_repo(maven, "xs_maven")
 
@@ -153,6 +168,13 @@ use_repo(maven, "xs_maven")
 http_archive(
     name = "xiangshan",
     build_file = "//hardware/ip/xiangshan:xiangshan.BUILD.bazel",
+    # Makes elaboration reproducible. The patch explains itself; the short of it
+    # is that EnumUInt discovers its members by reflection, in an order the JDK
+    # does not define, and generates hardware in that order -- so the same design
+    # elaborated twice produced 139 MB of SystemVerilog with different wire
+    # names. Nine elaborations gave six distinct outputs before it; five gave
+    # one after.
+    patch_args = ["-p1"],
     # Two of the resources mill produces by shelling out to git during the
     # build, and that elaboration reads back: the version string that lands in
     # the device tree, and the commit that lands in a CSR. Writing them here
@@ -162,13 +184,6 @@ http_archive(
         "printf 'KunminghuV3-a7fc87df' > src/main/resources/publishVersion",
         "printf 'SHA=a7fc87df1e82211eb47f3c74a8c93cd9d425572b\\ndirty=0\\n' > src/main/resources/gitStatus",
     ],
-    # Makes elaboration reproducible. The patch explains itself; the short of it
-    # is that EnumUInt discovers its members by reflection, in an order the JDK
-    # does not define, and generates hardware in that order -- so the same design
-    # elaborated twice produced 139 MB of SystemVerilog with different wire
-    # names. Nine elaborations gave six distinct outputs before it; five gave
-    # one after.
-    patch_args = ["-p1"],
     patches = ["//hardware/ip/xiangshan:enum_uint_reflection_order.patch"],
     sha256 = "935e9dfec81e5b1e8974c060a59bf0a5e7309cf3dba9233b7f5ae3676ac13d20",
     strip_prefix = "XiangShan-a7fc87df1e82211eb47f3c74a8c93cd9d425572b",
@@ -446,13 +461,43 @@ http_archive(
 )
 
 # Pinned CLI toolchain. See //tools for the tool list and update workflow.
-bazel_dep(name = "rules_multitool", version = "1.11.1", dev_dependency = True)
+#
+# Not a dev dependency, though everything it fetches is only ever run by hand.
+# aspect_rules_lint below declares hubs on this same extension and does so
+# non-dev, and rules_multitool classifies every module's hub tag into one of two
+# lists it hands back to Bazel. Ours being dev and theirs not put the default
+# hub in both lists, which Bazel rejects outright:
+#
+#   in root_module_direct_dev_deps: entry 'multitool' is also in
+#   root_module_direct_deps
+#
+# Marking ours non-dev is the smaller lie: this module is a leaf that nothing
+# depends on, so the only cost is theoretical.
+bazel_dep(name = "rules_multitool", version = "1.11.1")
+
 bazel_dep(name = "bazel_env.bzl", version = "0.8.0", dev_dependency = True)
 
-multitool = use_extension(
-    "@rules_multitool//multitool:extension.bzl",
-    "multitool",
-    dev_dependency = True,
-)
+multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitool")
 multitool.hub(lockfile = "//tools:multitool.lock.json")
 use_repo(multitool, "multitool")
+
+# One formatter for the whole tree. See //tools/format.
+#
+# A dev dependency because nothing it produces ends up in a design: it rewrites
+# sources in place and fails a test when they disagree with it, and neither is
+# something a consumer of this module would want.
+#
+# It brings its own multitool hub for the formatters it can fetch itself. We use
+# none of them -- clang-format comes from the toolchain that compiles the code,
+# buildifier from //tools:multitool.lock.json alongside every other CLI -- so
+# that hub is declared and never fetched.
+bazel_dep(name = "aspect_rules_lint", version = "2.8.0", dev_dependency = True)
+
+# See the patch: without it the `<name>.BUILD.bazel` overlays that describe every
+# third-party archive in this repository are not recognised as Starlark, and go
+# unformatted while appearing to be covered.
+single_version_override(
+    module_name = "aspect_rules_lint",
+    patch_strip = 1,
+    patches = ["//tools/format:patches/0001-starlark-build-bazel-overlays.patch"],
+)

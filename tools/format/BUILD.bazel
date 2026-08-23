@@ -1,0 +1,16 @@
+# One formatter for the whole tree.
+#
+#   bazel run //tools/format               # rewrite every file
+#   bazel run //tools/format -- a.cc b.h   # rewrite these
+#   bazel run //tools/format:format.check  # report, rewrite nothing
+#   bazel test //tools/format:format_test  # what CI asks
+#
+# `format` is also on PATH through //tools:bazel_env, which is what
+# githooks/pre-commit calls so that a commit costs no Bazel startup.
+#
+# Which formatter runs which language, and why they come from where they do,
+# is in defs.bzl.
+
+load("//tools/format:defs.bzl", "format_and_test")
+
+format_and_test()

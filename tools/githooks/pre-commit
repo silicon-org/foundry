@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Formats the staged files, and refuses the commit if that changed any of them.
+#
+# Installed by `.envrc`, so `direnv allow` is the only setup step. `git commit
+# --no-verify` skips it; //tools/format:format_test does not, which is the
+# division of labour -- this hook is a convenience, CI is the check.
+#
+# Formatting rather than merely checking is deliberate: a hook that tells you to
+# run a command is a hook that costs two commits. This one leaves the corrected
+# files in the working tree, so the fix is `git add` and commit again.
+set -euo pipefail
+
+# The bazel_env symlink first: it is the same target, without paying Bazel's
+# startup for what is usually two files. Falls back to `bazel run` for anyone
+# who has not run `bazel run //tools:bazel_env` yet.
+formatter=bazel-out/bazel_env-opt/bin/tools/bazel_env/bin/format
+if [[ -x "$formatter" ]]; then
+  format=("$formatter")
+else
+  format=(bazel run --ui_event_filters=-info,-stdout --noshow_progress //tools/format --)
+fi
+
+# Added and modified only. A deleted file has nothing to format, and passing no
+# files at all would make the formatter walk the whole repository.
+staged=()
+while IFS= read -r -d '' file; do
+  staged+=("$file")
+done < <(git diff --cached --name-only --diff-filter=AM -z)
+
+if [[ ${#staged[@]} -eq 0 ]]; then
+  exit 0
+fi
+
+"${format[@]}" "${staged[@]}"
+
+# Compare against the index rather than HEAD, so that a file staged in part is
+# judged on what is staged.
+if ! git diff --quiet -- "${staged[@]}"; then
+  echo >&2
+  echo >&2 "The formatter changed files that were staged:"
+  git diff --stat -- "${staged[@]}" >&2
+  echo >&2
+  echo >&2 "Stage them and commit again:  git add -u && git commit"
+  exit 1
+fi

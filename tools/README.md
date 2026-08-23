@@ -41,6 +41,27 @@ here is a secret published:
 bazel run //tools:secret-scan -- git --redact
 ```
 
+## Formatting
+
+One command formats the whole tree, and one test fails when it disagrees with
+what is committed:
+
+```
+bazel run //tools/format               # rewrite every file
+bazel run //tools/format -- a.cc b.h   # rewrite these
+bazel test //tools/format:format_test  # what CI asks
+```
+
+`format` is on `PATH` alongside the pinned CLIs, which is how `tools/githooks/pre-commit`
+runs it on the staged files without paying Bazel's startup. `direnv allow`
+installs that hook by pointing `core.hooksPath` at `tools/githooks`; `git commit
+--no-verify` skips it, and the test does not.
+
+Neither formatter is fetched for the purpose. clang-format is the one inside the
+hermetic C++ toolchain, so it moves when the compiler does; buildifier is a pin
+in `multitool.lock.json` like everything else in this file. See
+`//tools/format:defs.bzl`.
+
 ## How it fits together
 
 | File | Role |
@@ -49,6 +70,7 @@ bazel run //tools:secret-scan -- git --redact
 | `tools.bzl` | `TOOLS`: the tool list, and how each reports its version. |
 | `BUILD.bazel` | Derives `:bazel_env` and `:versions` from `TOOLS`. |
 | `versions.sh` | Runs each tool and reports the version it claims. |
+| `format/` | Which formatter owns which language, and the test that enforces it. |
 
 `TOOLS` is the single source of truth: adding a tool means adding binaries to
 the lockfile and one line to `tools.bzl`. The PATH environment and the version

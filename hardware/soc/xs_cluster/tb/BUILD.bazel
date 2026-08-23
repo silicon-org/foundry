@@ -79,6 +79,18 @@ cc_test(
 
 verilator_cc_library(
     name = "xs_cluster_verilated_traced",
+    # Built on request, never by `//...`, and that is a memory bound rather than
+    # tidiness. Verilating this model is a single process over 139 MB of
+    # SystemVerilog and it needs more than 16 GiB on its own; the traced variant
+    # needs more still. `bazel test //...` builds every target in the pattern,
+    # not only the tests, so without this the worker is asked to run both at
+    # once -- which no limit the node can offer will satisfy, and it fails as
+    # "dial unix /worker/runner: connection refused" from the container that
+    # survived.
+    #
+    # Nothing is lost: this exists for `bazel run ... -- +dump`, which names it
+    # explicitly.
+    tags = ["manual"],
     module = ":xs_cluster_tb",
     timing = True,
     trace_mode = "fst",
@@ -87,6 +99,8 @@ verilator_cc_library(
 
 cc_binary(
     name = "xs_cluster_tb_traced",
+    # Same reason as the library it wraps.
+    tags = ["manual"],
     deps = [
         ":xs_cluster_verilated_traced",
         "//hardware/vip/chi:chi_hn_dpi",

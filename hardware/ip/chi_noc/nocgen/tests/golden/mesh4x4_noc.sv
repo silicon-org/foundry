@@ -10,7 +10,7 @@
 // L-Credits for the four it receives -- so wiring a neighbour is one assignment
 // rather than thirty.
 module mesh4x4_noc
-  import chi_noc_pkg::chi_xp_port_t;
+  import chi_noc_flit_pkg::chi_xp_port_t;
   import chi_noc_pkg::CHI_XP_EAST;
   import chi_noc_pkg::CHI_XP_WEST;
   import chi_noc_pkg::CHI_XP_NORTH;

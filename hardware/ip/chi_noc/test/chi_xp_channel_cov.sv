@@ -49,11 +49,10 @@ module chi_xp_channel_cov #(
     input logic rst_ni,
 
     // The switch's own decisions, named as it names them.
-    input logic [Ports-1:0]                            in_valid,
-    input logic [Ports-1:0]                            in_ready,
-    input chi_noc_pkg::chi_xp_port_mask_t [Ports-1:0]  in_dest,
-    input logic [Ports-1:0][PrioBits-1:0]              in_prio,
-    input logic [Ports-1:0][Ports-1:0]                 grant     // [output][input]
+    input logic [Ports-1:0][Ports-1:0]               head_valid,  // [input][output]
+    input logic [Ports-1:0][Ports-1:0][PrioBits-1:0] head_prio,   // [input][output]
+    input logic [Ports-1:0]                          pop,         // [input]
+    input logic [Ports-1:0][$clog2(Ports)-1:0]       pop_port     // [input]
 );
 
   localparam int unsigned Classes = 1 << PrioBits;
@@ -73,11 +72,12 @@ module chi_xp_channel_cov #(
   // An input held a flit it could not place. Backpressure reached this far.
   int unsigned stalled[Ports];
 
-  // How many inputs were requesting output `o` this cycle.
+  // How many inputs had something for output `o` this cycle. With one queue per
+  // output the answer is a count of queue heads, not a search.
   function automatic int unsigned requesters_for(int unsigned o);
     int unsigned count = 0;
     for (int unsigned p = 0; p < Ports; p++) begin
-      if (in_valid[p] && in_dest[p][o]) count++;
+      if (head_valid[p][o]) count++;
     end
     return count;
   endfunction
@@ -85,8 +85,9 @@ module chi_xp_channel_cov #(
   // Blocking assignments throughout, and deliberately: several grants land in
   // one cycle, and `count <= count + 1` twice in a cycle increments once
   // because both read the same value. These are counters in a monitor, not
-  // state in a design, so the usual rule does not buy anything here.
+  // state in a design, so the usual rule buys nothing here.
   int unsigned n_requesters;
+  int unsigned served;
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
@@ -100,24 +101,25 @@ module chi_xp_channel_cov #(
       end
     end else begin
       for (int unsigned p = 0; p < Ports; p++) begin
-        if (in_valid[p] && !in_ready[p]) stalled[p] = stalled[p] + 1;
-      end
+        // Something to send and nothing sent. With per-output queues this is
+        // the honest question -- a FIFO could only ever be blocked on its head.
+        if (|head_valid[p] && !pop[p]) stalled[p] = stalled[p] + 1;
 
-      for (int unsigned o = 0; o < Ports; o++) begin
-        n_requesters = requesters_for(o);
-        for (int unsigned p = 0; p < Ports; p++) begin
-          if (grant[o][p]) begin
-            turn[p][o] = turn[p][o] + 1;
-            contention[n_requesters] = contention[n_requesters] + 1;
+        if (pop[p]) begin
+          served = {29'd0, pop_port[p]};
+          turn[p][served] = turn[p][served] + 1;
 
-            // Everyone else who wanted this output and did not get it. The
-            // lower triangle of this table must stay empty: arbitration masks
-            // to the highest class present, so a lower class winning against a
-            // higher one is priority not working.
-            for (int unsigned q = 0; q < Ports; q++) begin
-              if (q != p && in_valid[q] && in_dest[q][o]) begin
-                qos_win[in_prio[p]][in_prio[q]] = qos_win[in_prio[p]][in_prio[q]] + 1;
-              end
+          n_requesters = requesters_for(served);
+          contention[n_requesters] = contention[n_requesters] + 1;
+
+          // Everyone else with a flit for that output who did not get it. The
+          // lower triangle of this table must stay empty: phase one masks to the
+          // highest class present, so a lower class winning is priority not
+          // working.
+          for (int unsigned q = 0; q < Ports; q++) begin
+            if (q != p && head_valid[q][served]) begin
+              qos_win[head_prio[p][served]][head_prio[q][served]] =
+                  qos_win[head_prio[p][served]][head_prio[q][served]] + 1;
             end
           end
         end
@@ -125,7 +127,6 @@ module chi_xp_channel_cov #(
     end
   end
 
-  // Read by the testbench that judges the run; nothing here acts on it.
   logic unused;
   assign unused = ^{PortEnable};
 

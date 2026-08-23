@@ -68,8 +68,8 @@ package irregular_noc_pkg;
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
   // Zero-load latency is `LatencyPerHop * hops + LatencyOverhead` cycles.
-  localparam int unsigned LatencyPerHop = 2;
-  localparam int unsigned LatencyOverhead = 4;
+  localparam int unsigned LatencyPerHop = 3;
+  localparam int unsigned LatencyOverhead = 5;
 
   // Flits per cycle per device, per channel class, in parts per thousand.
   // Integer because SystemVerilog localparams are, and a ratio of counted flits

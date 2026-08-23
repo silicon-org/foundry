@@ -33,6 +33,7 @@ verilog_library(
     srcs = [
         "src/chi_xp.sv",
         "src/chi_xp_channel.sv",
+        "src/chi_xp_input_buffer.sv",
     ],
     deps = [
         ":chi_noc_flit_pkg",

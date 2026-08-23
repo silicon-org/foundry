@@ -3,10 +3,12 @@
 A mesh of crosspoints that carries CHI between request, home and slave nodes.
 
 ```
-src/chi_noc_pkg.sv       ports, NodeID layout, routing. No CHI dependency.
-src/chi_noc_flit_pkg.sv  the flits, and the five numbers. The CHI issue lives here.
-src/chi_xp_channel.sv    one channel class through one crosspoint
-src/chi_xp.sv            four channel classes = one crosspoint
+src/chi_noc_pkg.sv          ports, NodeID layout, routing. No CHI dependency.
+src/chi_noc_flit_pkg.sv     the flits, and the five numbers. The CHI issue lives here.
+src/chi_xp_input_buffer.sv  credits, a payload memory, and a queue per output
+src/chi_xp_channel.sv       one channel class through one crosspoint
+src/chi_xp.sv               four channel classes = one crosspoint
+src/chi_noc_device_port.sv  how a device attaches, and the snoop's fabric header
 src/chi_sam.sv           address -> home node (M3)
 nocgen/                  the generator that wires crosspoints into a topology
 test/                    routing against the model; the switch against itself
@@ -121,21 +123,36 @@ connect to neighbours and the two device ports to whatever the topology hangs
 there. An edge crosspoint simply has ports disabled, which removes their logic
 rather than tying them off.
 
-Each port is a `chi_link_tx_channel` / `chi_link_rx_channel` pair, taken from
-`//hardware/ip/chi`. Those are not new: `//hardware/vip/chi` wrote and tested
-them for the cluster testbench, and its README said at the time that they were
-"synthesisable in shape, so the same module can front real RTL later." This is
-later. Between them sits route computation per input and, per output, an
-arbiter over every input whose **head** flit wants it.
+Each output is a `chi_link_tx_channel` from `//hardware/ip/chi`. Each *input*
+is a `chi_xp_input_buffer`, and its shape is where the interesting decision is.
 
-Head only, which is a real limit and not an oversight. A receiver's buffer is
-its credits -- the two are one mechanism -- and what it exposes downstream is one
-flit at a time, so an input whose head is blocked blocks everything behind it
-even when the flit behind wants a free output. Head-of-line blocking costs
-throughput and costs nothing in correctness, and the number it costs is what M3
-measures. Looking past the head means a receiver that can pop out of order,
-which is a change to `//hardware/ip/chi`, and it should be made against a
-measurement rather than a suspicion.
+A flit arriving at an input is split in two. Its **payload** — all 422 bits of a
+DAT flit — goes into a memory with one write port and one read port whose output
+is registered, which is what an SRAM is. Its **routing information** — which
+output, and how urgently — is used once to choose a queue and then lives in a
+flop array a fraction of the size.
+
+That split is what makes looking past a blocked flit affordable. The obvious way
+to do it, letting the arbiter consider every buffered entry, costs
+`Credits × Ports` candidates per output and an O(Credits²) check that no older
+entry in the same buffer is going to the same place. Linking the entries into
+**one queue per output** instead means each output arbitrates over six queue
+heads — exactly as many as a single FIFO offered — and per-(input, output) order
+is kept by the queue rather than by a comparison. Everything the scheduler reads
+is eighteen bits per input: six queue-valid bits and six priorities.
+
+Deciding what moves is then a bipartite match between six inputs and six
+outputs, because a payload memory has one read port and an input can send one
+flit per cycle. Each pass has every free output pick a free input, highest QoS
+class first, and then every free input accept one of the outputs that picked it.
+**Three passes**, and the number is measured rather than chosen: one pass leaves
+an output idle whenever several pick the same input, and that loss more than
+cancelled what the queues had bought — 0.533 against the FIFO's 0.603. Two
+recovered it, three settled it, four changed nothing.
+
+The credit check belongs in *eligibility* and not in the final grant. An output
+with no credit that can still be picked consumes its input's one slot for the
+cycle, and head-of-line blocking reappears one level up.
 
 QoS is four priority classes with round-robin inside each, which is OpenNoC's
 scheme and CHI's intent. It can starve a low-priority flit indefinitely under
@@ -198,7 +215,10 @@ every input has exactly one destination and no two streams share a directed link
 can do unobstructed. It reaches `min(1, Credits/5)` exactly: four credits give
 80.0%, five give 100.0%, and no amount of extra depth moves it.
 
-The default is **six**, one more than the floor. The round trip is a property of
+The default is **eight**. Six was one more than the floor and enough while each
+input was a single FIFO; per-output queues split the same pool between them, so
+the bottleneck flow ends up with fewer slots and needs the pool to be larger.
+See the throughput table for what six cost bit-complement. The round trip is a property of
 the current pipeline, and if a register is ever added to the credit path five
 would quietly drop back under line rate — the symptom being a fifth of the
 bandwidth missing, with nothing failing. The specification caps a receiver at 15
@@ -249,32 +269,35 @@ With `NodeID = (X << 7) | (Y << 3) | P` and every device on P0:
 ### Latency
 
 **Measured**, by driving every ordered pair through an otherwise empty mesh:
-`2H + 4` cycles for a path of `H = |Δx| + |Δy|` hops.
+`3H + 5` cycles for a path of `H = |Δx| + |Δy|` hops.
 
 Every register on the path costs a cycle and nothing else costs anything,
-because routing, arbitration and the crossbar are all combinational. There are
-only two kinds of register:
+because routing, the match and the crossbar are all combinational. There are
+three registers per hop:
 
 | stage | cycles | |
 |---|---:|---|
-| transmitter | 1 | the flit register on the way out of a port |
 | receiver | 1 | the write into the buffer the credit paid for |
+| payload memory | 1 | its registered output, because it is an SRAM |
+| transmitter | 1 | the flit register on the way out of a port |
 
-A path crosses `H + 1` crosspoints, each contributing one of each, and the two
-device ends contribute one each: `2(H + 1) + 2`.
+A path crosses `H + 1` crosspoints holding two each, and `H + 2` links holding
+one each — the two extra links being the device's own: `3(H + 1) + 2`.
 
-- two devices on one crosspoint, `H = 0` — **4 cycles**
-- corner to corner, `H = 6` — **16 cycles**
-- mean over uniformly random pairs, `H = 2.5` — **9 cycles**
+- two devices on one crosspoint, `H = 0` — **5 cycles**
+- corner to corner, `H = 6` — **23 cycles**
+- mean over uniformly random pairs, `H = 2.5` — **13 cycles**
 
 The mean hop count is `2(k²−1)/3k` for a `k × k` mesh, which is 2.5 at k = 4,
 counting the src = dst pairs as zero hops.
 
-This paragraph used to say `3H + 4`, on the reasoning that a crosspoint spends a
-cycle buffering and a second arbitrating. It does not: arbitration is
-combinational, so a crosspoint costs one cycle and not two. The design was a
-cycle per hop faster than its own documentation, which is the pleasant direction
-to be wrong in and still worth not being wrong about.
+This number has been wrong twice, in both directions. It first said `3H + 4`, on
+the reasoning that a crosspoint spends a cycle buffering and a second
+arbitrating — it does not, arbitration is combinational, and the answer was
+`2H + 4`. Then the payload memory's output was registered, as an SRAM's is, and
+a crosspoint really did come to cost two cycles. **That is the price of the
+throughput below**, and it is paid on every hop whether the fabric is busy or
+not: 16 cycles corner to corner became 23.
 
 ### Throughput
 
@@ -304,48 +327,47 @@ the 256 ordered pairs, so the quietest link runs at three quarters of the
 busiest. There is no hot link to design around at this size, which is worth
 knowing before anyone proposes virtual channels to fix one.
 
-Measured, at saturation, with 256 flits from each of the sixteen devices and six
-credits per port:
+Measured at saturation, with 1024 flits from each of the sixteen devices and
+eight credits per port:
 
-| pattern | flits/cycle/device | ceiling | mean latency | what limits it |
-|---|---:|---:|---:|---|
-| no-contention control | **1.000** | 1.0 | 7 | nothing; this is line rate |
-| uniform | **0.603** | 1.0 | 18 | head-of-line blocking at the inputs |
-| bit-complement | **0.500** | 1.0 | 22 | as above, over longer paths |
-| transpose | **0.286** | 0.81 | 25 | traffic concentrated on the diagonal's links |
-| hotspot | **0.066** | 0.125 | 122 | two destination ports for sixteen sources |
+| pattern | flits/cycle/device | was, with one FIFO per input | ceiling |
+|---|---:|---:|---:|
+| no-contention control | **1.000** | 1.000 | 1.0 |
+| uniform | **0.709** | 0.603 | 1.0 |
+| bit-complement | **0.500** | 0.500 | 1.0 |
+| transpose | **0.333** | 0.286 | 0.81 |
+| hotspot | **0.066** | 0.066 | 0.125 |
 
 The first row is the control and it is the one to read first: with nothing in
 each other's way the fabric moves a flit per cycle per device, so everything
-below it is contention and not plumbing. Getting that row to 1.000 was the
-credit fix above; before it, every row was a fifth short for a reason that had
-nothing to do with the traffic.
+below it is contention and not plumbing.
 
-Two ceilings apply and the lower binds. One is the network's, which `nocgen`
-computes from the link loads. The other is ejection: a destination takes one
-flit per cycle, so a pattern aiming everything at a few of them cannot exceed
-`destinations / devices` however good the fabric is. Hotspot is the obvious case
-— and its count is two rather than one, because a device may not address itself,
-so the target's own traffic goes elsewhere.
+Uniform is where head-of-line blocking lived, and the queues took 0.603 to
+0.709. The FIFO could not be helped by depth — it sat at the classic
+input-queued bound of `2 − √2 ≈ 0.586` and stayed there whatever the buffer, 
+0.599 at ten credits. Per-output queues keep responding to depth, and **that is
+the argument for the payload being an SRAM**: the fix wants entries, and entries
+are what makes 422-bit storage expensive.
 
-For uniform and bit-complement the ceiling is 1.0 and the gap is **head-of-line
-blocking**: a receiver exposes one flit at a time, so an input whose head is
-blocked holds up the flit behind it even when *that* one's output is free. 0.603
-is close to the classic input-queued FIFO bound of `2 − √2 ≈ 0.586`, which is
-what that limit looks like when you hit it. The remedy is a receiver that can pop
-out of order, and the hazard in it is precise: two flits from one input to the
-same output must not be reordered, or per-(src, dst) ordering is broken and the
-failure surfaces as a coherence bug. `//hardware/ip/chi_noc/test` checks that
-ordering exhaustively, which is the safety net such a change would need.
+Eight credits and not six, and the reason is worth keeping. A shared pool split
+across per-output queues gives the bottleneck flow fewer slots than a dedicated
+FIFO gave it, and at six credits bit-complement went *backwards*, 0.500 to
+0.443. Eight restores it. The deterministic patterns plateau there; uniform
+keeps climbing slowly and noisily, which is why the table quotes it from a
+four-times-larger sample than the others need.
+
+Hotspot is unchanged and should be: two destination ports for sixteen sources is
+a limit no scheduler reaches past. Bit-complement is unchanged too — it is
+link-limited rather than switch-limited, and the queues have nothing to offer a
+flow with one destination per input.
 
 The tests assert a floor a little under each measurement. They are a **ratchet
 against regression, not a specification** — raising one when the design improves
-is the point of having it, and a floor nobody can move is a floor nobody chose.
+is the point of having it.
 
 One honest gap: `nocgen` computes the network bound for *uniform* traffic only,
 so transpose and bit-complement are quoted against an upper bound rather than
-against theirs.
-Populating P1 as well would double the devices without changing the mesh, and
+against theirs.Populating P1 as well would double the devices without changing the mesh, and
 the per-link bounds would halve relative to injection while the ejection bound
 stayed put. That is a different reference topology and would get its own numbers.
 

@@ -198,11 +198,10 @@ module chi_xp_channel_tb #(
   ) i_cov (
       .clk_i,
       .rst_ni,
-      .in_valid(in_valid),
-      .in_ready(in_ready),
-      .in_dest (in_dest),
-      .in_prio (in_prio),
-      .grant   (grant)
+      .head_valid(head_valid),
+      .head_prio (head_prio),
+      .pop       (pop),
+      .pop_port  (pop_port)
   );
 
   ////////////////////////////////////////////////////////////////////////////////////////////////

@@ -168,14 +168,14 @@
   "analysis": {
     "mean_hops": 2.5,
     "saturation_bound": 1.0,
-    "zero_load_latency_mean": 8
+    "zero_load_latency_mean": 11
   },
   "routes": [
     {
       "src": "rnf0",
       "dst": "rnf0",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 0,
@@ -188,7 +188,7 @@
       "src": "rnf0",
       "dst": "rnf1",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -206,7 +206,7 @@
       "src": "rnf0",
       "dst": "rnf2",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -229,7 +229,7 @@
       "src": "rnf0",
       "dst": "rnf3",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -257,7 +257,7 @@
       "src": "rnf0",
       "dst": "hnf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -275,7 +275,7 @@
       "src": "rnf0",
       "dst": "hnf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -298,7 +298,7 @@
       "src": "rnf0",
       "dst": "hnf2",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -326,7 +326,7 @@
       "src": "rnf0",
       "dst": "hnf3",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 0,
@@ -359,7 +359,7 @@
       "src": "rnf0",
       "dst": "snf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -382,7 +382,7 @@
       "src": "rnf0",
       "dst": "rni0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -410,7 +410,7 @@
       "src": "rnf0",
       "dst": "hni0",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 0,
@@ -443,7 +443,7 @@
       "src": "rnf0",
       "dst": "snf1",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 0,
@@ -481,7 +481,7 @@
       "src": "rnf0",
       "dst": "rnf4",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -509,7 +509,7 @@
       "src": "rnf0",
       "dst": "rnf5",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 0,
@@ -542,7 +542,7 @@
       "src": "rnf0",
       "dst": "rnf6",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 0,
@@ -580,7 +580,7 @@
       "src": "rnf0",
       "dst": "rnf7",
       "hops": 6,
-      "latency": 16,
+      "latency": 23,
       "path": [
         {
           "x": 0,
@@ -623,7 +623,7 @@
       "src": "rnf1",
       "dst": "rnf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -641,7 +641,7 @@
       "src": "rnf1",
       "dst": "rnf1",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 1,
@@ -654,7 +654,7 @@
       "src": "rnf1",
       "dst": "rnf2",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -672,7 +672,7 @@
       "src": "rnf1",
       "dst": "rnf3",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -695,7 +695,7 @@
       "src": "rnf1",
       "dst": "hnf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -718,7 +718,7 @@
       "src": "rnf1",
       "dst": "hnf1",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -736,7 +736,7 @@
       "src": "rnf1",
       "dst": "hnf2",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -759,7 +759,7 @@
       "src": "rnf1",
       "dst": "hnf3",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -787,7 +787,7 @@
       "src": "rnf1",
       "dst": "snf0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -815,7 +815,7 @@
       "src": "rnf1",
       "dst": "rni0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -838,7 +838,7 @@
       "src": "rnf1",
       "dst": "hni0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -866,7 +866,7 @@
       "src": "rnf1",
       "dst": "snf1",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 1,
@@ -899,7 +899,7 @@
       "src": "rnf1",
       "dst": "rnf4",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 1,
@@ -932,7 +932,7 @@
       "src": "rnf1",
       "dst": "rnf5",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -960,7 +960,7 @@
       "src": "rnf1",
       "dst": "rnf6",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 1,
@@ -993,7 +993,7 @@
       "src": "rnf1",
       "dst": "rnf7",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 1,
@@ -1031,7 +1031,7 @@
       "src": "rnf2",
       "dst": "rnf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -1054,7 +1054,7 @@
       "src": "rnf2",
       "dst": "rnf1",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -1072,7 +1072,7 @@
       "src": "rnf2",
       "dst": "rnf2",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 2,
@@ -1085,7 +1085,7 @@
       "src": "rnf2",
       "dst": "rnf3",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -1103,7 +1103,7 @@
       "src": "rnf2",
       "dst": "hnf0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -1131,7 +1131,7 @@
       "src": "rnf2",
       "dst": "hnf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -1154,7 +1154,7 @@
       "src": "rnf2",
       "dst": "hnf2",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -1172,7 +1172,7 @@
       "src": "rnf2",
       "dst": "hnf3",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -1195,7 +1195,7 @@
       "src": "rnf2",
       "dst": "snf0",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 2,
@@ -1228,7 +1228,7 @@
       "src": "rnf2",
       "dst": "rni0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -1256,7 +1256,7 @@
       "src": "rnf2",
       "dst": "hni0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -1279,7 +1279,7 @@
       "src": "rnf2",
       "dst": "snf1",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -1307,7 +1307,7 @@
       "src": "rnf2",
       "dst": "rnf4",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 2,
@@ -1345,7 +1345,7 @@
       "src": "rnf2",
       "dst": "rnf5",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 2,
@@ -1378,7 +1378,7 @@
       "src": "rnf2",
       "dst": "rnf6",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -1406,7 +1406,7 @@
       "src": "rnf2",
       "dst": "rnf7",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 2,
@@ -1439,7 +1439,7 @@
       "src": "rnf3",
       "dst": "rnf0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -1467,7 +1467,7 @@
       "src": "rnf3",
       "dst": "rnf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -1490,7 +1490,7 @@
       "src": "rnf3",
       "dst": "rnf2",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 3,
@@ -1508,7 +1508,7 @@
       "src": "rnf3",
       "dst": "rnf3",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 3,
@@ -1521,7 +1521,7 @@
       "src": "rnf3",
       "dst": "hnf0",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 3,
@@ -1554,7 +1554,7 @@
       "src": "rnf3",
       "dst": "hnf1",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -1582,7 +1582,7 @@
       "src": "rnf3",
       "dst": "hnf2",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -1605,7 +1605,7 @@
       "src": "rnf3",
       "dst": "hnf3",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 3,
@@ -1623,7 +1623,7 @@
       "src": "rnf3",
       "dst": "snf0",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 3,
@@ -1661,7 +1661,7 @@
       "src": "rnf3",
       "dst": "rni0",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 3,
@@ -1694,7 +1694,7 @@
       "src": "rnf3",
       "dst": "hni0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -1722,7 +1722,7 @@
       "src": "rnf3",
       "dst": "snf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -1745,7 +1745,7 @@
       "src": "rnf3",
       "dst": "rnf4",
       "hops": 6,
-      "latency": 16,
+      "latency": 23,
       "path": [
         {
           "x": 3,
@@ -1788,7 +1788,7 @@
       "src": "rnf3",
       "dst": "rnf5",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 3,
@@ -1826,7 +1826,7 @@
       "src": "rnf3",
       "dst": "rnf6",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 3,
@@ -1859,7 +1859,7 @@
       "src": "rnf3",
       "dst": "rnf7",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -1887,7 +1887,7 @@
       "src": "hnf0",
       "dst": "rnf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -1905,7 +1905,7 @@
       "src": "hnf0",
       "dst": "rnf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -1928,7 +1928,7 @@
       "src": "hnf0",
       "dst": "rnf2",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -1956,7 +1956,7 @@
       "src": "hnf0",
       "dst": "rnf3",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 0,
@@ -1989,7 +1989,7 @@
       "src": "hnf0",
       "dst": "hnf0",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 0,
@@ -2002,7 +2002,7 @@
       "src": "hnf0",
       "dst": "hnf1",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -2020,7 +2020,7 @@
       "src": "hnf0",
       "dst": "hnf2",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -2043,7 +2043,7 @@
       "src": "hnf0",
       "dst": "hnf3",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -2071,7 +2071,7 @@
       "src": "hnf0",
       "dst": "snf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -2089,7 +2089,7 @@
       "src": "hnf0",
       "dst": "rni0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -2112,7 +2112,7 @@
       "src": "hnf0",
       "dst": "hni0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -2140,7 +2140,7 @@
       "src": "hnf0",
       "dst": "snf1",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 0,
@@ -2173,7 +2173,7 @@
       "src": "hnf0",
       "dst": "rnf4",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -2196,7 +2196,7 @@
       "src": "hnf0",
       "dst": "rnf5",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -2224,7 +2224,7 @@
       "src": "hnf0",
       "dst": "rnf6",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 0,
@@ -2257,111 +2257,111 @@
       "src": "hnf0",
       "dst": "rnf7",
       "hops": 5,
+      "latency": 20,
+      "path": [
+        {
+          "x": 0,
+          "y": 1,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "out": 0
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "out": 0
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "out": 2
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "out": 2
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "hnf1",
+      "dst": "rnf0",
+      "hops": 2,
+      "latency": 11,
+      "path": [
+        {
+          "x": 1,
+          "y": 1,
+          "out": 1
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "out": 3
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "hnf1",
+      "dst": "rnf1",
+      "hops": 1,
+      "latency": 8,
+      "path": [
+        {
+          "x": 1,
+          "y": 1,
+          "out": 3
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "hnf1",
+      "dst": "rnf2",
+      "hops": 2,
+      "latency": 11,
+      "path": [
+        {
+          "x": 1,
+          "y": 1,
+          "out": 0
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "out": 3
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "hnf1",
+      "dst": "rnf3",
+      "hops": 3,
       "latency": 14,
       "path": [
         {
-          "x": 0,
-          "y": 1,
-          "out": 0
-        },
-        {
-          "x": 1,
-          "y": 1,
-          "out": 0
-        },
-        {
-          "x": 2,
-          "y": 1,
-          "out": 0
-        },
-        {
-          "x": 3,
-          "y": 1,
-          "out": 2
-        },
-        {
-          "x": 3,
-          "y": 2,
-          "out": 2
-        },
-        {
-          "x": 3,
-          "y": 3,
-          "out": 4
-        }
-      ]
-    },
-    {
-      "src": "hnf1",
-      "dst": "rnf0",
-      "hops": 2,
-      "latency": 8,
-      "path": [
-        {
-          "x": 1,
-          "y": 1,
-          "out": 1
-        },
-        {
-          "x": 0,
-          "y": 1,
-          "out": 3
-        },
-        {
-          "x": 0,
-          "y": 0,
-          "out": 4
-        }
-      ]
-    },
-    {
-      "src": "hnf1",
-      "dst": "rnf1",
-      "hops": 1,
-      "latency": 6,
-      "path": [
-        {
-          "x": 1,
-          "y": 1,
-          "out": 3
-        },
-        {
-          "x": 1,
-          "y": 0,
-          "out": 4
-        }
-      ]
-    },
-    {
-      "src": "hnf1",
-      "dst": "rnf2",
-      "hops": 2,
-      "latency": 8,
-      "path": [
-        {
-          "x": 1,
-          "y": 1,
-          "out": 0
-        },
-        {
-          "x": 2,
-          "y": 1,
-          "out": 3
-        },
-        {
-          "x": 2,
-          "y": 0,
-          "out": 4
-        }
-      ]
-    },
-    {
-      "src": "hnf1",
-      "dst": "rnf3",
-      "hops": 3,
-      "latency": 10,
-      "path": [
-        {
           "x": 1,
           "y": 1,
           "out": 0
@@ -2387,7 +2387,7 @@
       "src": "hnf1",
       "dst": "hnf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -2405,7 +2405,7 @@
       "src": "hnf1",
       "dst": "hnf1",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 1,
@@ -2418,7 +2418,7 @@
       "src": "hnf1",
       "dst": "hnf2",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -2436,7 +2436,7 @@
       "src": "hnf1",
       "dst": "hnf3",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -2459,7 +2459,7 @@
       "src": "hnf1",
       "dst": "snf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -2482,7 +2482,7 @@
       "src": "hnf1",
       "dst": "rni0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -2500,7 +2500,7 @@
       "src": "hnf1",
       "dst": "hni0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -2523,7 +2523,7 @@
       "src": "hnf1",
       "dst": "snf1",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -2551,7 +2551,7 @@
       "src": "hnf1",
       "dst": "rnf4",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -2579,7 +2579,7 @@
       "src": "hnf1",
       "dst": "rnf5",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -2602,7 +2602,7 @@
       "src": "hnf1",
       "dst": "rnf6",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -2630,7 +2630,7 @@
       "src": "hnf1",
       "dst": "rnf7",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 1,
@@ -2663,7 +2663,7 @@
       "src": "hnf2",
       "dst": "rnf0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -2691,7 +2691,7 @@
       "src": "hnf2",
       "dst": "rnf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -2714,7 +2714,7 @@
       "src": "hnf2",
       "dst": "rnf2",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -2732,7 +2732,7 @@
       "src": "hnf2",
       "dst": "rnf3",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -2755,7 +2755,7 @@
       "src": "hnf2",
       "dst": "hnf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -2778,7 +2778,7 @@
       "src": "hnf2",
       "dst": "hnf1",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -2796,7 +2796,7 @@
       "src": "hnf2",
       "dst": "hnf2",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 2,
@@ -2809,7 +2809,7 @@
       "src": "hnf2",
       "dst": "hnf3",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -2827,7 +2827,7 @@
       "src": "hnf2",
       "dst": "snf0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -2855,7 +2855,7 @@
       "src": "hnf2",
       "dst": "rni0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -2878,7 +2878,7 @@
       "src": "hnf2",
       "dst": "hni0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -2896,7 +2896,7 @@
       "src": "hnf2",
       "dst": "snf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -2919,7 +2919,7 @@
       "src": "hnf2",
       "dst": "rnf4",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 2,
@@ -2952,7 +2952,7 @@
       "src": "hnf2",
       "dst": "rnf5",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -2980,7 +2980,7 @@
       "src": "hnf2",
       "dst": "rnf6",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -3003,7 +3003,7 @@
       "src": "hnf2",
       "dst": "rnf7",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -3031,7 +3031,7 @@
       "src": "hnf3",
       "dst": "rnf0",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 3,
@@ -3064,7 +3064,7 @@
       "src": "hnf3",
       "dst": "rnf1",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -3092,7 +3092,7 @@
       "src": "hnf3",
       "dst": "rnf2",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -3115,7 +3115,7 @@
       "src": "hnf3",
       "dst": "rnf3",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 3,
@@ -3133,7 +3133,7 @@
       "src": "hnf3",
       "dst": "hnf0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -3161,7 +3161,7 @@
       "src": "hnf3",
       "dst": "hnf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -3184,7 +3184,7 @@
       "src": "hnf3",
       "dst": "hnf2",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 3,
@@ -3202,7 +3202,7 @@
       "src": "hnf3",
       "dst": "hnf3",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 3,
@@ -3215,7 +3215,7 @@
       "src": "hnf3",
       "dst": "snf0",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 3,
@@ -3248,7 +3248,7 @@
       "src": "hnf3",
       "dst": "rni0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -3276,7 +3276,7 @@
       "src": "hnf3",
       "dst": "hni0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -3299,7 +3299,7 @@
       "src": "hnf3",
       "dst": "snf1",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 3,
@@ -3317,7 +3317,7 @@
       "src": "hnf3",
       "dst": "rnf4",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 3,
@@ -3355,7 +3355,7 @@
       "src": "hnf3",
       "dst": "rnf5",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 3,
@@ -3388,7 +3388,7 @@
       "src": "hnf3",
       "dst": "rnf6",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -3416,7 +3416,7 @@
       "src": "hnf3",
       "dst": "rnf7",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -3439,7 +3439,7 @@
       "src": "snf0",
       "dst": "rnf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -3462,7 +3462,7 @@
       "src": "snf0",
       "dst": "rnf1",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -3490,7 +3490,7 @@
       "src": "snf0",
       "dst": "rnf2",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 0,
@@ -3523,6 +3523,200 @@
       "src": "snf0",
       "dst": "rnf3",
       "hops": 5,
+      "latency": 20,
+      "path": [
+        {
+          "x": 0,
+          "y": 2,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "out": 0
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "out": 0
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "out": 3
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "out": 3
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "hnf0",
+      "hops": 1,
+      "latency": 8,
+      "path": [
+        {
+          "x": 0,
+          "y": 2,
+          "out": 3
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "hnf1",
+      "hops": 2,
+      "latency": 11,
+      "path": [
+        {
+          "x": 0,
+          "y": 2,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "out": 3
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "hnf2",
+      "hops": 3,
+      "latency": 14,
+      "path": [
+        {
+          "x": 0,
+          "y": 2,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "out": 0
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "out": 3
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "hnf3",
+      "hops": 4,
+      "latency": 17,
+      "path": [
+        {
+          "x": 0,
+          "y": 2,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "out": 0
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "out": 0
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "out": 3
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "snf0",
+      "hops": 0,
+      "latency": 5,
+      "path": [
+        {
+          "x": 0,
+          "y": 2,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "rni0",
+      "hops": 1,
+      "latency": 8,
+      "path": [
+        {
+          "x": 0,
+          "y": 2,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "hni0",
+      "hops": 2,
+      "latency": 11,
+      "path": [
+        {
+          "x": 0,
+          "y": 2,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "out": 0
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "snf1",
+      "hops": 3,
       "latency": 14,
       "path": [
         {
@@ -3543,200 +3737,6 @@
         {
           "x": 3,
           "y": 2,
-          "out": 3
-        },
-        {
-          "x": 3,
-          "y": 1,
-          "out": 3
-        },
-        {
-          "x": 3,
-          "y": 0,
-          "out": 4
-        }
-      ]
-    },
-    {
-      "src": "snf0",
-      "dst": "hnf0",
-      "hops": 1,
-      "latency": 6,
-      "path": [
-        {
-          "x": 0,
-          "y": 2,
-          "out": 3
-        },
-        {
-          "x": 0,
-          "y": 1,
-          "out": 4
-        }
-      ]
-    },
-    {
-      "src": "snf0",
-      "dst": "hnf1",
-      "hops": 2,
-      "latency": 8,
-      "path": [
-        {
-          "x": 0,
-          "y": 2,
-          "out": 0
-        },
-        {
-          "x": 1,
-          "y": 2,
-          "out": 3
-        },
-        {
-          "x": 1,
-          "y": 1,
-          "out": 4
-        }
-      ]
-    },
-    {
-      "src": "snf0",
-      "dst": "hnf2",
-      "hops": 3,
-      "latency": 10,
-      "path": [
-        {
-          "x": 0,
-          "y": 2,
-          "out": 0
-        },
-        {
-          "x": 1,
-          "y": 2,
-          "out": 0
-        },
-        {
-          "x": 2,
-          "y": 2,
-          "out": 3
-        },
-        {
-          "x": 2,
-          "y": 1,
-          "out": 4
-        }
-      ]
-    },
-    {
-      "src": "snf0",
-      "dst": "hnf3",
-      "hops": 4,
-      "latency": 12,
-      "path": [
-        {
-          "x": 0,
-          "y": 2,
-          "out": 0
-        },
-        {
-          "x": 1,
-          "y": 2,
-          "out": 0
-        },
-        {
-          "x": 2,
-          "y": 2,
-          "out": 0
-        },
-        {
-          "x": 3,
-          "y": 2,
-          "out": 3
-        },
-        {
-          "x": 3,
-          "y": 1,
-          "out": 4
-        }
-      ]
-    },
-    {
-      "src": "snf0",
-      "dst": "snf0",
-      "hops": 0,
-      "latency": 4,
-      "path": [
-        {
-          "x": 0,
-          "y": 2,
-          "out": 4
-        }
-      ]
-    },
-    {
-      "src": "snf0",
-      "dst": "rni0",
-      "hops": 1,
-      "latency": 6,
-      "path": [
-        {
-          "x": 0,
-          "y": 2,
-          "out": 0
-        },
-        {
-          "x": 1,
-          "y": 2,
-          "out": 4
-        }
-      ]
-    },
-    {
-      "src": "snf0",
-      "dst": "hni0",
-      "hops": 2,
-      "latency": 8,
-      "path": [
-        {
-          "x": 0,
-          "y": 2,
-          "out": 0
-        },
-        {
-          "x": 1,
-          "y": 2,
-          "out": 0
-        },
-        {
-          "x": 2,
-          "y": 2,
-          "out": 4
-        }
-      ]
-    },
-    {
-      "src": "snf0",
-      "dst": "snf1",
-      "hops": 3,
-      "latency": 10,
-      "path": [
-        {
-          "x": 0,
-          "y": 2,
-          "out": 0
-        },
-        {
-          "x": 1,
-          "y": 2,
-          "out": 0
-        },
-        {
-          "x": 2,
-          "y": 2,
-          "out": 0
-        },
-        {
-          "x": 3,
-          "y": 2,
           "out": 4
         }
       ]
@@ -3745,7 +3745,7 @@
       "src": "snf0",
       "dst": "rnf4",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -3763,7 +3763,7 @@
       "src": "snf0",
       "dst": "rnf5",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -3786,7 +3786,7 @@
       "src": "snf0",
       "dst": "rnf6",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -3814,7 +3814,7 @@
       "src": "snf0",
       "dst": "rnf7",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 0,
@@ -3847,7 +3847,7 @@
       "src": "rni0",
       "dst": "rnf0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -3875,7 +3875,7 @@
       "src": "rni0",
       "dst": "rnf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -3898,7 +3898,7 @@
       "src": "rni0",
       "dst": "rnf2",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -3926,7 +3926,7 @@
       "src": "rni0",
       "dst": "rnf3",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 1,
@@ -3959,7 +3959,7 @@
       "src": "rni0",
       "dst": "hnf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -3982,7 +3982,7 @@
       "src": "rni0",
       "dst": "hnf1",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -4000,7 +4000,7 @@
       "src": "rni0",
       "dst": "hnf2",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -4023,7 +4023,7 @@
       "src": "rni0",
       "dst": "hnf3",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -4051,7 +4051,7 @@
       "src": "rni0",
       "dst": "snf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -4069,7 +4069,7 @@
       "src": "rni0",
       "dst": "rni0",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 1,
@@ -4082,7 +4082,7 @@
       "src": "rni0",
       "dst": "hni0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -4100,7 +4100,7 @@
       "src": "rni0",
       "dst": "snf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -4123,7 +4123,7 @@
       "src": "rni0",
       "dst": "rnf4",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -4146,7 +4146,7 @@
       "src": "rni0",
       "dst": "rnf5",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -4164,7 +4164,7 @@
       "src": "rni0",
       "dst": "rnf6",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -4187,7 +4187,7 @@
       "src": "rni0",
       "dst": "rnf7",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -4215,7 +4215,7 @@
       "src": "hni0",
       "dst": "rnf0",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 2,
@@ -4248,7 +4248,7 @@
       "src": "hni0",
       "dst": "rnf1",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -4276,7 +4276,7 @@
       "src": "hni0",
       "dst": "rnf2",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -4299,7 +4299,7 @@
       "src": "hni0",
       "dst": "rnf3",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -4327,7 +4327,7 @@
       "src": "hni0",
       "dst": "hnf0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -4355,7 +4355,7 @@
       "src": "hni0",
       "dst": "hnf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -4378,7 +4378,7 @@
       "src": "hni0",
       "dst": "hnf2",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -4396,7 +4396,7 @@
       "src": "hni0",
       "dst": "hnf3",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -4419,7 +4419,7 @@
       "src": "hni0",
       "dst": "snf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -4442,7 +4442,7 @@
       "src": "hni0",
       "dst": "rni0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -4460,7 +4460,7 @@
       "src": "hni0",
       "dst": "hni0",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 2,
@@ -4473,7 +4473,7 @@
       "src": "hni0",
       "dst": "snf1",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -4491,7 +4491,7 @@
       "src": "hni0",
       "dst": "rnf4",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -4519,7 +4519,7 @@
       "src": "hni0",
       "dst": "rnf5",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -4542,7 +4542,7 @@
       "src": "hni0",
       "dst": "rnf6",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -4560,7 +4560,7 @@
       "src": "hni0",
       "dst": "rnf7",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -4583,7 +4583,7 @@
       "src": "snf1",
       "dst": "rnf0",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 3,
@@ -4621,7 +4621,7 @@
       "src": "snf1",
       "dst": "rnf1",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 3,
@@ -4654,7 +4654,7 @@
       "src": "snf1",
       "dst": "rnf2",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -4682,7 +4682,7 @@
       "src": "snf1",
       "dst": "rnf3",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -4705,7 +4705,7 @@
       "src": "snf1",
       "dst": "hnf0",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 3,
@@ -4738,7 +4738,7 @@
       "src": "snf1",
       "dst": "hnf1",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -4766,7 +4766,7 @@
       "src": "snf1",
       "dst": "hnf2",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -4789,7 +4789,7 @@
       "src": "snf1",
       "dst": "hnf3",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 3,
@@ -4807,7 +4807,7 @@
       "src": "snf1",
       "dst": "snf0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -4835,7 +4835,7 @@
       "src": "snf1",
       "dst": "rni0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -4858,7 +4858,7 @@
       "src": "snf1",
       "dst": "hni0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 3,
@@ -4876,7 +4876,7 @@
       "src": "snf1",
       "dst": "snf1",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 3,
@@ -4889,7 +4889,7 @@
       "src": "snf1",
       "dst": "rnf4",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 3,
@@ -4922,7 +4922,7 @@
       "src": "snf1",
       "dst": "rnf5",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -4950,7 +4950,7 @@
       "src": "snf1",
       "dst": "rnf6",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -4973,7 +4973,7 @@
       "src": "snf1",
       "dst": "rnf7",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 3,
@@ -4991,7 +4991,7 @@
       "src": "rnf4",
       "dst": "rnf0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -5019,7 +5019,7 @@
       "src": "rnf4",
       "dst": "rnf1",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 0,
@@ -5052,7 +5052,7 @@
       "src": "rnf4",
       "dst": "rnf2",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 0,
@@ -5090,7 +5090,7 @@
       "src": "rnf4",
       "dst": "rnf3",
       "hops": 6,
-      "latency": 16,
+      "latency": 23,
       "path": [
         {
           "x": 0,
@@ -5133,7 +5133,7 @@
       "src": "rnf4",
       "dst": "hnf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -5156,7 +5156,7 @@
       "src": "rnf4",
       "dst": "hnf1",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -5184,7 +5184,7 @@
       "src": "rnf4",
       "dst": "hnf2",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 0,
@@ -5217,7 +5217,7 @@
       "src": "rnf4",
       "dst": "hnf3",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 0,
@@ -5255,7 +5255,7 @@
       "src": "rnf4",
       "dst": "snf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -5273,7 +5273,7 @@
       "src": "rnf4",
       "dst": "rni0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -5296,7 +5296,7 @@
       "src": "rnf4",
       "dst": "hni0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -5324,7 +5324,7 @@
       "src": "rnf4",
       "dst": "snf1",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 0,
@@ -5357,7 +5357,7 @@
       "src": "rnf4",
       "dst": "rnf4",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 0,
@@ -5370,7 +5370,7 @@
       "src": "rnf4",
       "dst": "rnf5",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -5388,7 +5388,7 @@
       "src": "rnf4",
       "dst": "rnf6",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -5411,7 +5411,7 @@
       "src": "rnf4",
       "dst": "rnf7",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 0,
@@ -5439,7 +5439,7 @@
       "src": "rnf5",
       "dst": "rnf0",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 1,
@@ -5472,7 +5472,7 @@
       "src": "rnf5",
       "dst": "rnf1",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -5500,7 +5500,7 @@
       "src": "rnf5",
       "dst": "rnf2",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 1,
@@ -5533,7 +5533,7 @@
       "src": "rnf5",
       "dst": "rnf3",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 1,
@@ -5571,7 +5571,7 @@
       "src": "rnf5",
       "dst": "hnf0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -5599,7 +5599,7 @@
       "src": "rnf5",
       "dst": "hnf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -5622,7 +5622,7 @@
       "src": "rnf5",
       "dst": "hnf2",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -5650,7 +5650,7 @@
       "src": "rnf5",
       "dst": "hnf3",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 1,
@@ -5683,7 +5683,7 @@
       "src": "rnf5",
       "dst": "snf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -5706,7 +5706,7 @@
       "src": "rnf5",
       "dst": "rni0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -5724,7 +5724,7 @@
       "src": "rnf5",
       "dst": "hni0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -5747,7 +5747,7 @@
       "src": "rnf5",
       "dst": "snf1",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 1,
@@ -5775,7 +5775,7 @@
       "src": "rnf5",
       "dst": "rnf4",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -5793,7 +5793,7 @@
       "src": "rnf5",
       "dst": "rnf5",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 1,
@@ -5806,7 +5806,7 @@
       "src": "rnf5",
       "dst": "rnf6",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -5824,7 +5824,7 @@
       "src": "rnf5",
       "dst": "rnf7",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -5847,7 +5847,7 @@
       "src": "rnf6",
       "dst": "rnf0",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 2,
@@ -5885,7 +5885,7 @@
       "src": "rnf6",
       "dst": "rnf1",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 2,
@@ -5918,7 +5918,7 @@
       "src": "rnf6",
       "dst": "rnf2",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -5946,7 +5946,7 @@
       "src": "rnf6",
       "dst": "rnf3",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 2,
@@ -5979,7 +5979,7 @@
       "src": "rnf6",
       "dst": "hnf0",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 2,
@@ -6012,7 +6012,7 @@
       "src": "rnf6",
       "dst": "hnf1",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -6040,7 +6040,7 @@
       "src": "rnf6",
       "dst": "hnf2",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -6063,7 +6063,7 @@
       "src": "rnf6",
       "dst": "hnf3",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -6091,7 +6091,7 @@
       "src": "rnf6",
       "dst": "snf0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 2,
@@ -6119,7 +6119,7 @@
       "src": "rnf6",
       "dst": "rni0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -6142,7 +6142,7 @@
       "src": "rnf6",
       "dst": "hni0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -6160,7 +6160,7 @@
       "src": "rnf6",
       "dst": "snf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -6183,7 +6183,7 @@
       "src": "rnf6",
       "dst": "rnf4",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 2,
@@ -6206,7 +6206,7 @@
       "src": "rnf6",
       "dst": "rnf5",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -6224,7 +6224,7 @@
       "src": "rnf6",
       "dst": "rnf6",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 2,
@@ -6237,7 +6237,7 @@
       "src": "rnf6",
       "dst": "rnf7",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 2,
@@ -6255,7 +6255,7 @@
       "src": "rnf7",
       "dst": "rnf0",
       "hops": 6,
-      "latency": 16,
+      "latency": 23,
       "path": [
         {
           "x": 3,
@@ -6298,7 +6298,7 @@
       "src": "rnf7",
       "dst": "rnf1",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 3,
@@ -6336,7 +6336,7 @@
       "src": "rnf7",
       "dst": "rnf2",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 3,
@@ -6369,7 +6369,7 @@
       "src": "rnf7",
       "dst": "rnf3",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -6397,7 +6397,7 @@
       "src": "rnf7",
       "dst": "hnf0",
       "hops": 5,
-      "latency": 14,
+      "latency": 20,
       "path": [
         {
           "x": 3,
@@ -6435,7 +6435,7 @@
       "src": "rnf7",
       "dst": "hnf1",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 3,
@@ -6468,7 +6468,7 @@
       "src": "rnf7",
       "dst": "hnf2",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -6496,7 +6496,7 @@
       "src": "rnf7",
       "dst": "hnf3",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -6519,7 +6519,7 @@
       "src": "rnf7",
       "dst": "snf0",
       "hops": 4,
-      "latency": 12,
+      "latency": 17,
       "path": [
         {
           "x": 3,
@@ -6552,7 +6552,7 @@
       "src": "rnf7",
       "dst": "rni0",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -6580,7 +6580,7 @@
       "src": "rnf7",
       "dst": "hni0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -6603,7 +6603,7 @@
       "src": "rnf7",
       "dst": "snf1",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 3,
@@ -6621,7 +6621,7 @@
       "src": "rnf7",
       "dst": "rnf4",
       "hops": 3,
-      "latency": 10,
+      "latency": 14,
       "path": [
         {
           "x": 3,
@@ -6649,7 +6649,7 @@
       "src": "rnf7",
       "dst": "rnf5",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 3,
@@ -6672,7 +6672,7 @@
       "src": "rnf7",
       "dst": "rnf6",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 3,
@@ -6690,7 +6690,7 @@
       "src": "rnf7",
       "dst": "rnf7",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 3,

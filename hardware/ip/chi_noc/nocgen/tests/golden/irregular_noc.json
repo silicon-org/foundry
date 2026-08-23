@@ -1,0 +1,590 @@
+{
+  "name": "irregular",
+  "source": "irregular.yml",
+  "description": "3x2 with an empty crosspoint and a doubly-populated one",
+  "mesh": {
+    "size_x": 3,
+    "size_y": 2,
+    "device_ports": 2,
+    "line_bytes": 64
+  },
+  "node_id": {
+    "x_width": 4,
+    "y_width": 4,
+    "port_width": 3,
+    "width": 11
+  },
+  "directions": {
+    "EAST": 0,
+    "WEST": 1,
+    "NORTH": 2,
+    "SOUTH": 3,
+    "P0": 4,
+    "P1": 5
+  },
+  "devices": [
+    {
+      "name": "rnf0",
+      "kind": "RN-F",
+      "x": 0,
+      "y": 0,
+      "port": 0,
+      "node_id": 0
+    },
+    {
+      "name": "rnf1",
+      "kind": "RN-F",
+      "x": 0,
+      "y": 0,
+      "port": 1,
+      "node_id": 1
+    },
+    {
+      "name": "hnf0",
+      "kind": "HN-F",
+      "x": 2,
+      "y": 0,
+      "port": 0,
+      "node_id": 256
+    },
+    {
+      "name": "hnf1",
+      "kind": "HN-F",
+      "x": 2,
+      "y": 1,
+      "port": 0,
+      "node_id": 264
+    },
+    {
+      "name": "snf0",
+      "kind": "SN-F",
+      "x": 0,
+      "y": 1,
+      "port": 0,
+      "node_id": 8
+    }
+  ],
+  "address_map": [
+    {
+      "name": "dram",
+      "base": 2147483648,
+      "size": 1073741824,
+      "targets": [
+        256,
+        264
+      ]
+    }
+  ],
+  "analysis": {
+    "mean_hops": 1.44,
+    "saturation_bound": 1.0,
+    "zero_load_latency_mean": 7
+  },
+  "routes": [
+    {
+      "src": "rnf0",
+      "dst": "rnf0",
+      "hops": 0,
+      "latency": 4,
+      "path": [
+        {
+          "x": 0,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "rnf0",
+      "dst": "rnf1",
+      "hops": 0,
+      "latency": 4,
+      "path": [
+        {
+          "x": 0,
+          "y": 0,
+          "out": 5
+        }
+      ]
+    },
+    {
+      "src": "rnf0",
+      "dst": "hnf0",
+      "hops": 2,
+      "latency": 10,
+      "path": [
+        {
+          "x": 0,
+          "y": 0,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "out": 0
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "rnf0",
+      "dst": "hnf1",
+      "hops": 3,
+      "latency": 13,
+      "path": [
+        {
+          "x": 0,
+          "y": 0,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "out": 0
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "out": 2
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "rnf0",
+      "dst": "snf0",
+      "hops": 1,
+      "latency": 7,
+      "path": [
+        {
+          "x": 0,
+          "y": 0,
+          "out": 2
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "rnf1",
+      "dst": "rnf0",
+      "hops": 0,
+      "latency": 4,
+      "path": [
+        {
+          "x": 0,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "rnf1",
+      "dst": "rnf1",
+      "hops": 0,
+      "latency": 4,
+      "path": [
+        {
+          "x": 0,
+          "y": 0,
+          "out": 5
+        }
+      ]
+    },
+    {
+      "src": "rnf1",
+      "dst": "hnf0",
+      "hops": 2,
+      "latency": 10,
+      "path": [
+        {
+          "x": 0,
+          "y": 0,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "out": 0
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "rnf1",
+      "dst": "hnf1",
+      "hops": 3,
+      "latency": 13,
+      "path": [
+        {
+          "x": 0,
+          "y": 0,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "out": 0
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "out": 2
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "rnf1",
+      "dst": "snf0",
+      "hops": 1,
+      "latency": 7,
+      "path": [
+        {
+          "x": 0,
+          "y": 0,
+          "out": 2
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "hnf0",
+      "dst": "rnf0",
+      "hops": 2,
+      "latency": 10,
+      "path": [
+        {
+          "x": 2,
+          "y": 0,
+          "out": 1
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "out": 1
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "hnf0",
+      "dst": "rnf1",
+      "hops": 2,
+      "latency": 10,
+      "path": [
+        {
+          "x": 2,
+          "y": 0,
+          "out": 1
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "out": 1
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "out": 5
+        }
+      ]
+    },
+    {
+      "src": "hnf0",
+      "dst": "hnf0",
+      "hops": 0,
+      "latency": 4,
+      "path": [
+        {
+          "x": 2,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "hnf0",
+      "dst": "hnf1",
+      "hops": 1,
+      "latency": 7,
+      "path": [
+        {
+          "x": 2,
+          "y": 0,
+          "out": 2
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "hnf0",
+      "dst": "snf0",
+      "hops": 3,
+      "latency": 13,
+      "path": [
+        {
+          "x": 2,
+          "y": 0,
+          "out": 1
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "out": 1
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "out": 2
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "hnf1",
+      "dst": "rnf0",
+      "hops": 3,
+      "latency": 13,
+      "path": [
+        {
+          "x": 2,
+          "y": 1,
+          "out": 1
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "out": 1
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "out": 3
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "hnf1",
+      "dst": "rnf1",
+      "hops": 3,
+      "latency": 13,
+      "path": [
+        {
+          "x": 2,
+          "y": 1,
+          "out": 1
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "out": 1
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "out": 3
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "out": 5
+        }
+      ]
+    },
+    {
+      "src": "hnf1",
+      "dst": "hnf0",
+      "hops": 1,
+      "latency": 7,
+      "path": [
+        {
+          "x": 2,
+          "y": 1,
+          "out": 3
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "hnf1",
+      "dst": "hnf1",
+      "hops": 0,
+      "latency": 4,
+      "path": [
+        {
+          "x": 2,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "hnf1",
+      "dst": "snf0",
+      "hops": 2,
+      "latency": 10,
+      "path": [
+        {
+          "x": 2,
+          "y": 1,
+          "out": 1
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "out": 1
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "rnf0",
+      "hops": 1,
+      "latency": 7,
+      "path": [
+        {
+          "x": 0,
+          "y": 1,
+          "out": 3
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "rnf1",
+      "hops": 1,
+      "latency": 7,
+      "path": [
+        {
+          "x": 0,
+          "y": 1,
+          "out": 3
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "out": 5
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "hnf0",
+      "hops": 3,
+      "latency": 13,
+      "path": [
+        {
+          "x": 0,
+          "y": 1,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "out": 0
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "out": 3
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "hnf1",
+      "hops": 2,
+      "latency": 10,
+      "path": [
+        {
+          "x": 0,
+          "y": 1,
+          "out": 0
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "out": 0
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    },
+    {
+      "src": "snf0",
+      "dst": "snf0",
+      "hops": 0,
+      "latency": 4,
+      "path": [
+        {
+          "x": 0,
+          "y": 1,
+          "out": 4
+        }
+      ]
+    }
+  ]
+}

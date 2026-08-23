@@ -1,0 +1,27 @@
+# Not every crosspoint carries a device, and not every device is alone on one.
+#
+# Here to keep the generator honest about the two cases a regular mesh never
+# exercises: a crosspoint that is pure transit, and a crosspoint whose P1 is
+# populated. Both are ordinary in a real floorplan and both have caught a
+# template that assumed otherwise.
+name: irregular
+description: "3x2 with an empty crosspoint and a doubly-populated one"
+
+size_x: 3
+size_y: 2
+device_ports: 2
+line_bytes: 64
+
+devices:
+  - {name: rnf0, kind: RN-F, x: 0, y: 0}
+  - {name: rnf1, kind: RN-F, x: 0, y: 0, port: 1}
+  # (1, 0) holds nothing: transit only.
+  - {name: hnf0, kind: HN-F, x: 2, y: 0}
+  - {name: hnf1, kind: HN-F, x: 2, y: 1}
+  - {name: snf0, kind: SN-F, x: 0, y: 1}
+
+address_map:
+  - name: dram
+    base: 0x0000_8000_0000
+    size: 0x0000_4000_0000
+    interleave: [hnf0, hnf1]

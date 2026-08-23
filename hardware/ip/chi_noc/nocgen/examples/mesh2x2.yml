@@ -1,0 +1,26 @@
+# The smallest mesh with a turn in it, and the one the crosspoint tests use:
+# four crosspoints means every direction is both an input and an output
+# somewhere, at a size a person can check by hand.
+#
+# The device placement is OpenNoC's mesh_2x2, so a disagreement with their
+# generator is visible rather than buried in a different topology.
+name: mesh2x2
+description: "Four crosspoints, one home node, one slave node"
+
+size_x: 2
+size_y: 2
+device_ports: 2
+line_bytes: 64
+
+devices:
+  - {name: rnf0, kind: RN-F, x: 0, y: 0}
+  - {name: rnf1, kind: RN-F, x: 0, y: 0, port: 1}
+  - {name: hnf0, kind: HN-F, x: 1, y: 0}
+  - {name: hni0, kind: HN-I, x: 0, y: 1}
+  - {name: snf0, kind: SN-F, x: 1, y: 1}
+
+address_map:
+  - name: dram
+    base: 0x0000_8000_0000
+    size: 0x0000_4000_0000
+    interleave: [hnf0]

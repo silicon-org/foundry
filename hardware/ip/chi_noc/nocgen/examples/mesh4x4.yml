@@ -1,0 +1,45 @@
+# The reference topology. //hardware/ip/chi_noc/README.md quotes its NodeIDs,
+# its zero-load latency and its saturation bound, and M3's tests assert against
+# them, so changing anything here changes numbers that are written down.
+#
+#   y=3   rnf4    rnf5    rnf6    rnf7
+#   y=2   snf0    rni0    hni0    snf1
+#   y=1   hnf0    hnf1    hnf2    hnf3
+#   y=0   rnf0    rnf1    rnf2    rnf3
+#         x=0     x=1     x=2     x=3
+name: mesh4x4
+description: "16 crosspoints, one device each, four home nodes interleaved"
+
+size_x: 4
+size_y: 4
+device_ports: 2
+line_bytes: 64
+
+devices:
+  - {name: rnf0, kind: RN-F, x: 0, y: 0}
+  - {name: rnf1, kind: RN-F, x: 1, y: 0}
+  - {name: rnf2, kind: RN-F, x: 2, y: 0}
+  - {name: rnf3, kind: RN-F, x: 3, y: 0}
+
+  - {name: hnf0, kind: HN-F, x: 0, y: 1}
+  - {name: hnf1, kind: HN-F, x: 1, y: 1}
+  - {name: hnf2, kind: HN-F, x: 2, y: 1}
+  - {name: hnf3, kind: HN-F, x: 3, y: 1}
+
+  - {name: snf0, kind: SN-F, x: 0, y: 2}
+  - {name: rni0, kind: RN-I, x: 1, y: 2}
+  - {name: hni0, kind: HN-I, x: 2, y: 2}
+  - {name: snf1, kind: SN-F, x: 3, y: 2}
+
+  - {name: rnf4, kind: RN-F, x: 0, y: 3}
+  - {name: rnf5, kind: RN-F, x: 1, y: 3}
+  - {name: rnf6, kind: RN-F, x: 2, y: 3}
+  - {name: rnf7, kind: RN-F, x: 3, y: 3}
+
+address_map:
+  # 2 GiB of coherent memory, striped a line at a time over all four home nodes
+  # so that a linear sweep uses the whole fabric instead of one column of it.
+  - name: dram
+    base: 0x0000_8000_0000
+    size: 0x0000_8000_0000
+    interleave: [hnf0, hnf1, hnf2, hnf3]

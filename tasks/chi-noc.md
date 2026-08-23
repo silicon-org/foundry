@@ -131,9 +131,32 @@ against theirs.
 
 ## M4 — protocol level
 
-- [ ] `chi_rn_agent` — the missing half of the VIP
-- [ ] **Gate:** real transactions across the fabric; `unsupported` and
-      `Outstanding()` both zero; memory matches
+- [x] `vip::chi::RequestNode` — the missing half of the VIP. A traffic generator
+      and a checker at once: it queues work, turns it into requests as
+      identifiers come free, and compares what comes back against what it
+      believes memory holds. Flits in, flits out, no simulator.
+- [x] Checked against the home node **with no RTL and no fabric** first
+      (`chi_request_node_test`). If the two ends agree about CHI in isolation, a
+      later failure with a mesh between them is the mesh's -- which is what makes
+      the system test about the fabric.
+- [x] `chi_noc_device_port` — how anything attaches to the mesh, and where the
+      snoop's fabric header is put on and taken off.
+- [x] The DPI pump extracted from `chi_hn_agent` into `chi_hn_core`, with
+      `chi_rn_core` as its mirror. A crosspoint's device port is not a link, so
+      flow control and the DPI boundary became separate modules; the cluster
+      testbench is unchanged and still passes.
+- [x] **Gate passed.** 264 transactions across the mesh -- eight requesters,
+      four home nodes, reads, writes and dataless -- with every byte written
+      landing where it was addressed. No mismatches, nothing unexpected, no
+      unsupported request, and nothing outstanding at either end.
+
+Two things worth keeping. The home node models no directory, so requesters own
+disjoint address ranges and coherence between them is nobody's job here -- which
+is the honest scope of a transport fabric, made true by partitioning rather than
+assumed. And the workload is **phased**: a requester with eight transactions in
+flight will happily issue a read of a line whose write is still outstanding, CHI
+does not order those, and the read comes back as the memory fill byte. That
+hazard is cache work, not fabric work.
 
 ## M5 — coverage
 

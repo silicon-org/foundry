@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 #include "chi_eb/spec/chi_eb_protocol.hpp"
 #include "chi_eb/util/chi_eb_util_decoding.hpp"
@@ -111,6 +112,26 @@ inline bool Pack(const Dat& flit, FlitWords bits) {
 }
 inline bool Pack(const Snp& flit, FlitWords bits) {
   return chiron::Flits::SerializeSNP<FlitConfig, FlitConn>(flit, bits, Snp::WIDTH);
+}
+
+// Where a beat's DataID points, in bytes. CHI counts DataID in 16-byte units
+// whatever the link's data width, so a 256-bit beat advances it by two.
+inline constexpr unsigned kDataIdBytes = 16;
+
+// One odd-parity bit per byte, as CHI defines DataCheck.
+//
+// Required, not optional: CoupledL2 checks every beat, and zero reads as *even*
+// parity rather than as "unused". Getting this wrong marks every line corrupt
+// and surfaces far away, as a hardware-error exception on the first instruction
+// fetched -- see tasks/xs-cluster-tb.md.
+//
+// Here rather than in either node because it is a property of a flit's data,
+// and both ends of a link have to compute it the same way.
+inline Dat::datacheck_t DataCheckOf(std::span<const std::uint8_t> bytes) {
+  Dat::datacheck_t check = 0;
+  for (unsigned i = 0; i < bytes.size(); ++i)
+    if (__builtin_parity(bytes[i]) == 0) check |= Dat::datacheck_t{1} << i;
+  return check;
 }
 
 }  // namespace vip::chi

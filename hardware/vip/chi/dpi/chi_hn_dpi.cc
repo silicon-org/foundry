@@ -92,6 +92,13 @@ std::uint32_t chi_hn_writes(void* handle) {
   return node == nullptr ? 0 : static_cast<std::uint32_t>(node->stats().writes);
 }
 
+// Transactions opened and not yet retired. A run that ends with any of these
+// ended in the middle of something, and no other counter says so.
+std::uint32_t chi_hn_outstanding(void* handle) {
+  vip::chi::HomeNode* node = Node(handle);
+  return node == nullptr ? 0 : static_cast<std::uint32_t>(node->Outstanding());
+}
+
 std::uint32_t chi_hn_unsupported(void* handle) {
   vip::chi::HomeNode* node = Node(handle);
   return node == nullptr ? 0 : static_cast<std::uint32_t>(node->stats().unsupported);

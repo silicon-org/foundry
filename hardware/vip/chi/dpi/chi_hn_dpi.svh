@@ -23,6 +23,8 @@ import "DPI-C" function chandle chi_hn_bind(input string name);
 import "DPI-C" function int unsigned chi_hn_reads(input chandle hn);
 import "DPI-C" function int unsigned chi_hn_writes(input chandle hn);
 import "DPI-C" function int unsigned chi_hn_unsupported(input chandle hn);
+// Transactions opened and not yet retired; zero is what a finished run has.
+import "DPI-C" function int unsigned chi_hn_outstanding(input chandle hn);
 
 // Flits arriving from the request node.
 import "DPI-C" function void chi_hn_rx_req(input chandle hn, input bit [161:0] flit);

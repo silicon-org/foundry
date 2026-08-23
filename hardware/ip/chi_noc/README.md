@@ -215,10 +215,12 @@ every input has exactly one destination and no two streams share a directed link
 can do unobstructed. It reaches `min(1, Credits/5)` exactly: four credits give
 80.0%, five give 100.0%, and no amount of extra depth moves it.
 
-The default is **eight**. Six was one more than the floor and enough while each
-input was a single FIFO; per-output queues split the same pool between them, so
-the bottleneck flow ends up with fewer slots and needs the pool to be larger.
-See the throughput table for what six cost bit-complement. The round trip is a property of
+The default is **ten**, and it is a measured peak rather than a round number.
+Six was one more than the round-trip floor and enough while each input was a
+single FIFO; per-output queues split the same pool between them, so the
+bottleneck flow gets fewer slots and the pool has to be larger. Six cost
+bit-complement a fifth of its throughput, eight restored it, and ten is where
+uniform stops improving. See the throughput table. The round trip is a property of
 the current pipeline, and if a register is ever added to the credit path five
 would quietly drop back under line rate — the symptom being a fifth of the
 bandwidth missing, with nothing failing. The specification caps a receiver at 15
@@ -327,47 +329,78 @@ the 256 ordered pairs, so the quietest link runs at three quarters of the
 busiest. There is no hot link to design around at this size, which is worth
 knowing before anyone proposes virtual channels to fix one.
 
-Measured at saturation, with 1024 flits from each of the sixteen devices and
-eight credits per port:
+Measured at saturation, with 1024 flits from each of the sixteen devices and ten
+credits per port. Each pattern is quoted against **its own** ceiling: the lower
+of what its busiest link can carry and what its destinations can eject.
 
-| pattern | flits/cycle/device | was, with one FIFO per input | ceiling |
-|---|---:|---:|---:|
-| no-contention control | **1.000** | 1.000 | 1.0 |
-| uniform | **0.709** | 0.603 | 1.0 |
-| bit-complement | **0.500** | 0.500 | 1.0 |
-| transpose | **0.333** | 0.286 | 0.81 |
-| hotspot | **0.066** | 0.066 | 0.125 |
+| pattern | flits/cycle/device | its ceiling | of ceiling | was, with one FIFO |
+|---|---:|---:|---:|---:|
+| no-contention control | **1.000** | 1.000 | **100%** | 1.000 |
+| uniform | **0.759** | 1.000 | 76% | 0.603 |
+| bit-complement | **0.500** | 0.500 | **100%** | 0.500 |
+| transpose | **0.333** | 0.333 | **100%** | 0.286 |
+| hotspot | **0.066** | 0.125 | 53% | 0.066 |
 
-The first row is the control and it is the one to read first: with nothing in
-each other's way the fabric moves a flit per cycle per device, so everything
-below it is contention and not plumbing.
+Three of the five run at exactly their theoretical maximum. That is worth saying
+plainly, because this table used to quote every pattern against the *uniform*
+bound — which made a fabric at 100% of what a permutation allows look like one
+managing a third of what it should. A permutation pins every flow to one path,
+so its busiest link's share is computable, and `chi_noc_mesh_tb` now computes
+it rather than borrowing a number that was never theirs.
 
-Uniform is where head-of-line blocking lived, and the queues took 0.603 to
-0.709. The FIFO could not be helped by depth — it sat at the classic
-input-queued bound of `2 − √2 ≈ 0.586` and stayed there whatever the buffer, 
-0.599 at ten credits. Per-output queues keep responding to depth, and **that is
-the argument for the payload being an SRAM**: the fix wants entries, and entries
-are what makes 422-bit storage expensive.
+Uniform is where head-of-line blocking lived, and per-output queues took it from
+0.603 to 0.759. The FIFO could not be helped by depth — it sat at the classic
+input-queued bound of `2 − √2 ≈ 0.586` whatever the buffer, 0.599 at ten
+credits. Queues keep responding to depth, and **that is the argument for the
+payload being an SRAM**: the fix wants entries, and entries are what make
+422-bit storage cost something.
 
-Eight credits and not six, and the reason is worth keeping. A shared pool split
-across per-output queues gives the bottleneck flow fewer slots than a dedicated
-FIFO gave it, and at six credits bit-complement went *backwards*, 0.500 to
-0.443. Eight restores it. The deterministic patterns plateau there; uniform
-keeps climbing slowly and noisily, which is why the table quotes it from a
-four-times-larger sample than the others need.
+Hotspot is at 53% of a ceiling set by two destination ports; its 212-cycle mean
+latency is the queue in front of them and not anything the fabric does.
 
-Hotspot is unchanged and should be: two destination ports for sixteen sources is
-a limit no scheduler reaches past. Bit-complement is unchanged too — it is
-link-limited rather than switch-limited, and the queues have nothing to offer a
-flow with one destination per input.
+### What is left, and what it would take
+
+**Uniform is the only pattern with anything on the table**, and it is also the
+only one with variance — it redraws a destination per flit, so a link's
+instantaneous demand fluctuates about its mean. Reaching 1.000 means never
+leaving the sixteen busiest links idle, and with random arrivals and finite
+buffers that cannot be done: throughput approaches capacity only as buffering,
+and therefore delay, grow without bound. The measured curve is exactly that
+trade.
+
+| credits | uniform | mean latency |
+|---:|---:|---:|
+| 6 | 0.652 | 20 |
+| 8 | 0.694 | 25 |
+| **10** | **0.759** | 30 |
+| 12 | 0.745 | 35 |
+| 15 | 0.730 | 42 |
+
+Ten is the peak; past it latency grows and throughput does not. Matching is not
+the constraint either — three passes reaches 0.759, and four, six and more reach
+the same number, so the schedule is already maximal.
+
+So both of the cheap knobs are exhausted, and the last quarter needs a different
+machine rather than a bigger one:
+
+- **Internal speedup** is the standard answer. A crossbar that moves more than
+  one flit per port per cycle decouples the match from the link, and a speedup
+  of two is enough to emulate output queueing exactly. It costs a second read
+  port on every payload memory and twice the internal bandwidth.
+- **Output queues** are the cheaper half of that: a few entries after the
+  crossbar absorb the variance that leaves a link idle, without doubling
+  anything. Less benefit, much less cost.
+- **Load balancing** would matter above about 0.84 and not below it. XY leaves
+  the sixteen busiest links carrying 19% more than the average, so they saturate
+  first; spreading that needs XY and YX in the same network, which needs two
+  virtual channels to stay deadlock-free. At 0.759 no link is saturated, so this
+  buys nothing yet.
 
 The tests assert a floor a little under each measurement. They are a **ratchet
 against regression, not a specification** — raising one when the design improves
 is the point of having it.
 
-One honest gap: `nocgen` computes the network bound for *uniform* traffic only,
-so transpose and bit-complement are quoted against an upper bound rather than
-against theirs.Populating P1 as well would double the devices without changing the mesh, and
+Populating P1 as well would double the devices without changing the mesh, and
 the per-link bounds would halve relative to injection while the ejection bound
 stayed put. That is a different reference topology and would get its own numbers.
 

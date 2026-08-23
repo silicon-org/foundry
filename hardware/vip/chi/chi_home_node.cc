@@ -19,7 +19,6 @@ constexpr unsigned kBeatBytes = FlitConfig::dataWidth / 8;
 
 // DataID counts 128-bit chunks, whatever the link's data width, so a 256-bit
 // link uses 0 and 2 for the two halves of a 64-byte line.
-constexpr unsigned kDataIdBytes = 16;
 
 // CHI encodes a transfer size as its base-2 logarithm.
 unsigned SizeToBytes(unsigned size_field) { return 1u << size_field; }
@@ -100,19 +99,6 @@ unsigned DatalessResp(unsigned opcode) {
     case ReqOp::MakeUnique: return Resps::UC;
     default: return Resps::I;
   }
-}
-
-// One odd-parity bit per byte, as CHI defines DataCheck.
-//
-// Required, not optional: CoupledL2 checks every beat, and zero reads as *even*
-// parity rather than as "unused". Getting this wrong marks every line corrupt
-// and surfaces far away, as a hardware-error exception on the first instruction
-// fetched -- see tasks/xs-cluster-tb.md.
-Dat::datacheck_t DataCheckOf(std::span<const std::uint8_t> bytes) {
-  Dat::datacheck_t check = 0;
-  for (unsigned i = 0; i < bytes.size(); ++i)
-    if (__builtin_parity(bytes[i]) == 0) check |= Dat::datacheck_t{1} << i;
-  return check;
 }
 
 }  // namespace

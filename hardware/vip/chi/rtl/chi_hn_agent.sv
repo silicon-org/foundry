@@ -5,10 +5,10 @@
 // edge it hands over whatever arrived and takes whatever is ready to go, one
 // packed flit per call.
 //
-// The C++ node is built by the test's own main() and found here by name, so
-// that a test can load its memory and set its watchpoints before the first
-// clock edge. See //hardware/vip/chi/dpi/chi_hn_dpi.h.
-`include "chi_hn_dpi.svh"
+// The pump itself is chi_hn_core, which //hardware/ip/chi_noc also uses to hang
+// a home node off a crosspoint. What this module adds is the link: the two are
+// separate because flow control and the DPI boundary change for different
+// reasons.
 
 module chi_hn_agent #(
   // The name the test registered its home node under.
@@ -28,44 +28,6 @@ module chi_hn_agent #(
   output chi_pkg::chi_link_state_e rn_tx_state_o,
   output chi_pkg::chi_link_state_e rn_rx_state_o
 );
-
-  chandle hn;
-
-  // Bound on the first clock edge rather than in an initial block. The
-  // testbench creates the node in an initial block of its own, and SystemVerilog
-  // gives no ordering between two of those; by the first edge every one of them
-  // has run.
-  logic bound;
-
-  always_ff @(posedge clk_i) begin
-    if (!bound) begin
-      hn = chi_hn_bind(Name);
-      bound <= 1'b1;
-      assert (hn != null)
-      else $fatal(1, "chi_hn_agent: no home node was created as '%s'", Name);
-    end
-  end
-
-  initial begin
-    bound = 1'b0;
-
-    // The DPI declarations carry literal widths because an import cannot be
-    // parameterised. A package that disagreed would truncate every flit
-    // silently, so the disagreement is caught here instead -- as an assertion,
-    // because $error in a generate block is only a warning to Verilator.
-    assert ($bits(chi_pkg::chi_req_t) == 162)
-    else $fatal(1, "chi_hn_dpi.svh declares a 162-bit REQ flit; chi_pkg has %0d",
-                $bits(chi_pkg::chi_req_t));
-    assert ($bits(chi_pkg::chi_rsp_t) == 73)
-    else $fatal(1, "chi_hn_dpi.svh declares a 73-bit RSP flit; chi_pkg has %0d",
-                $bits(chi_pkg::chi_rsp_t));
-    assert ($bits(chi_pkg::chi_dat_t) == 422)
-    else $fatal(1, "chi_hn_dpi.svh declares a 422-bit DAT flit; chi_pkg has %0d",
-                $bits(chi_pkg::chi_dat_t));
-    assert ($bits(chi_pkg::chi_snp_t) == 115)
-    else $fatal(1, "chi_hn_dpi.svh declares a 115-bit SNP flit; chi_pkg has %0d",
-                $bits(chi_pkg::chi_snp_t));
-  end
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   // The link
@@ -123,49 +85,29 @@ module chi_hn_agent #(
     .rn_rx_state_o
   );
 
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  // The boundary
-  //
-  // Arrivals first, then departures, so that a response the node produces from
-  // a request that arrived this cycle can leave on the next one rather than the
-  // one after. Both halves are in the same block for exactly that reason.
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-
-  always_ff @(posedge clk_i or negedge rst_ni) begin
-    // Declared here rather than at module scope: they hold a flit between the
-    // call that produces it and the assignment that registers it, and nothing
-    // outside this block should be able to read them.
-    bit [$bits(chi_pkg::chi_rsp_t)-1:0] next_rsp;
-    bit [$bits(chi_pkg::chi_dat_t)-1:0] next_dat;
-    bit [$bits(chi_pkg::chi_snp_t)-1:0] next_snp;
-
-    if (!rst_ni) begin
-      txrsp       <= '0;
-      txdat       <= '0;
-      txsnp       <= '0;
-      txrsp_valid <= 1'b0;
-      txdat_valid <= 1'b0;
-      txsnp_valid <= 1'b0;
-    end else begin
-      if (rxreq_valid) chi_hn_rx_req(hn, rxreq);
-      if (rxrsp_valid) chi_hn_rx_rsp(hn, rxrsp);
-      if (rxdat_valid) chi_hn_rx_dat(hn, rxdat);
-
-      // Ask only when the channel can take what comes back, because asking is
-      // what removes it from the node's queue.
-      if (!txrsp_valid || txrsp_ready) begin
-        txrsp_valid <= chi_hn_tx_rsp(hn, next_rsp);
-        txrsp       <= chi_pkg::chi_rsp_t'(next_rsp);
-      end
-      if (!txdat_valid || txdat_ready) begin
-        txdat_valid <= chi_hn_tx_dat(hn, next_dat);
-        txdat       <= chi_pkg::chi_dat_t'(next_dat);
-      end
-      if (!txsnp_valid || txsnp_ready) begin
-        txsnp_valid <= chi_hn_tx_snp(hn, next_snp);
-        txsnp       <= chi_pkg::chi_snp_t'(next_snp);
-      end
-    end
-  end
+  chi_hn_core #(
+      .Name(Name)
+  ) i_core (
+      .clk_i,
+      .rst_ni,
+      .rx_req_i      (rxreq),
+      .rx_req_valid_i(rxreq_valid),
+      .rx_req_ready_o(),
+      .rx_rsp_i      (rxrsp),
+      .rx_rsp_valid_i(rxrsp_valid),
+      .rx_rsp_ready_o(),
+      .rx_dat_i      (rxdat),
+      .rx_dat_valid_i(rxdat_valid),
+      .rx_dat_ready_o(),
+      .tx_rsp_o      (txrsp),
+      .tx_rsp_valid_o(txrsp_valid),
+      .tx_rsp_ready_i(txrsp_ready),
+      .tx_dat_o      (txdat),
+      .tx_dat_valid_o(txdat_valid),
+      .tx_dat_ready_i(txdat_ready),
+      .tx_snp_o      (txsnp),
+      .tx_snp_valid_o(txsnp_valid),
+      .tx_snp_ready_i(txsnp_ready)
+  );
 
 endmodule

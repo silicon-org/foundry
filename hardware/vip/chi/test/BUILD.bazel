@@ -5,6 +5,20 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 load("@rules_verilog//verilog:defs.bzl", "verilog_library")
 
+# The two protocol models against each other, with no RTL and no fabric. If they
+# agree here they agree about CHI, and any later failure with a mesh between
+# them is the mesh's.
+cc_test(
+    name = "chi_request_node_test",
+    size = "small",
+    srcs = ["chi_request_node_test.cc"],
+    deps = [
+        "//hardware/vip/chi:chi_home_node",
+        "//hardware/vip/chi:chi_request_node",
+        "//hardware/vip/common:memory",
+    ],
+)
+
 cc_test(
     name = "chi_flit_test",
     size = "small",

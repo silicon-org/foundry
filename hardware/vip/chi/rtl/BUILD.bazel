@@ -27,10 +27,31 @@ verilog_library(
     ],
 )
 
-# The agent: the link, plus the DPI calls that join it to the C++ home node.
+# The DPI pump, with no flow control in it: valid/ready in, valid/ready out.
+#
+# Separate from the agents below because a crosspoint's device port is not a
+# link, and //hardware/ip/chi_noc attaches these to one. Flow control and the
+# DPI boundary change for different reasons, so they are different modules.
+verilog_library(
+    name = "chi_hn_core",
+    srcs = ["chi_hn_core.sv"],
+    hdrs = ["//hardware/vip/chi:chi_hn_dpi_svh"],
+    deps = ["//hardware/ip/chi:chi_pkg"],
+)
+
+verilog_library(
+    name = "chi_rn_core",
+    srcs = ["chi_rn_core.sv"],
+    hdrs = ["//hardware/vip/chi:chi_rn_dpi_svh"],
+    deps = ["//hardware/ip/chi:chi_pkg"],
+)
+
+# The agent: the link, plus the core that joins it to the C++ home node.
 verilog_library(
     name = "chi_hn_agent",
     srcs = ["chi_hn_agent.sv"],
-    hdrs = ["//hardware/vip/chi:chi_hn_dpi_svh"],
-    deps = [":chi_link"],
+    deps = [
+        ":chi_hn_core",
+        ":chi_link",
+    ],
 )

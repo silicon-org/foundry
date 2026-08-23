@@ -90,3 +90,12 @@ nodes:
     ipAddress: 10.0.1.21
     controlPlane: false
     installDisk: /dev/sda
+
+  # Elastic. Created on demand and deleted when idle, so unlike every other node
+  # here it is not expected to exist. Listed anyway because talhelper is what
+  # renders its machine config, and an autoscaled node has to receive that config
+  # from user-data rather than from someone running apply-config.
+  - hostname: foundry-worker-2
+    ipAddress: 10.0.1.22
+    controlPlane: false
+    installDisk: /dev/sda

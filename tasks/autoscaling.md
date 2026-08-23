@@ -7,14 +7,14 @@ large machine -- the opposite of what the utilisation data supports.
 
 A week of CI, 100 runs, 2026-08-16 to 08-23:
 
-| duration | successful runs |
-|---|---|
-| 0-1 min | 13 |
-| 1-3 min | 35 |
-| 3-6 min | 4 |
-| 6-12 min | 1 |
-| 12-30 min | 2 |
-| >30 min | 1 |
+| duration  | successful runs |
+| --------- | --------------- |
+| 0-1 min   | 13              |
+| 1-3 min   | 35              |
+| 3-6 min   | 4               |
+| 6-12 min  | 1               |
+| 12-30 min | 2               |
+| >30 min   | 1               |
 
 8.8 hours of CI wall time across six days. The cluster is idle ~94% of the
 time, and 86% of successful runs finish inside three minutes because they are
@@ -35,11 +35,11 @@ tuned to a predicted rate.
 
 ## Shape
 
-| tier | lives | sized for |
-|---|---|---|
-| always-on node | control plane + scheduler, CAS, frontends, remote-asset, ARC, monitoring, portal, Tailscale operator | ~3.2 GiB measured steady state |
-| always-on worker | small, permanent | the 3-minute cache-walk run, with no provisioning latency |
-| elastic workers | created and **deleted** on demand | whatever the queued work needs |
+| tier             | lives                                                                                                | sized for                                                 |
+| ---------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| always-on node   | control plane + scheduler, CAS, frontends, remote-asset, ARC, monitoring, portal, Tailscale operator | ~3.2 GiB measured steady state                            |
+| always-on worker | small, permanent                                                                                     | the 3-minute cache-walk run, with no provisioning latency |
+| elastic workers  | created and **deleted** on demand                                                                    | whatever the queued work needs                            |
 
 Two rules that fall out of how Hetzner bills:
 
@@ -107,6 +107,25 @@ either the elastic worker runs a local CAS cache, or effective concurrency is
 bounded by the network rather than by cores. Worth measuring properly the first
 time a large worker runs, because it decides whether "just buy more cores"
 actually buys anything.
+
+## Prerequisite: the project server limit
+
+Discovered while attempting M1. The cloud project refuses to create a fifth
+server -- `resource_limit_exceeded` -- and not because of the size: a `cx23`,
+the same type the control planes run, is refused identically. Four servers is
+the ceiling today.
+
+That is fatal to autoscaling rather than inconvenient. Ask Hetzner support to
+raise the project limit, and ask for enough headroom to be worth having:
+
+- **server count**: 10 or more, so several elastic workers can coexist with the
+  permanent ones
+- **dedicated vCPU (ccx)**: enough for the largest worker intended -- a ccx53 is
+  32 -- since that class is often capped separately
+
+M2 reduces the control planes to one, which frees two slots and would allow a
+single elastic worker inside even the current limit. That is a reason to do M2
+first, not a substitute for raising the limit.
 
 ## Milestones
 

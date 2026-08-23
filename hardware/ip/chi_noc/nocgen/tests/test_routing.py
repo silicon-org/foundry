@@ -112,7 +112,7 @@ def test_no_path_ever_takes_a_forbidden_turn():
     for src in TARGETS:
         for dst in TARGETS:
             steps = path(src, dst)
-            for previous, current in zip(steps, steps[1:]):
+            for previous, current in zip(steps, steps[1:], strict=False):
                 arrival = arrival_direction(previous.out)
                 assert (arrival, current.out) not in FORBIDDEN_TURNS
 

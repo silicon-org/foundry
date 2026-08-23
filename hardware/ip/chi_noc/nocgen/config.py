@@ -249,8 +249,7 @@ class Topology:
             )
         if self.size_y > 1 << self.node_id.y_width:
             raise ConfigError(
-                f"{self.size_y} rows need more than the "
-                f"{self.node_id.y_width} bits NodeID gives Y"
+                f"{self.size_y} rows need more than the {self.node_id.y_width} bits NodeID gives Y"
             )
         if self.device_ports > 1 << self.node_id.port_width:
             raise ConfigError(
@@ -307,11 +306,10 @@ class Topology:
                 )
 
         ordered = sorted(self.address_map, key=lambda e: e.base)
-        for lower, upper in zip(ordered, ordered[1:]):
+        for lower, upper in zip(ordered, ordered[1:], strict=False):
             if lower.limit > upper.base:
                 raise ConfigError(
-                    f"ranges {lower.name!r} and {upper.name!r} overlap at "
-                    f"0x{upper.base:x}"
+                    f"ranges {lower.name!r} and {upper.name!r} overlap at 0x{upper.base:x}"
                 )
 
     def device(self, name: str) -> Device:

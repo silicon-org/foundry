@@ -102,10 +102,22 @@ def test_manifest_routes_agree_with_the_model(name):
 
 def test_mesh4x4_nodeids_match_the_readme(mesh4x4):
     expected = {
-        "rnf0": 0x000, "rnf1": 0x080, "rnf2": 0x100, "rnf3": 0x180,
-        "hnf0": 0x008, "hnf1": 0x088, "hnf2": 0x108, "hnf3": 0x188,
-        "snf0": 0x010, "rni0": 0x090, "hni0": 0x110, "snf1": 0x190,
-        "rnf4": 0x018, "rnf5": 0x098, "rnf6": 0x118, "rnf7": 0x198,
+        "rnf0": 0x000,
+        "rnf1": 0x080,
+        "rnf2": 0x100,
+        "rnf3": 0x180,
+        "hnf0": 0x008,
+        "hnf1": 0x088,
+        "hnf2": 0x108,
+        "hnf3": 0x188,
+        "snf0": 0x010,
+        "rni0": 0x090,
+        "hni0": 0x110,
+        "snf1": 0x190,
+        "rnf4": 0x018,
+        "rnf5": 0x098,
+        "rnf6": 0x118,
+        "rnf7": 0x198,
     }
     assert {p.device.name: p.node_id for p in mesh4x4.ports} == expected
 

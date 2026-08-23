@@ -51,3 +51,16 @@ dev = [
 [tool.uv]
 # Not an installable package: the generators are Bazel targets, not wheels.
 package = false
+
+# 100 columns, matching //.clang-format, so the whole tree wraps at one width.
+#
+# The rule selection is small on purpose: pyflakes and pycodestyle are what
+# `ruff check` is for here -- an unused import, a name that does not exist -- and
+# isort so that import order is decided rather than argued about. Style beyond
+# that is the formatter's job, and a linter that duplicates it produces
+# disagreements between two tools rather than better code.
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "UP", "B"]

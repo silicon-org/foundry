@@ -376,3 +376,30 @@ more time than it should have.
 
 - `.git` is a **file**, not a directory, inside a git worktree. A `[[ -d .git ]]`
   guard is false in exactly the setup this repository is developed in.
+
+## Hardware verification
+
+- **Opcode zero is an L-Credit return on every CHI channel**, so a flit built by
+  setting the fields a test cares about and leaving the rest at zero is not a
+  message -- it is flow control, and a correct receiver consumes it and passes
+  nothing on. Cost an hour of tracing a crosspoint that accepted a flit and
+  emitted nothing, which is exactly what it should have done. Any testbench
+  constructing a CHI flit has to set an opcode on purpose.
+
+- An unpacked array of queues (`int q[N][$]`) does not survive Verilator: writing
+  one element was observed to change another, which surfaced as a perfectly
+  correct flit failing an ordering check against a *different* pair's
+  expectation. Both the two-dimensional and the flattened form did it. Where a
+  scoreboard can be expressed as counters -- per-pair sequence numbers rather
+  than per-pair queues -- it should be, and it is smaller anyway.
+
+- The `%Error-BADVLTPRAGMA` entry above was walked into again, from a comment
+  reflowed so that a line began "Verilator supports a subset...". Knowing the
+  rule is not enough, because the trap is sprung by *rewrapping* a paragraph
+  rather than by writing one. Never let a comment line start with that word.
+
+- `fork`/`join_none` with `automatic` variables produced `no member named
+  '__Vm_deleter'` from the generated C++ rather than a diagnostic. One process
+  per port, started from a generate loop, expresses concurrent stimulus without
+  any of it -- and reads better, since each port's driver is a thing rather than
+  a fragment of a loop body.

@@ -61,9 +61,16 @@ def nocgen_topology(name, config, deps = [], visibility = None):
 
     # The package has to come first: the netlist imports it, and rules_verilog
     # passes srcs to the simulator in order.
+    #
+    # `top_module` is what puts a generated mesh under the lint aspect
+    # (`bazel build --config=lint //hardware/...`). That elaborates the whole
+    # netlist against the real crosspoint, which is the check that the generator
+    # and the RTL still agree about the port list -- the one kind of drift a
+    # golden-file test cannot see, because both sides of it are generated.
     verilog_library(
         name = name,
         srcs = [package, netlist],
+        top_module = name + "_noc",
         deps = deps,
         visibility = visibility,
     )

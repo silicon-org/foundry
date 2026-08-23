@@ -32,6 +32,10 @@ TOOLS = {
     # does validate them, but it validates them in a controller log minutes
     # after a push, attached to nothing. See //infra/platform:promtool_test.
     "promtool": ["--version"],
+    # Formats and lints the Python. Both halves matter: //tools/format runs
+    # `ruff format`, and //tools/checks runs `ruff check`, which is the one that
+    # notices an unused import or a name that does not exist.
+    "ruff": ["--version"],
     "sops": ["--version", "--disable-version-check"],
     "talhelper": ["--version"],
     "talosctl": ["version", "--client", "--short"],

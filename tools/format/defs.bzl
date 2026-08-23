@@ -13,12 +13,17 @@ load("@aspect_rules_lint//format:defs.bzl", "format_multirun", "format_test")
 # compiled, for all four platforms. So it costs nothing, and the formatter moves
 # when the compiler moves rather than drifting from it.
 #
-# buildifier is a //tools:multitool.lock.json pin like every other CLI here,
-# which is what makes `bazel run //tools:update` bump it and
-# `bazel run //tools:versions` report it.
+# buildifier and ruff are //tools:multitool.lock.json pins like every other CLI
+# here, which is what makes `bazel run //tools:update` bump them and
+# `bazel run //tools:versions` report them.
+#
+# rules_lint drives ruff as `ruff format` only. Linting is the other half and is
+# a separate thing to run, so it lives in //tools/checks rather than being
+# smuggled into a formatter.
 _FORMATTERS = {
     "c": "@llvm//tools:clang-format",
     "cc": "@llvm//tools:clang-format",
+    "python": "@multitool//tools/ruff",
     "starlark": "@multitool//tools/buildifier",
 }
 

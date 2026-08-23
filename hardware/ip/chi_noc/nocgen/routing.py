@@ -157,11 +157,7 @@ def link_load(topology: Topology) -> dict[tuple[int, int, Direction], int]:
     rather than quoting a textbook means the bound tracks the topology, and the
     throughput test can assert against the network it is actually driving.
     """
-    layout = topology.node_id
-    targets = [
-        Target(x=d.x, y=d.y, port=d.port) for d in topology.devices
-    ]
-    del layout  # only the coordinates matter here
+    targets = [Target(x=d.x, y=d.y, port=d.port) for d in topology.devices]
     load: dict[tuple[int, int, Direction], int] = {}
     for src in targets:
         for dst in targets:

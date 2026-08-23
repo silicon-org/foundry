@@ -63,9 +63,7 @@ def render_package(network: Network, source: str) -> str:
     env = _environment()
     width = network.config.node_id.width
     addr_width = _addr_width(network)
-    max_interleave = max(
-        (len(r.targets) for r in network.address_map.regions), default=1
-    )
+    max_interleave = max((len(r.targets) for r in network.address_map.regions), default=1)
 
     # Literals are formatted here rather than in the template. Jinja can call a
     # function but its `map` filter takes the *name* of a filter, so formatting a
@@ -81,8 +79,7 @@ def render_package(network: Network, source: str) -> str:
             # region with fewer home nodes still occupies a full row of it.
             "targets": ", ".join(
                 _sv_literal(width, target)
-                for target in region.targets
-                + (0,) * (max_interleave - len(region.targets))
+                for target in region.targets + (0,) * (max_interleave - len(region.targets))
             ),
         }
         for region in network.address_map.regions
@@ -171,9 +168,7 @@ def render_json(network: Network, source: str) -> str:
                     "dst": dst.device.name,
                     "hops": len(steps) - 1,
                     "latency": network.zero_load_latency(len(steps) - 1),
-                    "path": [
-                        {"x": step.x, "y": step.y, "out": int(step.out)} for step in steps
-                    ],
+                    "path": [{"x": step.x, "y": step.y, "out": int(step.out)} for step in steps],
                 }
             )
 

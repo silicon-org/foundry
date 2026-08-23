@@ -336,6 +336,13 @@ http_archive(
 # is not cosmetic: repository names inside @llvm-project resolve against the repo
 # mapping of the module that declared it, which is this one.
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
+
+# LLVM's, not ours. No target in this repository loads rules_python -- our Python
+# is aspect_rules_py at the bottom of this file, which brings its own interpreter
+# -- but @llvm-project's overlay names @rules_python, and resolves it against
+# *this* module's repo mapping. aspect_rules_py depending on it transitively does
+# not put it in that mapping. Deleting this line breaks the CIRCT build a long
+# way from here.
 bazel_dep(name = "rules_python", version = "1.9.0")
 bazel_dep(name = "zlib-ng", version = "2.3.3.bcr.2", repo_name = "llvm_zlib")
 bazel_dep(name = "zstd", version = "1.5.7.bcr.1", repo_name = "llvm_zstd")
@@ -501,3 +508,39 @@ single_version_override(
     patch_strip = 1,
     patches = ["//tools/format:patches/0001-starlark-build-bazel-overlays.patch"],
 )
+
+# Python, for the generators that write RTL. See //hardware/ip/chi_noc/nocgen.
+#
+# 2.0.0-alpha.x rather than the 1.x stable, because the uv module extension is
+# public API only from 2.0.0 -- its own header says it "graduated from
+# @aspect_rules_py//uv/unstable:extension.bzl in rules_py v2.0.0". Taking the
+# stable release would mean importing from a path upstream has already marked
+# provisional, which is the worse of the two bets.
+bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
+
+# uv itself, pinned here rather than taken from whatever the machine has, for
+# the same reason every CLI in //tools is. It is what regenerates uv.lock, so a
+# different uv is a different lockfile.
+uv_bin = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv_bin")
+uv_bin.toolchain(version = "0.11.6")
+use_repo(uv_bin, "uv")
+
+# Third-party Python, resolved by uv from //:pyproject.toml and pinned by
+# //:uv.lock. One lockfile for the repository, so two generators cannot disagree
+# about a version of jinja.
+uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
+uv.declare_hub(hub_name = "pypi")
+uv.project(
+    # Present for the packages whose lock entry carries a source distribution
+    # alongside its wheels: the extension prepares a build for those either way,
+    # and without these the preparation fails with "No module named build" even
+    # though the wheel is what gets used.
+    default_build_dependencies = [
+        "build",
+        "setuptools",
+    ],
+    hub_name = "pypi",
+    lock = "//:uv.lock",
+    pyproject = "//:pyproject.toml",
+)
+use_repo(uv, "pypi")

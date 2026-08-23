@@ -1,7 +1,31 @@
 # Root package. Build targets live in //tools, //infra and (later) the design
 # trees; nothing belongs here.
 
-# The one exception, and it is not a build target. //tools/format:format_test
-# formats the whole tree rather than a list of sources, and needs a file in the
-# root directory to find the root by.
-exports_files(["MODULE.bazel"])
+load("//tools:workspace_command.bzl", "workspace_command")
+
+# MODULE.bazel: //tools/format:format_test formats the whole tree rather than a
+# list of sources, and needs a file in the root directory to find the root by.
+#
+# pyproject.toml and uv.lock: //hardware/ip/chi_noc/nocgen:test reads both, to
+# catch a dependency added to one and not the other.
+exports_files([
+    "MODULE.bazel",
+    "pyproject.toml",
+    "uv.lock",
+])
+
+# Refreshes //:uv.lock from //:pyproject.toml, using the uv //MODULE.bazel pins
+# rather than whatever is on the machine -- a different uv is a different
+# lockfile.
+#
+#   bazel run //:uv_lock
+#
+# A `bazel run` and not a test, because re-resolving needs the index, and a test
+# that reaches the network fails for reasons unrelated to the change under
+# review. What CI checks is the weaker hermetic property: that every dependency
+# pyproject declares appears in the lock.
+workspace_command(
+    name = "uv_lock",
+    args = ["lock"],
+    tool = "@uv",
+)

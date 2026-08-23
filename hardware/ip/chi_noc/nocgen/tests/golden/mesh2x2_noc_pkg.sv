@@ -33,15 +33,49 @@ package mesh2x2_noc_pkg;
   localparam int unsigned NumDevices = 5;
 
   // RN-F at (0, 0) P0
+  localparam int unsigned RNF0_INDEX = 0;
   localparam logic [NodeIdWidth-1:0] RNF0_NODE_ID = 11'h000;
   // RN-F at (0, 0) P1
+  localparam int unsigned RNF1_INDEX = 1;
   localparam logic [NodeIdWidth-1:0] RNF1_NODE_ID = 11'h001;
   // HN-F at (1, 0) P0
+  localparam int unsigned HNF0_INDEX = 2;
   localparam logic [NodeIdWidth-1:0] HNF0_NODE_ID = 11'h080;
   // HN-I at (0, 1) P0
+  localparam int unsigned HNI0_INDEX = 3;
   localparam logic [NodeIdWidth-1:0] HNI0_NODE_ID = 11'h008;
   // SN-F at (1, 1) P0
+  localparam int unsigned SNF0_INDEX = 4;
   localparam logic [NodeIdWidth-1:0] SNF0_NODE_ID = 11'h088;
+
+  // Every device's NodeID, in index order, so a testbench can pick a target
+  // without knowing any of their names.
+  localparam logic [NodeIdWidth-1:0] DeviceNodeId [NumDevices] = '{
+      11'h000,  // rnf0
+      11'h001,  // rnf1
+      11'h080,  // hnf0
+      11'h008,  // hni0
+      11'h088  // snf0
+  };
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  // What this topology should manage
+  //
+  // Computed by nocgen from the topology itself rather than quoted from a
+  // textbook that assumed a different one, and asserted by
+  // //hardware/ip/chi_noc/test. A document that drifts from the design is worse
+  // than no document, so these are the document.
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // Zero-load latency is `LatencyPerHop * hops + LatencyOverhead` cycles.
+  localparam int unsigned LatencyPerHop = 2;
+  localparam int unsigned LatencyOverhead = 4;
+
+  // Flits per cycle per device, per channel class, in parts per thousand.
+  // Integer because SystemVerilog localparams are, and a ratio of counted flits
+  // to counted cycles is what a testbench can actually measure.
+  localparam int unsigned SaturationBoundPerMille = 1000;
+  localparam int unsigned MeanHopsPerMille = 960;
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   // System Address Map

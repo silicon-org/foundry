@@ -32,6 +32,21 @@ sh_test(
     deps = ["@bazel_tools//tools/bash/runfiles"],
 )
 
+# Three occurrences, two of them after the lesson was written down. A rule a
+# person keeps being asked to remember is a rule that belongs in a test.
+sh_test(
+    name = "verilog_comments_test",
+    size = "small",
+    srcs = ["verilog_comments.sh"],
+    args = ["$(rlocationpath //:MODULE.bazel)"],
+    data = [
+        "workspace_root.sh",
+        "//:MODULE.bazel",
+    ],
+    tags = _LOCAL,
+    deps = ["@bazel_tools//tools/bash/runfiles"],
+)
+
 sh_test(
     name = "ruff_check_test",
     size = "small",

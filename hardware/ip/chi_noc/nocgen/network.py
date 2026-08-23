@@ -93,16 +93,21 @@ class Network:
     def zero_load_latency(self, hops: int) -> int:
         """Cycles from injection to ejection over `hops` links.
 
-        The per-stage budget the README names: a link is the transmitter's flit
-        register, a crosspoint buffers the flit and then arbitrates it out. A
-        path crosses `hops + 1` crosspoints and `hops + 2` links -- the two extra
-        being the device's own, at each end, which are as real as any other and
-        are what a device actually waits for.
+        Every register on the path costs one cycle and nothing else costs
+        anything, because routing, arbitration and the crossbar are all
+        combinational. There are exactly two kinds of register: a transmitter's
+        flit register, and a receiver's buffer write.
 
-        Comes out as `3 * hops + 4`.
+        A path crosses `hops + 1` crosspoints, each contributing one of each, and
+        the two device ends contribute one each. So `2 * (hops + 1) + 2`, or
+        `2 * hops + 4`.
+
+        Measured, not assumed: //hardware/ip/chi_noc/test drives every ordered
+        pair through an otherwise empty mesh and requires this exactly. An
+        earlier version of this function charged a crosspoint two cycles on the
+        theory that arbitrating took one, and was wrong by a cycle per hop.
         """
-        crosspoint, link = 2, 1
-        return (hops + 1) * crosspoint + (hops + 2) * link
+        return 2 * (hops + 1) + 2
 
 
 def elaborate(config: Topology) -> Network:

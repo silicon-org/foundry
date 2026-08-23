@@ -127,100 +127,102 @@ M2 reduces the control planes to one, which frees two slots and would allow a
 single elastic worker inside even the current limit. That is a reason to do M2
 first, not a substitute for raising the limit.
 
-## Milestones
+## Target shape, derived from the measurements
 
-### M1 - Prove the mechanism
-
-**Completed 2026-08-23 via a two-step bootstrap. User-data does not work; the
-config must be applied after the node reaches maintenance mode.**
-
-### Results
-
-| measurement | value |
-|---|---|
-| cold start, create to `Ready` | **135 s** (maintenance at 44 s, config applied at 64 s, tailnet at 85 s) |
-| Verilator peak, untruncated | **24.24 GiB** |
-| CAS traffic, worker genuinely off-node, concurrency 6 | peak **34 MB/s** out, 17 MB/s in, 6.8 GB total |
-| PR 4 on a 64 GB node | **green** -- 17/17 tests, 1031 s |
-
-Cold start validates the design: minutes, not tens of minutes.
-
-**24.24 GiB is the number every earlier decision was missing.** The ccx33 has
-30.6 GB, of which ~1.1 goes to the system reserve, ~3.2 to resident services, up
-to 3 to the ARC runner and 2 to the worker container -- leaving about 21 GiB.
-The action needs 24. It was never going to fit at *any* concurrency, including
-one. Tuning `RUNNER_CONCURRENCY` from 6 to 4 to 2 was rearranging deck chairs,
-and only a limit high enough not to kill the process could reveal that -- which
-is exactly what a too-small limit prevents.
-
-Minimum viable build node: ~25 GiB for the runner plus ~10 for everything else,
-so **35 GB absolute floor, 64 GB with any headroom**.
-
-The network extrapolation in the section below was pessimistic. Measured
-off-node at concurrency 6 the CAS moved 34 MB/s, so ~91 MB/s at concurrency 16 --
-under a 1 Gbit link rather than past it. A local CAS cache is not urgent.
-
-### User-data does not work
-
-| server | type | config delivery | result |
+| tier | machine | cost | runs |
 |---|---|---|---|
+| always-on | `cx43` -- 8 vCPU, 16 GB | **EUR 17.29/mo** | control plane, Buildbarn scheduler/CAS/frontends, monitoring, ARC controller **and runner**, portal, Tailscale operator, plus a small Buildbarn worker |
+| elastic | `cx53` (16 vCPU, 32 GB, EUR 0.0511/h) or `ccx43` (16 dedicated, 64 GB, EUR 0.4781/h) | **EUR 0 when idle** | one Buildbarn worker, nothing else |
 
-| server | type | config delivery | result |
-|---|---|---|---|
-| foundry-worker-1 | ccx33 | `talosctl apply-config` by hand | works, in production |
-| foundry-worker-2 | ccx43 | none, then `apply-config` | **works -- maintenance mode at 44 s** |
-| foundry-worker-2 | ccx43 | `--user-data-from-file` | Talos API never listens |
-| foundry-worker-2 | ccx33 | `--user-data-from-file` | Talos API never listens |
+Today: `worker-1` is a `ccx33` at **EUR 149.71/month**, idle 94% of the time,
+and too small for the one action that matters. Replacing it with `cx43` plus
+20 elastic hours a month costs about **EUR 18-27**, an ~85% reduction, and
+removes the ceiling at the same time.
 
-Same snapshot, same generated config file, two server types -- so the variable
-is user-data, not the machine. In both failures the host booted far enough to
-take a private address and answer ICMP, but nothing ever listened on 50000. Not
-maintenance mode either: from inside the private network the port was *closed*
-while `10.0.1.11:50000` and `10.0.1.21:50000` answered from the same probe pod.
-It never reached the tailnet, so the extension never started, so the
-configuration never applied.
+**worker-1 is not needed.** Everything on it either belongs on the always-on
+node or belongs on a machine that only exists while a build is running.
 
-Why is not yet known, and the next step needs the Hetzner console -- an
-interactive step. Worth checking there first:
+Three sizing facts decide the tiers:
 
-- whether Talos panics or drops to maintenance without a listener
-- whether it is mid-install: applying a config makes Talos install over the disk
-  it booted from, and a failure there would look exactly like this
-- whether the metadata service serves the user-data verbatim, or the CLI wraps it
+- The heavy action peaks at **24.24 GiB**, so an elastic node needs 32 GB
+  minimum and 64 GB for comfort. A `cx53` fits it because that node runs the
+  worker and nothing else.
+- The always-on tier is ~3.2 GiB of services plus etcd and the API server, plus
+  **3 GiB for the ARC runner** -- which must be always-schedulable, because the
+  runner is what executes `bazel` and therefore what *creates* the demand that
+  triggers scaling. A node that has to scale up before the runner can start
+  cannot bootstrap itself.
+- A small always-on worker keeps the common case fast. A typical run executes
+  three actions remotely; waiting 135 s for a machine to serve three actions
+  would double the wall time of a two-minute build.
 
-If user-data cannot be made to work, the alternatives, cheapest first: a
-controller that applies the config over the Talos API once a node boots into
-maintenance mode (keeps `apply-config`, loses "no moving parts"); `talos.config=`
-as a kernel argument, which needs a custom image or PXE; or SideroLink/Omni,
-which is a much larger dependency.
+## Implementation
 
-- [ ] Establish why user-data does not apply, from the console
-- [ ] **Measure cold start**: create -> boot -> join -> worker registers. The
-      whole design assumes this is minutes, not tens of minutes. Not yet
-      measured, because no elastic node has ever joined.
-- [ ] Measure CAS throughput with the worker genuinely off-node
+### P0 - Prerequisites
 
-### M2 - Shrink the floor
-- [ ] Control plane to one; `allowSchedulingOnControlPlanes: true`
-- [ ] Everything always-on lands on that node
-- [ ] Retire the private load balancer -- one control plane is its own endpoint
-- [ ] Confirm the floor cost
+- [ ] Hetzner support: raise the project server limit (10+) and dedicated vCPU
+      quota (32+). Four servers is today's ceiling and autoscaling cannot work
+      inside it.
+- [ ] `tofu apply -var="control_plane_count=1"` so state matches the two
+      control planes already removed
 
-### M3 - Routing
-- [ ] `size=large` exec_properties on the heavy targets
-- [ ] A second Buildbarn worker Deployment and platform queue for them
-- [ ] Verify a large action queues rather than OOM-killing a small worker
+### P1 - Collapse to one always-on node
 
-### M4 - Automate
-- [ ] KEDA on scheduler queue depth
-- [ ] cluster-autoscaler with the hetzner provider
-- [ ] Hour-boundary scale-down and cooldown
-- [ ] An alert for a worker that fails to arrive -- the failure mode is a queue
-      that never drains, which otherwise looks like a hung build
+Saves EUR 149.71/month on its own, and is worth doing whether or not the rest
+lands.
 
-### M5 - Tear down what is left
-- [ ] Delete the surplus control planes and the load balancer
-- [ ] Keep the CAS volume and the snapshot; both are load-bearing here
+- [ ] Resize `cp-1`: `cx23` -> `cx43` (`hcloud server change-type`, powers the
+      server off, keeps the disk). Brief downtime.
+- [ ] `allowSchedulingOnControlPlanes: true`, regenerate, apply
+- [ ] Drain `worker-1`; confirm the CAS volume detaches and reattaches on the
+      new node -- this is the step that can go slowly and is worth watching
+- [ ] Delete `worker-1`
+
+Accepted here, again: CI then shares a kernel with etcd. Fork pull requests
+never reach these runners, the pods are rootless under `restricted`, and the
+alternative is paying EUR 150/month for isolation on a machine that cannot run
+the build anyway.
+
+### P2 - Two worker classes, scaled by hand
+
+Shippable on its own: full capability, manual scaling.
+
+- [ ] Split the worker Deployment in two:
+      - `worker-small` -- always-on node, concurrency 2, ~4 GiB, platform
+        `size=small`
+      - `worker-large` -- `nodeSelector: pool=build`, concurrency 6, 44 GiB,
+        platform `size=large`, and **`replicas` omitted from git** so Flux never
+        owns that field and a scaler can
+- [ ] `exec_properties = {"size": "large"}` on the heavy targets
+- [ ] Verify a large action *queues* rather than landing on the small worker
+- [ ] Document the manual path: create a node, `apply-config`, 135 s to Ready
+
+### P3 - Automate provisioning
+
+The one unsolved piece. `cluster-autoscaler` creates a server; something must
+configure it, and **user-data does not work** (see M1).
+
+- [ ] **Preferred: a pre-configured worker snapshot.** Boot a node from the base
+      snapshot, apply the worker machine config, let it install, power off, take
+      a snapshot. Servers created from *that* join with no configuration step at
+      all, which removes the problem rather than working around it. A worker's
+      config is generic -- the hostname comes from DHCP -- so one image serves
+      every elastic node.
+      Cost: the snapshot carries cluster secrets, so anyone with project access
+      can mint a node that joins. Same boundary as user-data would have been,
+      and it must be rebuilt when the cluster CA rotates.
+- [ ] Fallbacks if that fails: diagnose user-data from the Hetzner console, or a
+      controller that applies config to nodes sitting in maintenance mode.
+
+### P4 - Close the loop
+
+- [ ] KEDA `ScaledObject` on the scheduler's queue depth for `size=large`,
+      driving `worker-large` replicas 0 -> N
+- [ ] `cluster-autoscaler`, hetzner provider, node group `pool=build`, min 0,
+      **max 2 as a cost guard**
+- [ ] Scale-down only when idle *and* near the end of a paid hour
+- [ ] Alert when the large queue is non-empty and no node arrives -- the failure
+      mode is a build that hangs rather than fails, which looks like nothing
 
 ## Open questions
 

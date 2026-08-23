@@ -20,8 +20,11 @@
 #                           headroom is deliberate: the previous three attempts
 #                           all measured a ceiling rather than a peak, because a
 #                           limit that kills the process hides what it wanted.
-#   concurrency 6           six of these fit beside a 24 GiB action on a 64 GB
-#                           node; more would not.
+#   concurrency 8 + 1       eight small actions and one large. A large worker
+#                           serves both classes, because routing only the heavy
+#                           action here left this node idle for an entire build
+#                           while a 2-concurrency worker ground through ten
+#                           thousand compiles.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -76,9 +79,14 @@ spec:
           # register a worker for an architecture it cannot execute.
           value: amd64
         - name: RUNNER_CONCURRENCY
-          value: '6'
+          value: '8'
         - name: SIZE
           value: large
+        # One heavy action at a time. The elaboration peaks at 24.24 GiB, so
+        # two would not fit beside the eight small actions above on a 64 GB
+        # node -- 24 + 8*3.3 already comes to 50.
+        - name: LARGE_CONCURRENCY
+          value: '1'
         ports:
         - name: metrics
           containerPort: 9980

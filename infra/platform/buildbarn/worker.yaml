@@ -80,6 +80,11 @@ spec:
             # it cannot actually run -- the same guard as ISA.
             - name: SIZE
               value: small
+            # Only read when SIZE is large. Defined here anyway so the variable is
+            # never merely absent -- jsonnet is lazy, so an unset one would fail on
+            # the day a worker first served the large class and not before.
+            - name: LARGE_CONCURRENCY
+              value: "1"
           ports:
             # The only port the worker exposes. It dials the scheduler rather
             # than being dialled, so this exists purely so a PodMonitor can

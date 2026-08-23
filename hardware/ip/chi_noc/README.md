@@ -234,23 +234,33 @@ With `NodeID = (X << 7) | (Y << 3) | P` and every device on P0:
 
 ### Latency
 
-Per-stage budget, which is the M2 target and the thing M2 either confirms or
-corrects here:
+**Measured**, by driving every ordered pair through an otherwise empty mesh:
+`2H + 4` cycles for a path of `H = |Δx| + |Δy|` hops.
+
+Every register on the path costs a cycle and nothing else costs anything,
+because routing, arbitration and the crossbar are all combinational. There are
+only two kinds of register:
 
 | stage | cycles | |
 |---|---:|---|
-| link | 1 | the transmitter's flit register |
-| crosspoint | 2 | buffer the flit; arbitrate and drive the output |
+| transmitter | 1 | the flit register on the way out of a port |
+| receiver | 1 | the write into the buffer the credit paid for |
 
-A path of `H = |Δx| + |Δy|` hops costs `3H + 4` cycles: three to inject and
-traverse the first crosspoint, three per hop after it, one to eject.
+A path crosses `H + 1` crosspoints, each contributing one of each, and the two
+device ends contribute one each: `2(H + 1) + 2`.
 
-- adjacent devices on one crosspoint, `H = 0` — **4 cycles**
-- corner to corner, `H = 6` — **22 cycles**
-- mean over uniformly random pairs, `H = 2.5` — **11.5 cycles**
+- two devices on one crosspoint, `H = 0` — **4 cycles**
+- corner to corner, `H = 6` — **16 cycles**
+- mean over uniformly random pairs, `H = 2.5` — **9 cycles**
 
 The mean hop count is `2(k²−1)/3k` for a `k × k` mesh, which is 2.5 at k = 4,
 counting the src = dst pairs as zero hops.
+
+This paragraph used to say `3H + 4`, on the reasoning that a crosspoint spends a
+cycle buffering and a second arbitrating. It does not: arbitration is
+combinational, so a crosspoint costs one cycle and not two. The design was a
+cycle per hop faster than its own documentation, which is the pleasant direction
+to be wrong in and still worth not being wrong about.
 
 ### Throughput
 
@@ -280,10 +290,35 @@ the 256 ordered pairs, so the quietest link runs at three quarters of the
 busiest. There is no hot link to design around at this size, which is worth
 knowing before anyone proposes virtual channels to fix one.
 
-Dimension-ordered routing with shallow input buffers does not reach 1.0 under
-uniform random. M3 measures the real figure and records it here; the test
-asserts a floor so that the number cannot quietly regress, and the floor starts
-at **0.45** rather than at a guess dressed up as a requirement.
+Measured, at saturation, with 256 flits from each of the sixteen devices:
+
+| pattern | flits/cycle/device | ceiling | mean latency | what limits it |
+|---|---:|---:|---:|---|
+| uniform | **0.433** | 1.0 | 15 | head-of-line blocking at the inputs |
+| bit-complement | **0.400** | 1.0 | 19 | as above, over longer paths |
+| transpose | **0.235** | 1.0 | 20 | traffic concentrated on the diagonal's links |
+| hotspot | **0.053** | 0.0625 | 101 | one destination port, shared sixteen ways |
+
+Hotspot's ceiling is not the network's. Sixteen devices addressing one can never
+exceed the one flit per cycle that device can eject, so 1/16 is the bound and
+0.053 is 85% of it — the fabric is delivering nearly everything the destination
+can take, and the queue in front of it is what the 101-cycle latency is.
+
+For the other three the ceiling is 1.0 and the gap is the microarchitecture, as
+the paragraph above promised it would be. The identified cause is head-of-line
+blocking: a receiver exposes one flit at a time, so an input whose head is
+blocked holds up the flit behind it even when *that* one's output is free. The
+remedy is a receiver that can pop out of order, which is a change to
+`//hardware/ip/chi`, and it now has a number to be justified against.
+
+The tests assert a floor a little under each measurement. They are a **ratchet
+against regression, not a specification** — raising one when the design improves
+is the point of having it, and a floor nobody can move is a floor nobody chose.
+
+One honest gap: `nocgen` computes the analytic bound for *uniform* traffic only,
+so transpose and bit-complement are quoted against a ceiling that is theirs only
+in the sense of being an upper bound. Their real bounds are computable from the
+same link-load model and are not yet computed.
 
 Populating P1 as well would double the devices without changing the mesh, and
 the per-link bounds would halve relative to injection while the ejection bound
@@ -308,6 +343,13 @@ for many times the credit count, and one output stalled while the other five kee
 running. Each of the three assertions has a test that makes it fire — an illegal
 turn, a flit addressed to no port, and an input starved past its bound — because
 an assertion nobody has watched fail is decoration.
+
+Then the mesh, which is where the questions that need a network get asked: every
+one of the 240 ordered device pairs delivers; zero-load latency matches `2H + 4`
+for each of them; 4096 flits of uniform random traffic drain, and drain again
+with every destination stalling at random; and the four traffic patterns above
+are measured rather than assumed. A fabric that deadlocks does not drain, so the
+watchdog is the verdict and the flit count is the evidence.
 
 `bazel build --config=lint //hardware/...` elaborates every generated topology
 against the real crosspoint, which is what catches the generator and the RTL

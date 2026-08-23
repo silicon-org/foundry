@@ -100,10 +100,34 @@ cost gets measured rather than guessed at.
 
 ## M3 — the mesh, at flit level
 
-- [ ] **Gate:** all-to-all correctness, every ordered pair, all four classes
-- [ ] **Gate:** no deadlock under saturation with stalling receivers; drains
-- [ ] **Gate:** throughput and zero-load latency against M0's numbers
-- [ ] **Gate:** transpose, bit-complement and hotspot
+- [x] The generated netlist takes an indexed device-port array rather than a
+      port per device, with `<NAME>_INDEX` localparams, so a testbench can drive
+      all sixteen the same way and integration stays explicit.
+- [x] `nocgen` emits what a test needs to judge the mesh by: every device's
+      NodeID in index order, the latency coefficients, and the saturation bound.
+- [x] **Gate passed.** All 240 ordered device pairs deliver. `all_classes` also
+      sends on RSP, DAT and SNP, which is what would catch a class miswired in a
+      generated netlist rather than in the RTL.
+- [x] **Gate passed.** 4096 flits of uniform random traffic drain; and drain
+      again with every destination stalling at random one cycle in four.
+- [x] **Gate passed, and it corrected M0.** Zero-load latency is `2H + 4`, not
+      `3H + 4` — arbitration is combinational, so a crosspoint costs one cycle
+      and not two. Checked for every ordered pair against the coefficients
+      nocgen emits.
+- [x] **Gate passed.** Four patterns measured at saturation: uniform 0.433,
+      bit-complement 0.400, transpose 0.235, hotspot 0.053 flits/cycle/device.
+      Each test asserts a floor just under its measurement, as a ratchet.
+
+What the numbers say: hotspot reaches 85% of what a single destination port can
+possibly eject, so the fabric is not the limit there. For the other three the
+ceiling is 1.0 and the gap is **head-of-line blocking**, exactly as the README
+predicted it would be — a receiver exposes one flit at a time. The remedy is a
+receiver that can pop out of order; it is a change to `//hardware/ip/chi` and it
+now has a number to be justified against rather than a suspicion.
+
+Still open: `nocgen` computes the analytic bound for uniform traffic only, so
+transpose and bit-complement are quoted against an upper bound rather than
+against theirs.
 
 ## M4 — protocol level
 

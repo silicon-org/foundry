@@ -403,3 +403,31 @@ more time than it should have.
   per port, started from a generate loop, expresses concurrent stimulus without
   any of it -- and reads better, since each port's driver is a thing rather than
   a fragment of a loop body.
+
+- A latency budget written from a block diagram charged a crosspoint two cycles,
+  one to buffer and one to arbitrate. Arbitration is combinational, so it is one
+  cycle, and the whole fabric was a cycle per hop faster than its own
+  documentation. **Count registers, not stages**: on this path every register
+  costs a cycle and nothing else costs anything, which makes the number
+  derivable rather than estimated. Measuring it took one test over every
+  ordered pair and settled it in a second.
+
+- A traffic pattern that maps a node to itself is a node addressing its own
+  NodeID, which a crosspoint asserts on and is right to. Transpose fixes every
+  device on the diagonal; hotspot makes the target one of the sources. Both are
+  standard patterns and both need the same guard, so it belongs once in the
+  destination function rather than in each pattern -- "no device addresses
+  itself" is a property of traffic, not of one pattern.
+
+- A "floor" in a throughput test is a **ratchet, not a specification**. The one
+  written into the README before measuring said 0.45; the measurement said
+  0.433, which is a perfectly good number for dimension-ordered routing with
+  head-of-line blocking. Guessing a floor and then discovering the design misses
+  it invites the wrong argument. Measure, set the floor just under, and say in
+  the file that raising it is the point.
+
+- `git ls-files` lists only *tracked* files, so a check built on it does not see
+  a file that has just been written -- which is exactly when a person runs it.
+  Use `--cached --others --exclude-standard` where the question is "does the
+  tree build", and plain `ls-files` only where the question is genuinely about
+  what is in the history.

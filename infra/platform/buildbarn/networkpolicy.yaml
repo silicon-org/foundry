@@ -137,6 +137,20 @@ spec:
         # runner is none of them, so this one is invisible until a developer does a
         # cold build on a Mac. The reverse of the busybox case below it.
         - matchName: cdn.azul.com
+        # Python wheels, fetched by aspect_rules_py through this service.
+        #
+        # arc/networkpolicy.yaml argues against allowing this host: "those
+        # repositories are declared and never materialised, so allowing it would
+        # widen egress for a download that does not happen." That was true when
+        # written and is not any more -- pytest, iniconfig and jinja2 are
+        # materialised now, and the build fails during analysis with
+        # "NOT_FOUND: Unable to download blob from any provided URI", which names
+        # neither Python nor a network policy.
+        #
+        # files.pythonhosted.org is the CDN; pypi.org serves the index that
+        # points at it, and a fetch needs both.
+        - matchName: pypi.org
+        - matchName: files.pythonhosted.org
       toPorts:
         - ports:
             - {port: "443", protocol: TCP}

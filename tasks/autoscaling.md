@@ -33,15 +33,7 @@ the sample cannot tell us is how often the *heavy* tier will fire once RTL work
 resumes in earnest. The design must therefore be cheap when idle rather than
 tuned to a predicted rate.
 
-## Shape
-
-| tier             | lives                                                                                                | sized for                                                 |
-| ---------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| always-on node   | control plane + scheduler, CAS, frontends, remote-asset, ARC, monitoring, portal, Tailscale operator | ~3.2 GiB measured steady state                            |
-| always-on worker | small, permanent                                                                                     | the 3-minute cache-walk run, with no provisioning latency |
-| elastic workers  | created and **deleted** on demand                                                                    | whatever the queued work needs                            |
-
-Two rules that fall out of how Hetzner bills:
+## Two rules that fall out of how Hetzner bills
 
 - **A stopped server still bills.** Scaling to zero means *deleting* it, so
   anything elastic must hold no state. The Buildbarn worker qualifies: emptyDir
@@ -49,9 +41,8 @@ Two rules that fall out of how Hetzner bills:
 - **The CAS never moves.** It is the value the cluster accumulates, and it stays
   on the always-on node's volume.
 
-Keeping a small always-on worker rather than scaling to true zero is what stops
-every push waiting three minutes for a machine before discovering it had nothing
-to execute.
+The tier sizing that used to be here was a guess. It has been replaced by
+measured figures -- see "Target shape" below.
 
 ## Deciding what is "large"
 
@@ -95,18 +86,16 @@ costs two hours instead of one.
 - **down**: idle for N minutes **and** within the last ~10 minutes of a paid hour
 - plus a cooldown, so a burst of pushes does not thrash
 
-## The network constraint
+## The network constraint, measured
 
-Measured during a heavy build, at concurrency 2, with worker and CAS on the same
-node: 25 MB/s in and 28.6 MB/s out of the CAS pod, and only 1.1 MB/s across
-eth0 -- the traffic never left the host.
+An earlier extrapolation here predicted ~230 MB/s at concurrency 16 and worried
+about saturating a 1 Gbit link. Measured with the worker genuinely on its own
+node at concurrency 6, the CAS moved **34 MB/s out and 17 MB/s in**, 6.8 GB over
+an 18-minute build. Extrapolating the same way gives ~91 MB/s at concurrency 16
+-- under the link, not past it.
 
-Move the worker to its own node and that becomes real network traffic. Scaled to
-concurrency 16 it extrapolates to roughly 230 MB/s, past a 1 Gbit link. So
-either the elastic worker runs a local CAS cache, or effective concurrency is
-bounded by the network rather than by cores. Worth measuring properly the first
-time a large worker runs, because it decides whether "just buy more cores"
-actually buys anything.
+So a local CAS cache on the elastic worker is not urgent. Revisit only if
+concurrency goes well past 16 or the always-on node starts showing network wait.
 
 ## Prerequisite: the project server limit
 
@@ -123,9 +112,10 @@ raise the project limit, and ask for enough headroom to be worth having:
 - **dedicated vCPU (ccx)**: enough for the largest worker intended -- a ccx53 is
   32 -- since that class is often capped separately
 
-M2 reduces the control planes to one, which frees two slots and would allow a
-single elastic worker inside even the current limit. That is a reason to do M2
-first, not a substitute for raising the limit.
+Requested 2026-08-23, pending. Meanwhile the control planes have been collapsed
+to one, which leaves two free slots -- enough to build and test everything below
+except running more than one elastic worker at a time. So this blocks P4 at
+scale, not P1 to P3.
 
 ## Target shape, derived from the measurements
 
@@ -166,22 +156,38 @@ Three sizing facts decide the tiers:
 - [ ] `tofu apply -var="control_plane_count=1"` so state matches the two
       control planes already removed
 
-### P1 - Collapse to one always-on node
+### P1 - Replace worker-1 with a small always-on node
 
-Saves EUR 149.71/month on its own, and is worth doing whether or not the rest
-lands.
+`worker-1` is a `ccx33` at **EUR 149.71/month**. It is idle 94% of the time and
+cannot build the one action that matters -- 24.24 GiB needed against ~21
+available -- so main's CI is red *with* it. Removing it loses nothing.
 
-- [ ] Resize `cp-1`: `cx23` -> `cx43` (`hcloud server change-type`, powers the
-      server off, keeps the disk). Brief downtime.
-- [ ] `allowSchedulingOnControlPlanes: true`, regenerate, apply
-- [ ] Drain `worker-1`; confirm the CAS volume detaches and reattaches on the
-      new node -- this is the step that can go slowly and is worth watching
+Add a node rather than resizing `cp-1`, which is a change from the earlier
+sketch and cheaper in risk:
+
+- no downtime; resizing would power off the cluster's only control plane
+- etcd and the API server stay off the node that runs CI, which is the isolation
+  the three-control-plane design was protecting and the only reason it existed
+- reversible: add, migrate, delete, rather than mutate in place
+
+It costs EUR 5.93/month more (`cp-1` stays a `cx23`) and uses a second permanent
+slot, so until the limit is raised there is room for two elastic workers rather
+than three. Both are noise against EUR 149.71.
+
+- [ ] Create `foundry-worker-2` as a `cx43` (8 vCPU, 16 GB, EUR 17.29/mo), no
+      user-data, then `apply-config` -- 135 s to Ready, measured
+- [ ] Shrink the Buildbarn worker to fit 16 GB alongside the services and the
+      ARC runner: concurrency 2, runner ~6 GiB. This is P2's small class arriving
+      early, because a 20 GiB limit on a 16 GB node is a node-level OOM waiting
+      for a build.
+- [ ] Drain `worker-1`; watch the CAS volume detach and reattach -- the slowest
+      and most failure-prone step
 - [ ] Delete `worker-1`
 
-Accepted here, again: CI then shares a kernel with etcd. Fork pull requests
-never reach these runners, the pods are rootless under `restricted`, and the
-alternative is paying EUR 150/month for isolation on a machine that cannot run
-the build anyway.
+Consequence to accept knowingly: heavy builds then need an elastic node, which
+is manual until P3. CI stays red on that one action either way, so this changes
+what it costs rather than whether it works. If the other 16 tests are wanted
+green in the meantime, tag the heavy test `manual` until P3 lands.
 
 ### P2 - Two worker classes, scaled by hand
 
@@ -226,11 +232,20 @@ configure it, and **user-data does not work** (see M1).
 
 ## Open questions
 
-- Is a 3-4 minute cold start acceptable for heavy builds? Probably yes at 10-30
-  minute runtimes, but M1 measures it rather than assuming.
-- How small can the always-on worker be before ordinary builds suffer?
-- Does the elastic worker need a local CAS cache from the start, or only once
-  concurrency rises?
+Answered by M1:
+
+- ~~Is a 3-4 minute cold start acceptable?~~ It is 135 s, and yes.
+- ~~Does the elastic worker need a local CAS cache?~~ Not at concurrency 6; 34
+  MB/s measured against a 1 Gbit link.
+
+Still open:
+
+- How small can the always-on worker be before ordinary builds suffer? A typical
+  run executes three actions remotely, so the answer is probably "very", but it
+  has not been tested.
+- Does a pre-configured worker snapshot actually boot and join, and does it
+  survive a cluster CA rotation gracefully? This is P3 and it is the one piece
+  with no evidence behind it yet.
 
 ## Review
 

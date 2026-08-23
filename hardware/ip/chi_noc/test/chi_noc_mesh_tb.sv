@@ -20,7 +20,10 @@
 // One model, several cases: `+case=` picks which. See BUILD.bazel.
 module chi_noc_mesh_tb #(
     parameter time ClkHalfPeriod = 1ns,
-    parameter int unsigned Credits = 4,
+    // Matches the fabric's: a device link with fewer credits than the
+    // crosspoints have would be the bottleneck, and would be measuring the
+    // testbench rather than the mesh.
+    parameter int unsigned Credits = 6,
 
     // Flits per source for the throughput and pattern cases. Enough that the
     // measurement is of steady state rather than of filling the pipes.
@@ -167,7 +170,8 @@ module chi_noc_mesh_tb #(
     PatternUniform,
     PatternTranspose,
     PatternComplement,
-    PatternHotspot
+    PatternHotspot,
+    PatternNeighbour
   } pattern_e;
 
   pattern_e pattern;
@@ -191,10 +195,11 @@ module chi_noc_mesh_tb #(
   // else, so its ceiling is one flit per cycle shared sixteen ways.
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  localparam int unsigned FloorUniform = 400;  // measured 433
-  localparam int unsigned FloorTranspose = 220;  // measured 235
-  localparam int unsigned FloorComplement = 380;  // measured 400
-  localparam int unsigned FloorHotspot = 50;  // measured 53, against a ceiling of 62
+  localparam int unsigned FloorUniform = 560;  // measured 603
+  localparam int unsigned FloorTranspose = 270;  // measured 286
+  localparam int unsigned FloorComplement = 470;  // measured 500
+  localparam int unsigned FloorHotspot = 60;  // measured 66, against a ceiling of 125
+  localparam int unsigned FloorNeighbour = 950;  // measured 1000 -- line rate
 
   // The simulator's $urandom is per-process, which is what we want here:
   // sixteen injectors picking independently.
@@ -218,6 +223,16 @@ module chi_noc_mesh_tb #(
         // crosspoint, so every transpose lands on a real device.
         return device_at(chi_noc_x_t'(chi_noc_node_y(DeviceNodeId[src])),
                          chi_noc_y_t'(chi_noc_node_x(DeviceNodeId[src])));
+      end
+      PatternNeighbour: begin
+        // One hop east, wrapping within the row. A permutation, so every input
+        // has exactly one destination and every output exactly one source:
+        // head-of-line blocking is impossible by construction and no link
+        // carries more than one stream. The control for the throughput
+        // measurements -- whatever this reaches is what the fabric can do when
+        // nothing is in anything else's way.
+        return device_at(chi_noc_x_t'((chi_noc_node_x(DeviceNodeId[src]) + 1) % 4),
+                         chi_noc_y_t'(chi_noc_node_y(DeviceNodeId[src])));
       end
       PatternComplement: return Devices - 1 - src;
       PatternHotspot:    return hotspot_target;
@@ -408,6 +423,20 @@ module chi_noc_mesh_tb #(
     end
   endfunction
 
+  // How many device ports the current pattern actually aims at. Aggregate
+  // ejection cannot exceed one flit per cycle per distinct destination.
+  function automatic int unsigned distinct_destinations();
+    logic [Devices-1:0] hit;
+    int unsigned count;
+    // Uniform draws afresh every flit, so every device is a destination.
+    if (pattern == PatternUniform) return Devices;
+    hit = '0;
+    for (int unsigned s = 0; s < Devices; s++) hit[destination(s)] = 1'b1;
+    count = 0;
+    for (int unsigned d = 0; d < Devices; d++) if (hit[d]) count++;
+    return count;
+  endfunction
+
   // Throughput as flits per cycle per device, in parts per thousand, so it can
   // be compared against the generated bound without a real number in sight.
   function automatic int unsigned throughput_per_mille(input int unsigned flits,
@@ -535,11 +564,12 @@ module chi_noc_mesh_tb #(
       // generated package, which nocgen computed from this topology; the floor
       // is policy, and is what stops a regression passing quietly.
       "throughput_uniform", "throughput_transpose", "throughput_complement",
-          "throughput_hotspot": begin
+          "throughput_hotspot", "throughput_neighbour": begin
         case (test_case)
           "throughput_transpose":  pattern = PatternTranspose;
           "throughput_complement": pattern = PatternComplement;
           "throughput_hotspot":    pattern = PatternHotspot;
+          "throughput_neighbour":  pattern = PatternNeighbour;
           default:                 pattern = PatternUniform;
         endcase
         // Fixed destinations for everything but uniform, so the pattern is the
@@ -562,14 +592,23 @@ module chi_noc_mesh_tb #(
         drain();
         expect_all_delivered();
 
-        // Hotspot is capped by its single destination rather than by the
-        // network, so the network's bound is not the number to quote at it.
-        ceiling = (pattern == PatternHotspot) ? (1000 / Devices) : SaturationBoundPerMille;
+        // Two ceilings, and the lower one binds. The network's comes from
+        // nocgen. The other is ejection: a destination takes one flit a cycle,
+        // so a pattern that aims everything at a few of them cannot exceed
+        // `destinations / devices` however good the fabric is.
+        //
+        // Counting distinct destinations rather than special-casing hotspot,
+        // because the count is what actually matters and hotspot's is not one:
+        // the self-addressing guard sends the target's own traffic elsewhere,
+        // making it two.
+        ceiling = 1000 * distinct_destinations() / Devices;
+        if (ceiling > SaturationBoundPerMille) ceiling = SaturationBoundPerMille;
 
         case (pattern)
           PatternTranspose:  floor = FloorTranspose;
           PatternComplement: floor = FloorComplement;
           PatternHotspot:    floor = FloorHotspot;
+          PatternNeighbour:  floor = FloorNeighbour;
           default:           floor = FloorUniform;
         endcase
 

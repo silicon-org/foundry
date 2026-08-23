@@ -1,0 +1,74 @@
+# The generator that turns a topology description into a mesh.
+#
+# Three outputs from one description -- the netlist, the package the RTL
+# includes, and the JSON the testbench reads -- so that the design and the thing
+# checking it cannot disagree about a NodeID. See ../README.md.
+
+load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library", "py_pytest_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["examples/*.yml"]))
+
+# `imports` puts //hardware/ip/chi_noc on sys.path, so the package is `nocgen`
+# and not `hardware.ip.chi_noc.nocgen`. The templates are data because emit.py
+# finds them next to itself rather than through a label.
+py_library(
+    name = "lib",
+    srcs = [
+        "__init__.py",
+        "config.py",
+        "emit.py",
+        "network.py",
+        "routing.py",
+        "sam.py",
+    ],
+    data = glob(["templates/*.jinja"]),
+    imports = [".."],
+    deps = [
+        "@pypi//jinja2",
+    ],
+)
+
+py_binary(
+    name = "nocgen",
+    srcs = ["__main__.py"],
+    # //:pyproject.toml keeps one dependency group, and rules_py makes a package
+    # reachable only under a group that names it. Set here rather than as a flag
+    # in //.bazelrc: a Starlark build setting is part of the configuration, so
+    # setting one globally changes every output path in the repository and
+    # rebuilds Verilator from source to run a Python test.
+    dep_group = "dev",
+    imports = [".."],
+    main = "__main__.py",
+    deps = [
+        ":lib",
+        "@pypi//pyyaml",
+    ],
+)
+
+# One target for the whole suite rather than one per file: these run in a
+# quarter of a second with no simulator, and splitting them would buy a finer
+# failure name at the cost of four Bazel actions. The layers that are slow --
+# M2's and M3's -- are the ones that get a target each.
+py_pytest_test(
+    name = "test",
+    size = "small",
+    srcs = glob(["tests/*.py"]),
+    data = glob([
+        "examples/*.yml",
+        "tests/golden/*",
+    ]) + [
+        # test_lockfile.py reads both, to catch a dependency added to one and
+        # not the other.
+        "//:pyproject.toml",
+        "//:uv.lock",
+    ],
+    dep_group = "dev",
+    imports = [".."],
+    deps = [
+        ":lib",
+        "@pypi//pytest",
+        "@pypi//pyyaml",
+    ],
+)

@@ -194,3 +194,45 @@ unreachable by construction does not belong in a list of bins that must be hit.
 ## M6 — a topology that is not a mesh *(stretch)*
 
 - [ ] Ring, one irregular topology, and table-driven routing
+
+## Where this stands
+
+M0 through M5 are done. A CHI transport fabric exists, is generated from a
+description, and is verified at five layers: the routing function against a
+model exhaustively, one crosspoint against itself, a mesh at flit level, real
+CHI transactions across it, and a coverage list that says the cases were the
+right ones.
+
+What the numbers are, all measured rather than budgeted:
+
+| | |
+|---|---|
+| zero-load latency | `2H + 4` cycles, every ordered pair |
+| uncontended throughput | 1.000 flit/cycle/device |
+| uniform random | 0.603 |
+| bit-complement / transpose / hotspot | 0.500 / 0.286 / 0.066 |
+| transactions across the mesh | 264, no mismatches |
+
+Three of those numbers contradicted what M0 predicted, and the predictions were
+wrong in ways worth remembering: latency was budgeted a cycle per hop too slow,
+the throughput floor was guessed before measuring, and the credit count was set
+from a comment rather than a measurement — costing 20% of the bandwidth of every
+link in the fabric until a control with no contention in it exposed it.
+
+### Open, in the order it is probably worth doing
+
+1. **Head-of-line blocking.** Uniform sits at 0.603 against a ceiling of 1.0,
+   close to the classic input-queued FIFO bound of `2 - sqrt(2)`. The remedy is
+   a receiver that can pop past a blocked head; the hazard is that two flits
+   from one input to the same output must not be reordered, and
+   `chi_noc_mesh_all_pairs_test` plus the per-pair ordering check is the safety
+   net it would need. A change to `//hardware/ip/chi`, shared with the VIP.
+2. **`chi_sam.sv`.** The System Address Map is a function in the system
+   testbench today. It belongs in RTL, and `chi_noc_system_tb`'s `home_for` is
+   what it has to agree with.
+3. **A pattern-aware analytic bound.** `nocgen` computes the network bound for
+   uniform traffic only, so transpose and bit-complement are quoted against an
+   upper bound rather than theirs. The link-load model already there can do it.
+4. **M6**, below: a ring, an irregular topology, and table-driven routing.
+5. **A real HN-F** — snoop filter, MSHRs, SLC. The separate programme this one
+   had to finish first, and the reason the fabric was kept to transport.

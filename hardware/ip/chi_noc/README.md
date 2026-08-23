@@ -187,16 +187,30 @@ if it is to mean anything at all.
 ## Credits
 
 CHI's flow control is L-Credits: a transmitter sends only while it holds one,
-the receiver grants them by pulsing LCRDV, and there is no ready anywhere. A
-channel therefore runs at line rate only if the transmitter holds at least as
-many credits as the round trip takes to return one — flit out, into the receiver
-buffer, LCRDV back — and at `credits / round-trip` of line rate otherwise.
+the receiver grants them by pulsing LCRDV, and there is no ready anywhere. So a
+channel runs at line rate only if the transmitter holds at least as many credits
+as the round trip takes to return one, and at `credits / round-trip` of line rate
+otherwise.
 
-At the per-stage budget below the round trip is three cycles, so **four credits
-per channel per port** sustains a flit every cycle with one to spare. That is
-already `chi_link_rn`'s default. The specification caps a receiver at 15
+**The round trip is five cycles.** Measured, by driving a permutation in which
+every input has exactly one destination and no two streams share a directed link
+— nothing contends with anything, so whatever that reaches is what the fabric
+can do unobstructed. It reaches `min(1, Credits/5)` exactly: four credits give
+80.0%, five give 100.0%, and no amount of extra depth moves it.
+
+The default is **six**, one more than the floor. The round trip is a property of
+the current pipeline, and if a register is ever added to the credit path five
+would quietly drop back under line rate — the symptom being a fifth of the
+bandwidth missing, with nothing failing. The specification caps a receiver at 15
 outstanding (`chi_pkg::CHI_MAX_LCREDITS`), and exceeding it means the receiver is
 broken rather than generous, which the existing assertion says.
+
+This paragraph used to say four credits sufficed because "a credit takes three
+cycles to come back". That was a budget read off a block diagram, and it cost
+20% of the fabric's bandwidth on every link in it, contended or not. The lesson
+is not about credits: **a number that determines throughput should be measured
+before it is defaulted**, and a permutation with no contention in it is a cheap
+way to measure this one.
 
 ## The address map
 
@@ -290,36 +304,47 @@ the 256 ordered pairs, so the quietest link runs at three quarters of the
 busiest. There is no hot link to design around at this size, which is worth
 knowing before anyone proposes virtual channels to fix one.
 
-Measured, at saturation, with 256 flits from each of the sixteen devices:
+Measured, at saturation, with 256 flits from each of the sixteen devices and six
+credits per port:
 
 | pattern | flits/cycle/device | ceiling | mean latency | what limits it |
 |---|---:|---:|---:|---|
-| uniform | **0.433** | 1.0 | 15 | head-of-line blocking at the inputs |
-| bit-complement | **0.400** | 1.0 | 19 | as above, over longer paths |
-| transpose | **0.235** | 1.0 | 20 | traffic concentrated on the diagonal's links |
-| hotspot | **0.053** | 0.0625 | 101 | one destination port, shared sixteen ways |
+| no-contention control | **1.000** | 1.0 | 7 | nothing; this is line rate |
+| uniform | **0.603** | 1.0 | 18 | head-of-line blocking at the inputs |
+| bit-complement | **0.500** | 1.0 | 22 | as above, over longer paths |
+| transpose | **0.286** | 0.81 | 25 | traffic concentrated on the diagonal's links |
+| hotspot | **0.066** | 0.125 | 122 | two destination ports for sixteen sources |
 
-Hotspot's ceiling is not the network's. Sixteen devices addressing one can never
-exceed the one flit per cycle that device can eject, so 1/16 is the bound and
-0.053 is 85% of it — the fabric is delivering nearly everything the destination
-can take, and the queue in front of it is what the 101-cycle latency is.
+The first row is the control and it is the one to read first: with nothing in
+each other's way the fabric moves a flit per cycle per device, so everything
+below it is contention and not plumbing. Getting that row to 1.000 was the
+credit fix above; before it, every row was a fifth short for a reason that had
+nothing to do with the traffic.
 
-For the other three the ceiling is 1.0 and the gap is the microarchitecture, as
-the paragraph above promised it would be. The identified cause is head-of-line
-blocking: a receiver exposes one flit at a time, so an input whose head is
-blocked holds up the flit behind it even when *that* one's output is free. The
-remedy is a receiver that can pop out of order, which is a change to
-`//hardware/ip/chi`, and it now has a number to be justified against.
+Two ceilings apply and the lower binds. One is the network's, which `nocgen`
+computes from the link loads. The other is ejection: a destination takes one
+flit per cycle, so a pattern aiming everything at a few of them cannot exceed
+`destinations / devices` however good the fabric is. Hotspot is the obvious case
+— and its count is two rather than one, because a device may not address itself,
+so the target's own traffic goes elsewhere.
+
+For uniform and bit-complement the ceiling is 1.0 and the gap is **head-of-line
+blocking**: a receiver exposes one flit at a time, so an input whose head is
+blocked holds up the flit behind it even when *that* one's output is free. 0.603
+is close to the classic input-queued FIFO bound of `2 − √2 ≈ 0.586`, which is
+what that limit looks like when you hit it. The remedy is a receiver that can pop
+out of order, and the hazard in it is precise: two flits from one input to the
+same output must not be reordered, or per-(src, dst) ordering is broken and the
+failure surfaces as a coherence bug. `//hardware/ip/chi_noc/test` checks that
+ordering exhaustively, which is the safety net such a change would need.
 
 The tests assert a floor a little under each measurement. They are a **ratchet
 against regression, not a specification** — raising one when the design improves
 is the point of having it, and a floor nobody can move is a floor nobody chose.
 
-One honest gap: `nocgen` computes the analytic bound for *uniform* traffic only,
-so transpose and bit-complement are quoted against a ceiling that is theirs only
-in the sense of being an upper bound. Their real bounds are computable from the
-same link-load model and are not yet computed.
-
+One honest gap: `nocgen` computes the network bound for *uniform* traffic only,
+so transpose and bit-complement are quoted against an upper bound rather than
+against theirs.
 Populating P1 as well would double the devices without changing the mesh, and
 the per-link bounds would halve relative to injection while the ejection bound
 stayed put. That is a different reference topology and would get its own numbers.

@@ -431,3 +431,28 @@ more time than it should have.
   Use `--cached --others --exclude-standard` where the question is "does the
   tree build", and plain `ls-files` only where the question is genuinely about
   what is in the history.
+
+- **A number that determines throughput should be measured before it is
+  defaulted.** The credit count was set to four from a comment reasoning that
+  "a credit takes three cycles to come back". It takes five. Every link in the
+  fabric ran at 80% of line rate -- contended or not, loaded or idle -- and
+  nothing failed, nothing warned, and the throughput tests passed against floors
+  that had been set from the same wrong design. Raising it to six moved uniform
+  traffic 39%.
+
+- The way to find that was a **control with no contention in it**: a permutation
+  where every input has exactly one destination and no two streams share a
+  directed link, so nothing can block anything. Whatever it reaches is what the
+  fabric does unobstructed, and everything below it in the other patterns is
+  contention. Without that row, 43% looked like a plausible mesh number and the
+  first plausible explanation -- head-of-line blocking, which is real and *was*
+  there -- would have been accepted and optimised against. Measure the
+  unobstructed case first; it is the cheapest number to get and it calibrates
+  every other one.
+
+- A ceiling asserted in a test is as capable of being wrong as a floor. Hotspot
+  was quoted against 1/16 on the reasoning that sixteen devices addressed one
+  destination. They address two -- a device may not address itself, so the
+  target's own traffic goes elsewhere -- and the improved design correctly
+  exceeded a bound that was never right. Compute a ceiling from what the test
+  actually does, not from what the pattern is called.

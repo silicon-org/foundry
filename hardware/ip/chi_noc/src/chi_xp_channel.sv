@@ -73,7 +73,7 @@ module chi_xp_channel
     // Entries per input, and so also the L-Credits granted for it. Six because
     // the credit round trip is five cycles and anything below that underruns;
     // measured, see the README.
-    parameter int unsigned Credits = 8,
+    parameter int unsigned Credits = 10,
 
     // QoS priority classes, taken from the top bits of QoS. Four is OpenNoC's
     // choice and CHI's intent.

@@ -39,7 +39,7 @@ module chi_xp_input_buffer
     // Entries, and so also the L-Credits granted: a credit is the promise of
     // somewhere to put the flit it will bring. Six, because the credit round
     // trip is five cycles; see chi_xp_channel.
-    parameter int unsigned Credits = 8
+    parameter int unsigned Credits = 10
 ) (
     input logic clk_i,
     input logic rst_ni,

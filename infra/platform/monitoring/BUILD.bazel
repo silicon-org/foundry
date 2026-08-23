@@ -35,7 +35,7 @@ sh_binary(
         "monitoring/kube-prometheus-stack-prometheus:9090:9090",
         "monitoring/kube-prometheus-stack-alertmanager:9093:9093",
     ],
-    env = {"TUNNEL_HINT": "Grafana on http://localhost:3000, admin password in grafana-admin.sops.yaml."},
     data = ["@multitool//tools/kubectl"],
+    env = {"TUNNEL_HINT": "Grafana on http://localhost:3000, admin password in grafana-admin.sops.yaml."},
     deps = ["@bazel_tools//tools/bash/runfiles"],
 )

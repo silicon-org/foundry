@@ -122,7 +122,9 @@ cc_library(
         [
             "lib/Support/*.cpp",
             "lib/Support/*.h",
-        ], allow_empty = True),
+        ],
+        allow_empty = True,
+    ),
     hdrs = glob(["include/circt/Support/*.h"]),
     includes = ["include"],
     deps = [
@@ -136,7 +138,6 @@ cc_library(
         "@llvm-project//mlir:Transforms",
     ],
 )
-
 
 # What every dialect here needs from MLIR, as reported by the mlir/ headers its
 # sources include rather than by guesswork. Named once because eleven copies of
@@ -191,55 +192,55 @@ circt_dialect(
 
 circt_tablegen(
     name = "HWAttrIncGen",
-    dialect = "HW",
     outs = {
         "HWAttributes.h.inc": ["-gen-attrdef-decls"],
         "HWAttributes.cpp.inc": ["-gen-attrdef-defs"],
     },
+    dialect = "HW",
     td = "HW",
 )
 
 circt_tablegen(
     name = "HWEnumsIncGen",
-    dialect = "HW",
     outs = {
         "HWEnums.h.inc": ["-gen-enum-decls"],
         "HWEnums.cpp.inc": ["-gen-enum-defs"],
     },
+    dialect = "HW",
     td = "HWEnums",
 )
 
 circt_tablegen(
     name = "HWCanonicalizationIncGen",
-    dialect = "HW",
     outs = {"HWCanonicalization.cpp.inc": ["-gen-rewriters"]},
+    dialect = "HW",
     td = "HWCanonicalization",
 )
 
 circt_tablegen(
     name = "HWOpInterfacesIncGen",
-    dialect = "HW",
     outs = {
         "HWOpInterfaces.h.inc": ["-gen-op-interface-decls"],
         "HWOpInterfaces.cpp.inc": ["-gen-op-interface-defs"],
     },
+    dialect = "HW",
     td = "HWOpInterfaces",
 )
 
 circt_tablegen(
     name = "HWTypeInterfacesIncGen",
-    dialect = "HW",
     outs = {
         "HWTypeInterfaces.h.inc": ["-gen-type-interface-decls"],
         "HWTypeInterfaces.cpp.inc": ["-gen-type-interface-defs"],
     },
+    dialect = "HW",
     td = "HWTypeInterfaces",
 )
 
 circt_tablegen(
     name = "HWTransformsIncGen",
-    dialect = "HW",
     outs = {"Passes.h.inc": ["-gen-pass-decls"]},
+    dialect = "HW",
     td = "Passes",
 )
 
@@ -256,13 +257,13 @@ cc_library(
     hdrs = glob(["include/circt/Dialect/HW/**/*.h"]),
     includes = ["include"],
     deps = [
-        ":HWTransformsIncGen",
         ":EmitOpInterfaces",
         ":HWAttrIncGen",
         ":HWCanonicalizationIncGen",
         ":HWEnumsIncGen",
         ":HWIncGen",
         ":HWOpInterfacesIncGen",
+        ":HWTransformsIncGen",
         ":HWTypeInterfacesIncGen",
         ":Support",
         "@llvm-project//mlir:ControlFlowInterfaces",
@@ -282,11 +283,11 @@ circt_dialect(
 
 circt_tablegen(
     name = "CombEnumsIncGen",
-    dialect = "Comb",
     outs = {
         "CombEnums.h.inc": ["-gen-enum-decls"],
         "CombEnums.cpp.inc": ["-gen-enum-defs"],
     },
+    dialect = "Comb",
     td = "Comb",
 )
 
@@ -296,7 +297,9 @@ cc_library(
         [
             "lib/Dialect/Comb/*.cpp",
             "lib/Dialect/Comb/*.h",
-        ], allow_empty = True),
+        ],
+        allow_empty = True,
+    ),
     hdrs = glob(["include/circt/Dialect/Comb/**/*.h"]),
     includes = ["include"],
     deps = [
@@ -324,7 +327,9 @@ cc_library(
         [
             "lib/Dialect/Debug/*.cpp",
             "lib/Dialect/Debug/*.h",
-        ], allow_empty = True),
+        ],
+        allow_empty = True,
+    ),
     hdrs = glob(["include/circt/Dialect/Debug/**/*.h"]),
     includes = ["include"],
     deps = [
@@ -340,18 +345,18 @@ circt_dialect(
 
 circt_tablegen(
     name = "EmitOpInterfacesIncGen",
-    dialect = "Emit",
     outs = {
         "EmitOpInterfaces.h.inc": ["-gen-op-interface-decls"],
         "EmitOpInterfaces.cpp.inc": ["-gen-op-interface-defs"],
     },
+    dialect = "Emit",
     td = "EmitOpInterfaces",
 )
 
 circt_tablegen(
     name = "EmitTransformsIncGen",
-    dialect = "Emit",
     outs = {"EmitPasses.h.inc": ["-gen-pass-decls"]},
+    dialect = "Emit",
     td = "EmitPasses",
 )
 
@@ -391,9 +396,9 @@ cc_library(
     ),
     includes = ["include"],
     deps = [
-        ":EmitTransformsIncGen",
         ":EmitIncGen",
         ":EmitOpInterfaces",
+        ":EmitTransformsIncGen",
         ":HW",
         ":Support",
         "@llvm-project//mlir:Pass",
@@ -407,18 +412,18 @@ circt_dialect(
 
 circt_tablegen(
     name = "LTLEnumsIncGen",
-    dialect = "LTL",
     outs = {
         "LTLEnums.h.inc": ["-gen-enum-decls"],
         "LTLEnums.cpp.inc": ["-gen-enum-defs"],
     },
+    dialect = "LTL",
     td = "LTL",
 )
 
 circt_tablegen(
     name = "LTLFoldsIncGen",
-    dialect = "LTL",
     outs = {"LTLFolds.cpp.inc": ["-gen-rewriters"]},
+    dialect = "LTL",
     td = "LTL",
 )
 
@@ -428,7 +433,9 @@ cc_library(
         [
             "lib/Dialect/LTL/*.cpp",
             "lib/Dialect/LTL/*.h",
-        ], allow_empty = True),
+        ],
+        allow_empty = True,
+    ),
     hdrs = glob(["include/circt/Dialect/LTL/**/*.h"]),
     includes = ["include"],
     deps = [
@@ -449,21 +456,21 @@ circt_dialect(
 
 circt_tablegen(
     name = "OMEnumsIncGen",
-    dialect = "OM",
     outs = {
         "OMEnums.h.inc": ["-gen-enum-decls"],
         "OMEnums.cpp.inc": ["-gen-enum-defs"],
     },
+    dialect = "OM",
     td = "OMEnums",
 )
 
 circt_tablegen(
     name = "OMAttrIncGen",
-    dialect = "OM",
     outs = {
         "OMAttributes.h.inc": ["-gen-attrdef-decls"],
         "OMAttributes.cpp.inc": ["-gen-attrdef-defs"],
     },
+    dialect = "OM",
     td = "OM",
 )
 
@@ -474,8 +481,8 @@ circt_interface(
 
 circt_tablegen(
     name = "OMTransformsIncGen",
-    dialect = "OM",
     outs = {"OMPasses.h.inc": ["-gen-pass-decls"]},
+    dialect = "OM",
     td = "OMPasses",
 )
 
@@ -492,12 +499,12 @@ cc_library(
     hdrs = glob(["include/circt/Dialect/OM/**/*.h"]),
     includes = ["include"],
     deps = [
-        ":OMTransformsIncGen",
         ":HW",
         ":OMAttrIncGen",
         ":OMEnumsIncGen",
         ":OMIncGen",
         ":OMOpInterfacesIncGen",
+        ":OMTransformsIncGen",
         ":Support",
         "@llvm-project//mlir:ControlFlowInterfaces",
         "@llvm-project//mlir:Pass",
@@ -512,38 +519,44 @@ circt_dialect(
 
 circt_tablegen(
     name = "SeqEnumsIncGen",
-    dialect = "Seq",
     outs = {
         "SeqEnums.h.inc": ["-gen-enum-decls"],
         "SeqEnums.cpp.inc": ["-gen-enum-defs"],
     },
+    dialect = "Seq",
     td = "Seq",
 )
 
 circt_tablegen(
     name = "SeqAttributesIncGen",
-    dialect = "Seq",
     outs = {
-        "SeqAttributes.h.inc": ["-gen-attrdef-decls", "-attrdefs-dialect=seq"],
-        "SeqAttributes.cpp.inc": ["-gen-attrdef-defs", "-attrdefs-dialect=seq"],
+        "SeqAttributes.h.inc": [
+            "-gen-attrdef-decls",
+            "-attrdefs-dialect=seq",
+        ],
+        "SeqAttributes.cpp.inc": [
+            "-gen-attrdef-defs",
+            "-attrdefs-dialect=seq",
+        ],
     },
+    dialect = "Seq",
     td = "Seq",
 )
 
 circt_tablegen(
     name = "SeqOpInterfacesIncGen",
-    dialect = "Seq",
     outs = {
         "SeqOpInterfaces.h.inc": ["-gen-op-interface-decls"],
         "SeqOpInterfaces.cpp.inc": ["-gen-op-interface-defs"],
     },
+    dialect = "Seq",
     td = "SeqOpInterfaces",
 )
 
 circt_tablegen(
     name = "SeqTransformsIncGen",
-    dialect = "Seq",
     outs = {"SeqPasses.h.inc": ["-gen-pass-decls"]},
+    dialect = "Seq",
     td = "SeqPasses",
 )
 
@@ -553,17 +566,19 @@ cc_library(
         [
             "lib/Dialect/Seq/*.cpp",
             "lib/Dialect/Seq/*.h",
-        ], allow_empty = True),
+        ],
+        allow_empty = True,
+    ),
     hdrs = glob(["include/circt/Dialect/Seq/**/*.h"]),
     includes = ["include"],
     deps = [
-        ":SeqTransformsIncGen",
         ":Comb",
         ":HW",
         ":SeqAttributesIncGen",
         ":SeqEnumsIncGen",
         ":SeqIncGen",
         ":SeqOpInterfacesIncGen",
+        ":SeqTransformsIncGen",
         ":Support",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:ArithDialect",
@@ -579,28 +594,28 @@ circt_dialect(
 
 circt_tablegen(
     name = "SimEnumsIncGen",
-    dialect = "Sim",
     outs = {
         "SimEnums.h.inc": ["-gen-enum-decls"],
         "SimEnums.cpp.inc": ["-gen-enum-defs"],
     },
+    dialect = "Sim",
     td = "Sim",
 )
 
 circt_tablegen(
     name = "SimOpInterfacesIncGen",
-    dialect = "Sim",
     outs = {
         "SimOpInterfaces.h.inc": ["-gen-op-interface-decls"],
         "SimOpInterfaces.cpp.inc": ["-gen-op-interface-defs"],
     },
+    dialect = "Sim",
     td = "SimOpInterfaces",
 )
 
 circt_tablegen(
     name = "SimTransformsIncGen",
-    dialect = "Sim",
     outs = {"SimPasses.h.inc": ["-gen-pass-decls"]},
+    dialect = "Sim",
     td = "SimPasses",
 )
 
@@ -610,18 +625,20 @@ cc_library(
         [
             "lib/Dialect/Sim/*.cpp",
             "lib/Dialect/Sim/*.h",
-        ], allow_empty = True),
+        ],
+        allow_empty = True,
+    ),
     hdrs = glob(["include/circt/Dialect/Sim/**/*.h"]),
     includes = ["include"],
     deps = [
-        ":SimTransformsIncGen",
         ":HW",
+        ":SV",
         ":Seq",
         ":SimEnumsIncGen",
         ":SimIncGen",
         ":SimOpInterfacesIncGen",
+        ":SimTransformsIncGen",
         ":Support",
-        ":SV",
         "@llvm-project//mlir:CallOpInterfaces",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:FunctionInterfaces",
@@ -639,51 +656,59 @@ circt_dialect(
 
 circt_tablegen(
     name = "SVEnumsIncGen",
-    dialect = "SV",
     outs = {
         "SVEnums.h.inc": ["-gen-enum-decls"],
         "SVEnums.cpp.inc": ["-gen-enum-defs"],
     },
+    dialect = "SV",
     td = "SV",
 )
 
 circt_tablegen(
     name = "SVAttributesIncGen",
-    dialect = "SV",
     outs = {
-        "SVAttributes.h.inc": ["-gen-attrdef-decls", "--attrdefs-dialect=sv"],
-        "SVAttributes.cpp.inc": ["-gen-attrdef-defs", "--attrdefs-dialect=sv"],
+        "SVAttributes.h.inc": [
+            "-gen-attrdef-decls",
+            "--attrdefs-dialect=sv",
+        ],
+        "SVAttributes.cpp.inc": [
+            "-gen-attrdef-defs",
+            "--attrdefs-dialect=sv",
+        ],
     },
+    dialect = "SV",
     td = "SV",
 )
 
 circt_tablegen(
     name = "SVTransformsIncGen",
-    dialect = "SV",
     outs = {"SVPasses.h.inc": ["-gen-pass-decls"]},
+    dialect = "SV",
     td = "SVPasses",
 )
 
 cc_library(
     name = "SV",
-    textual_hdrs = ["lib/Dialect/SV/ReservedWords.def"],
     srcs = glob(
         [
             "lib/Dialect/SV/*.cpp",
             "lib/Dialect/SV/*.h",
-        ], allow_empty = True),
+        ],
+        allow_empty = True,
+    ),
     hdrs = glob(["include/circt/Dialect/SV/**/*.h"]),
     includes = ["include"],
+    textual_hdrs = ["lib/Dialect/SV/ReservedWords.def"],
     deps = [
-        ":SVTransformsIncGen",
         ":Comb",
         ":Emit",
         ":HW",
         ":LTL",
-        ":Support",
         ":SVAttributesIncGen",
         ":SVEnumsIncGen",
         ":SVIncGen",
+        ":SVTransformsIncGen",
+        ":Support",
         "@llvm-project//mlir:CallOpInterfaces",
         "@llvm-project//mlir:FunctionInterfaces",
         "@llvm-project//mlir:Pass",
@@ -697,11 +722,11 @@ circt_dialect(
 
 circt_tablegen(
     name = "VerifEnumsIncGen",
-    dialect = "Verif",
     outs = {
         "VerifEnums.h.inc": ["-gen-enum-decls"],
         "VerifEnums.cpp.inc": ["-gen-enum-defs"],
     },
+    dialect = "Verif",
     td = "Verif",
 )
 
@@ -712,8 +737,8 @@ circt_interface(
 
 circt_tablegen(
     name = "VerifTransformsIncGen",
-    dialect = "Verif",
     outs = {"Passes.h.inc": ["-gen-pass-decls"]},
+    dialect = "Verif",
     td = "Passes",
 )
 
@@ -723,11 +748,12 @@ cc_library(
         [
             "lib/Dialect/Verif/*.cpp",
             "lib/Dialect/Verif/*.h",
-        ], allow_empty = True),
+        ],
+        allow_empty = True,
+    ),
     hdrs = glob(["include/circt/Dialect/Verif/**/*.h"]),
     includes = ["include"],
     deps = [
-        ":VerifTransformsIncGen",
         ":HW",
         ":LTL",
         ":Seq",
@@ -735,6 +761,7 @@ cc_library(
         ":VerifEnumsIncGen",
         ":VerifIncGen",
         ":VerifOpInterfacesIncGen",
+        ":VerifTransformsIncGen",
         "@llvm-project//mlir:Analysis",
         "@llvm-project//mlir:FunctionInterfaces",
         "@llvm-project//mlir:Pass",
@@ -758,61 +785,67 @@ circt_dialect(
 
 circt_dialect(
     name = "CHIRRTL",
-    namespace = "chirrtl",
     dir = "FIRRTL",
+    namespace = "chirrtl",
 )
 
 circt_tablegen(
     name = "FIRRTLEnumsIncGen",
-    dialect = "FIRRTL",
     outs = {
         "FIRRTLEnums.h.inc": ["-gen-enum-decls"],
         "FIRRTLEnums.cpp.inc": ["-gen-enum-defs"],
     },
+    dialect = "FIRRTL",
     td = "FIRRTLEnums",
 )
 
 circt_tablegen(
     name = "FIRRTLAttributesIncGen",
-    dialect = "FIRRTL",
     outs = {
-        "FIRRTLAttributes.h.inc": ["-gen-attrdef-decls", "-attrdefs-dialect=firrtl"],
-        "FIRRTLAttributes.cpp.inc": ["-gen-attrdef-defs", "-attrdefs-dialect=firrtl"],
+        "FIRRTLAttributes.h.inc": [
+            "-gen-attrdef-decls",
+            "-attrdefs-dialect=firrtl",
+        ],
+        "FIRRTLAttributes.cpp.inc": [
+            "-gen-attrdef-defs",
+            "-attrdefs-dialect=firrtl",
+        ],
     },
+    dialect = "FIRRTL",
     td = "FIRRTL",
 )
 
 circt_tablegen(
     name = "FIRRTLCanonicalizationIncGen",
-    dialect = "FIRRTL",
     outs = {"FIRRTLCanonicalization.h.inc": ["-gen-rewriters"]},
+    dialect = "FIRRTL",
     td = "FIRRTLCanonicalization",
 )
 
 circt_tablegen(
     name = "FIRRTLOpInterfacesIncGen",
-    dialect = "FIRRTL",
     outs = {
         "FIRRTLOpInterfaces.h.inc": ["-gen-op-interface-decls"],
         "FIRRTLOpInterfaces.cpp.inc": ["-gen-op-interface-defs"],
     },
+    dialect = "FIRRTL",
     td = "FIRRTLOpInterfaces",
 )
 
 circt_tablegen(
     name = "FIRRTLTypeInterfacesIncGen",
-    dialect = "FIRRTL",
     outs = {
         "FIRRTLTypeInterfaces.h.inc": ["-gen-type-interface-decls"],
         "FIRRTLTypeInterfaces.cpp.inc": ["-gen-type-interface-defs"],
     },
+    dialect = "FIRRTL",
     td = "FIRRTLTypeInterfaces",
 )
 
 circt_tablegen(
     name = "FIRRTLTransformsIncGen",
-    dialect = "FIRRTL",
     outs = {"Passes.h.inc": ["-gen-pass-decls"]},
+    dialect = "FIRRTL",
     td = "Passes",
 )
 
@@ -857,7 +890,6 @@ cc_library(
     hdrs = glob(["include/circt/Dialect/FIRRTL/**/*.h"]),
     includes = ["include"],
     deps = [
-        ":FIRRTLTransformsIncGen",
         ":CHIRRTLIncGen",
         ":FIRRTLAnnotationsIncGen",
         ":FIRRTLAttributesIncGen",
@@ -866,6 +898,7 @@ cc_library(
         ":FIRRTLIncGen",
         ":FIRRTLIntrinsicsIncGen",
         ":FIRRTLOpInterfacesIncGen",
+        ":FIRRTLTransformsIncGen",
         ":FIRRTLTypeInterfacesIncGen",
         ":HW",
         ":OM",
@@ -1015,10 +1048,13 @@ cc_library(
 
 cc_library(
     name = "HWTransforms",
-    srcs = glob([
-        "lib/Dialect/HW/Transforms/*.cpp",
-        "lib/Dialect/HW/Transforms/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Dialect/HW/Transforms/*.cpp",
+            "lib/Dialect/HW/Transforms/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":Comb",
         ":HW",
@@ -1034,10 +1070,13 @@ cc_library(
 
 cc_library(
     name = "OMTransforms",
-    srcs = glob([
-        "lib/Dialect/OM/Transforms/*.cpp",
-        "lib/Dialect/OM/Transforms/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Dialect/OM/Transforms/*.cpp",
+            "lib/Dialect/OM/Transforms/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":HW",
         ":OM",
@@ -1051,10 +1090,13 @@ cc_library(
 
 cc_library(
     name = "SVTransforms",
-    srcs = glob([
-        "lib/Dialect/SV/Transforms/*.cpp",
-        "lib/Dialect/SV/Transforms/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Dialect/SV/Transforms/*.cpp",
+            "lib/Dialect/SV/Transforms/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":Comb",
         ":Emit",
@@ -1072,10 +1114,13 @@ cc_library(
 
 cc_library(
     name = "SeqTransforms",
-    srcs = glob([
-        "lib/Dialect/Seq/Transforms/*.cpp",
-        "lib/Dialect/Seq/Transforms/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Dialect/Seq/Transforms/*.cpp",
+            "lib/Dialect/Seq/Transforms/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":Comb",
         ":Emit",
@@ -1093,10 +1138,13 @@ cc_library(
 
 cc_library(
     name = "VerifTransforms",
-    srcs = glob([
-        "lib/Dialect/Verif/Transforms/*.cpp",
-        "lib/Dialect/Verif/Transforms/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Dialect/Verif/Transforms/*.cpp",
+            "lib/Dialect/Verif/Transforms/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":HW",
         ":LTL",
@@ -1155,10 +1203,13 @@ gentbl_cc_library(
 
 cc_library(
     name = "ExportVerilog",
-    srcs = glob([
-        "lib/Conversion/ExportVerilog/*.cpp",
-        "lib/Conversion/ExportVerilog/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Conversion/ExportVerilog/*.cpp",
+            "lib/Conversion/ExportVerilog/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":Comb",
         ":ConversionHeaders",
@@ -1181,10 +1232,13 @@ cc_library(
 
 cc_library(
     name = "SVLoweringUtils",
-    srcs = glob([
-        "lib/Conversion/Utils/*.cpp",
-        "lib/Conversion/Utils/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Conversion/Utils/*.cpp",
+            "lib/Conversion/Utils/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":ConversionHeaders",
         ":Emit",
@@ -1195,10 +1249,13 @@ cc_library(
 
 cc_library(
     name = "FIRRTLToHW",
-    srcs = glob([
-        "lib/Conversion/FIRRTLToHW/*.cpp",
-        "lib/Conversion/FIRRTLToHW/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Conversion/FIRRTLToHW/*.cpp",
+            "lib/Conversion/FIRRTLToHW/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":Comb",
         ":ConversionHeaders",
@@ -1219,10 +1276,13 @@ cc_library(
 
 cc_library(
     name = "HWToBTOR2",
-    srcs = glob([
-        "lib/Conversion/HWToBTOR2/*.cpp",
-        "lib/Conversion/HWToBTOR2/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Conversion/HWToBTOR2/*.cpp",
+            "lib/Conversion/HWToBTOR2/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":Comb",
         ":ConversionHeaders",
@@ -1238,10 +1298,13 @@ cc_library(
 
 cc_library(
     name = "LTLToCore",
-    srcs = glob([
-        "lib/Conversion/LTLToCore/*.cpp",
-        "lib/Conversion/LTLToCore/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Conversion/LTLToCore/*.cpp",
+            "lib/Conversion/LTLToCore/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":Comb",
         ":ConversionHeaders",
@@ -1261,10 +1324,13 @@ cc_library(
 
 cc_library(
     name = "SeqToSV",
-    srcs = glob([
-        "lib/Conversion/SeqToSV/*.cpp",
-        "lib/Conversion/SeqToSV/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Conversion/SeqToSV/*.cpp",
+            "lib/Conversion/SeqToSV/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":ConversionHeaders",
         ":Emit",
@@ -1279,10 +1345,13 @@ cc_library(
 
 cc_library(
     name = "SimToSV",
-    srcs = glob([
-        "lib/Conversion/SimToSV/*.cpp",
-        "lib/Conversion/SimToSV/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Conversion/SimToSV/*.cpp",
+            "lib/Conversion/SimToSV/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":ConversionHeaders",
         ":Emit",
@@ -1297,10 +1366,13 @@ cc_library(
 
 cc_library(
     name = "VerifToSV",
-    srcs = glob([
-        "lib/Conversion/VerifToSV/*.cpp",
-        "lib/Conversion/VerifToSV/*.h",
-    ], allow_empty = True),
+    srcs = glob(
+        [
+            "lib/Conversion/VerifToSV/*.cpp",
+            "lib/Conversion/VerifToSV/*.h",
+        ],
+        allow_empty = True,
+    ),
     deps = [
         ":ConversionHeaders",
         ":SV",

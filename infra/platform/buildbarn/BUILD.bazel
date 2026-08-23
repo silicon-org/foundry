@@ -1,3 +1,5 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
 # A handful of actions whose only purpose is to exercise the remote cache end
 # to end. Not a build -- a probe. Deliberately owned by the cache component
 # rather than parked in a scratch package, because when it fails the thing that
@@ -30,8 +32,6 @@ filegroup(
     visibility = ["//infra/platform:__pkg__"],
 )
 
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-
 # bazel run //infra/platform/buildbarn:tunnel-local
 # bazel run //infra/platform/buildbarn:tunnel-hetzner
 #
@@ -47,8 +47,8 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
             target,
             cluster,
         ] + specs,
-        env = {"TUNNEL_HINT": "Build with --config=" + cluster + "-dev."},
         data = ["@multitool//tools/kubectl"],
+        env = {"TUNNEL_HINT": "Build with --config=" + cluster + "-dev."},
         deps = ["@bazel_tools//tools/bash/runfiles"],
     )
     for cluster, target, specs in [

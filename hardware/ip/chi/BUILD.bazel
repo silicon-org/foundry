@@ -15,3 +15,26 @@ verilog_library(
     srcs = ["src/chi_pkg.sv"],
     hdrs = ["include/chi_typedef.svh"],
 )
+
+# The link layer: L-Credit flow control and the LINKACTIVE handshake, and
+# nothing about what a flit means.
+#
+# Written for //hardware/vip/chi, which said at the time that these were
+# "synthesisable in shape, so the same module can front real RTL later". Later
+# arrived: //hardware/ip/chi_noc builds every crosspoint port out of them, so
+# they belong beside the specification they implement rather than beside one of
+# their two users.
+#
+# Parameterised library modules, so no top_module -- the lint aspect cannot
+# elaborate one in isolation, and //hardware/vip/chi/test is where the pair is
+# wired to itself and run.
+verilog_library(
+    name = "chi_link",
+    srcs = [
+        "src/chi_link_activation_ack.sv",
+        "src/chi_link_activation_req.sv",
+        "src/chi_link_rx_channel.sv",
+        "src/chi_link_tx_channel.sv",
+    ],
+    deps = [":chi_pkg"],
+)

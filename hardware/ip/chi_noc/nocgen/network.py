@@ -98,16 +98,20 @@ class Network:
         combinational. There are exactly two kinds of register: a transmitter's
         flit register, and a receiver's buffer write.
 
-        A path crosses `hops + 1` crosspoints, each contributing one of each, and
-        the two device ends contribute one each. So `2 * (hops + 1) + 2`, or
-        `2 * hops + 4`.
+        A crosspoint holds two of them -- the write into its input buffer, and
+        the payload memory's registered output -- and each link holds one, the
+        transmitter's flit register. A path crosses `hops + 1` crosspoints and
+        `hops + 2` links, the two extra links being the device's own at each
+        end: `3 * hops + 5`.
 
         Measured, not assumed: //hardware/ip/chi_noc/test drives every ordered
-        pair through an otherwise empty mesh and requires this exactly. An
-        earlier version of this function charged a crosspoint two cycles on the
-        theory that arbitrating took one, and was wrong by a cycle per hop.
+        pair through an otherwise empty mesh and requires this exactly. It has
+        been wrong twice. It first charged a crosspoint two cycles on the theory
+        that arbitrating took one, when arbitration is combinational and the
+        answer was `2 * hops + 4`. Then the payload memory's output was
+        registered, as an SRAM's is, and the crosspoint really did cost two.
         """
-        return 2 * (hops + 1) + 2
+        return 3 * (hops + 1) + 2
 
 
 def elaborate(config: Topology) -> Network:

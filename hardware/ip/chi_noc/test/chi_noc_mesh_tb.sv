@@ -23,11 +23,15 @@ module chi_noc_mesh_tb #(
     // Matches the fabric's: a device link with fewer credits than the
     // crosspoints have would be the bottleneck, and would be measuring the
     // testbench rather than the mesh.
-    parameter int unsigned Credits = 6,
+    parameter int unsigned Credits = 8,
 
     // Flits per source for the throughput and pattern cases. Enough that the
-    // measurement is of steady state rather than of filling the pipes.
-    parameter int unsigned BurstFlits = 256,
+    // measurement is of steady state rather than of filling the pipes -- and
+    // enough for the *uniform* case to settle, which needs far more than the
+    // others because it draws a fresh destination per flit. At 256 it read
+    // 63.7% where 2048 reads 70.9%; the deterministic patterns were identical
+    // at both.
+    parameter int unsigned BurstFlits = 1024,
 
     parameter int unsigned Timeout = 400000
 );
@@ -195,8 +199,8 @@ module chi_noc_mesh_tb #(
   // else, so its ceiling is one flit per cycle shared sixteen ways.
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  localparam int unsigned FloorUniform = 560;  // measured 603
-  localparam int unsigned FloorTranspose = 270;  // measured 286
+  localparam int unsigned FloorUniform = 660;  // measured 709
+  localparam int unsigned FloorTranspose = 310;  // measured 333
   localparam int unsigned FloorComplement = 470;  // measured 500
   localparam int unsigned FloorHotspot = 60;  // measured 66, against a ceiling of 125
   localparam int unsigned FloorNeighbour = 950;  // measured 1000 -- line rate

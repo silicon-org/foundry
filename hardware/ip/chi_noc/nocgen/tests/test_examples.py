@@ -128,15 +128,15 @@ def test_mesh4x4_mean_hop_count_is_two_and_a_half(mesh4x4):
 
 
 def test_mesh4x4_zero_load_latency_matches_the_readme(mesh4x4):
-    """2H + 4 cycles, which is one register per stage and nothing for logic.
+    """3H + 5 cycles: two registers in a crosspoint and one on each link.
 
     Confirmed against the RTL by chi_noc_mesh_latency_test, which drives every
     ordered pair through an empty mesh; these are the same numbers.
     """
-    assert mesh4x4.zero_load_latency(0) == 4
-    assert mesh4x4.zero_load_latency(1) == 6
-    assert mesh4x4.zero_load_latency(6) == 16
-    assert all(mesh4x4.zero_load_latency(h) == 2 * h + 4 for h in range(7))
+    assert mesh4x4.zero_load_latency(0) == 5
+    assert mesh4x4.zero_load_latency(1) == 8
+    assert mesh4x4.zero_load_latency(6) == 23
+    assert all(mesh4x4.zero_load_latency(h) == 3 * h + 5 for h in range(7))
 
 
 def test_mesh4x4_saturates_at_one_flit_per_cycle(mesh4x4):

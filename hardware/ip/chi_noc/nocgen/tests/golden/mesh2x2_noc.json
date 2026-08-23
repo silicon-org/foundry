@@ -77,14 +77,14 @@
   "analysis": {
     "mean_hops": 0.96,
     "saturation_bound": 1.0,
-    "zero_load_latency_mean": 6
+    "zero_load_latency_mean": 8
   },
   "routes": [
     {
       "src": "rnf0",
       "dst": "rnf0",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 0,
@@ -97,7 +97,7 @@
       "src": "rnf0",
       "dst": "rnf1",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 0,
@@ -110,7 +110,7 @@
       "src": "rnf0",
       "dst": "hnf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -128,7 +128,7 @@
       "src": "rnf0",
       "dst": "hni0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -146,7 +146,7 @@
       "src": "rnf0",
       "dst": "snf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -169,7 +169,7 @@
       "src": "rnf1",
       "dst": "rnf0",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 0,
@@ -182,7 +182,7 @@
       "src": "rnf1",
       "dst": "rnf1",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 0,
@@ -195,7 +195,7 @@
       "src": "rnf1",
       "dst": "hnf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -213,7 +213,7 @@
       "src": "rnf1",
       "dst": "hni0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -231,7 +231,7 @@
       "src": "rnf1",
       "dst": "snf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -254,7 +254,7 @@
       "src": "hnf0",
       "dst": "rnf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -272,7 +272,7 @@
       "src": "hnf0",
       "dst": "rnf1",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -290,7 +290,7 @@
       "src": "hnf0",
       "dst": "hnf0",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 1,
@@ -303,7 +303,7 @@
       "src": "hnf0",
       "dst": "hni0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -326,7 +326,7 @@
       "src": "hnf0",
       "dst": "snf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -344,7 +344,7 @@
       "src": "hni0",
       "dst": "rnf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -362,7 +362,7 @@
       "src": "hni0",
       "dst": "rnf1",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -380,7 +380,7 @@
       "src": "hni0",
       "dst": "hnf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 0,
@@ -403,7 +403,7 @@
       "src": "hni0",
       "dst": "hni0",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 0,
@@ -416,7 +416,7 @@
       "src": "hni0",
       "dst": "snf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 0,
@@ -434,7 +434,7 @@
       "src": "snf0",
       "dst": "rnf0",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -457,7 +457,7 @@
       "src": "snf0",
       "dst": "rnf1",
       "hops": 2,
-      "latency": 8,
+      "latency": 11,
       "path": [
         {
           "x": 1,
@@ -480,7 +480,7 @@
       "src": "snf0",
       "dst": "hnf0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -498,7 +498,7 @@
       "src": "snf0",
       "dst": "hni0",
       "hops": 1,
-      "latency": 6,
+      "latency": 8,
       "path": [
         {
           "x": 1,
@@ -516,7 +516,7 @@
       "src": "snf0",
       "dst": "snf0",
       "hops": 0,
-      "latency": 4,
+      "latency": 5,
       "path": [
         {
           "x": 1,

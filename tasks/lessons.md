@@ -498,3 +498,38 @@ more time than it should have.
   read the same value -- the same trap as the earlier scoreboard, in a place
   where the usual non-blocking rule buys nothing because none of it is design
   state.
+
+- **Removing head-of-line blocking can lose more than it gains, and the losing
+  half is the scheduler.** A single FIFO per input has a poor *choice* -- its
+  head may want a busy output -- but a perfect *match*: it offers one flit to
+  one output, so no two outputs can collide over it. Per-output queues fix the
+  choice and create the collision, and with one grant-and-accept pass the
+  collisions cost more than the choice was worth: 0.533 against the FIFO's
+  0.603. Three passes turned it into 0.709. Anyone proposing virtual output
+  queues should budget for the matching passes in the same breath.
+
+- A shared buffer pool split across per-output queues gives the bottleneck flow
+  **fewer** slots than a dedicated FIFO gave it, so the same depth is not the
+  same depth. Bit-complement went backwards at six credits and was restored at
+  eight. It is also the honest argument for putting the payload in an SRAM: the
+  fix wants entries, and entries are what make 422-bit storage cost something.
+
+- Separating a wide payload from the few bits a scheduler reads is worth doing
+  for its own sake. Here it is 422 bits against eighteen -- the scheduler reads
+  six queue-valid bits and six priorities per input and nothing else -- so the
+  part that is searched every cycle is a flop array and the part that is only
+  ever indexed can be a macro. The destination does not even need storing: once
+  an entry is linked into the queue *for* an output, which output it wants is
+  which list it is on, and keeping the field too would be keeping one fact twice.
+
+- An SRAM's registered output is not just a cycle of latency, it is a
+  **commitment**: the read result appears once and is gone, so a scheduler may
+  only issue a read it is certain has somewhere to land. That means reserving
+  the credit at schedule time and checking `credits - committed`, not `credits`.
+  Without it the flit is lost with nothing to say so, which is why there is an
+  assertion for exactly that.
+
+- A throughput number that moves with the sample size is not yet a measurement.
+  Uniform random read 63.7% at 256 flits per source and 70.9% at 2048; the
+  deterministic patterns were identical at both. Check the sample before
+  believing a difference, especially before believing a regression.
